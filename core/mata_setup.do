@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Mataq Setup
+* EpiMAP Myeloma - Mata Setup
 *
 * Architecture:
 *   - Vectors: Patient characteristics that don't change (Age, Male, ECOG, RISS)
@@ -18,7 +18,6 @@ program define mata_setup
 	mata: Obs = st_nobs()
 	
 	*mCore - Core patient characteristics
-{
     mata {
         mCore = st_data(.,"ID Male ECOGcc RISS CMc")
         rmCore = J(Obs, 2, "")
@@ -30,10 +29,8 @@ program define mata_setup
         cmCore[4,1] = "RISS"
 		cmCore[5,1] = "CMc"
     }
-}
 
 	*mState - State matrix
-{
 	mata {
 		mState = st_data(.,"State DateDN")
 		rmState = J(Obs,2,"")
@@ -41,12 +38,10 @@ program define mata_setup
 		cmState = J(2,2,"")
 		cmState[1,1] = "State"
 		cmState[2,1] = "DateDN"
-	}	
-}	
+	}		
 	*_matrix_list(mState, rmState, cmState)
 
 	*mCom - Comorbidity matrix
-{
 	mata {
 		mCom = st_data(.,"Age70 Age75 CMc")
 		rmCom = J(Obs,2,"")
@@ -56,11 +51,9 @@ program define mata_setup
 		cmCom[2,1] = "Age75"
 		cmCom[3,1] = "CMc" 
 	}
-}
 	*mata: _matrix_list(mCom, rmCom, cmCom)
 		
 	*mSCT
-{
 	mata {
 		mSCT = st_data(., "SCT SCT") // Currently using same variable twice
 		rmSCT = J(Obs,2,"")
@@ -68,24 +61,20 @@ program define mata_setup
 		cmSCT = J(2,2,"")
 		cmSCT[1,1] = "SCT_DN"
 		cmSCT[2,1] = "SCT_L1"
-	}
-}		
+	}		
 	*mata: _matrix_list(mSCT, rmSCT, cmSCT)
 		
 	*mMNT
-{
 	mata {
 		mMNT = st_data(.,"MNT")
 		rmMNT = J(Obs,2,"")
 		rmMNT[.,2] = strofreal(1::Obs)
 		cmMNT = J(1,2,"")
 		cmMNT[1,1] = "MNT"
-	}
-}		
+	}		
 	*mata: _matrix_list(mMNT, rmMNT, cmMNT)	
 		
 	*mCons
-{
 	gen Cons = 1
 	mata {
 		mCons = st_data(.,"Cons")
@@ -93,12 +82,10 @@ program define mata_setup
 		rmCons[.,2] = strofreal(1::Obs)
 		cmCons = J(1,2,"")
 		cmCons[1,1] = "Cons"
-	}
-}		
-		*mata: _matrix_list(mCons, rmCons, cmCons)	
+	}		
+	*mata: _matrix_list(mCons, rmCons, cmCons)	
 	
 	*mAge - Age (at event)
-{	
 	mata {
 		mAge = st_data(., "Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E")
 		rmAge = J(Obs, 2, "")
@@ -123,12 +110,10 @@ program define mata_setup
 		cmAge[17,1] = "Age_L8E"
 		cmAge[18,1] = "Age_L9S"
 		cmAge[19,1] = "Age_L9E"
-	}
-}		
+	}	
 	*mata: _matrix_list(mAge, rmAge, cmAge)		
 
 	*mOS - Overall Survival (from DN)
-{	
 	mata {
 		mOS = J(Obs,19,.)
 		rmOS = J(Obs, 2, "")
@@ -153,12 +138,10 @@ program define mata_setup
 		cmOS[17,1] = "OS_L8E"
 		cmOS[18,1] = "OS_L9S"
 		cmOS[19,1] = "OS_L9E"
-	}
-}			
+	}		
 	*mata: _matrix_list(mOS, rmOS, cmOS)		
 
-	*mTNE - Time to Next Event
-{	
+	*mTNE - Time to Next Event	
 	mata {
 		mTNE = st_data(., "TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E")
 		rmTNE = J(Obs, 2, "")
@@ -183,12 +166,10 @@ program define mata_setup
 		cmTNE[17,1] = "TNE_L8E"
 		cmTNE[18,1] = "TNE_L9S"
 		cmTNE[19,1] = "TNE_L9E"
-	}
-}			
+	}			
 	*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		
 	*mTSD - Time Since Diagnosis
-{	
 	mata {
 		mTSD = st_data(., "TSD_DN TSD_L1S TSD_L1E TSD_L2S TSD_L2E TSD_L3S TSD_L3E TSD_L4S TSD_L4E TSD_L5S TSD_L5E TSD_L6S TSD_L6E TSD_L7S TSD_L7E TSD_L8S TSD_L8E TSD_L9S TSD_L9E")
 		mTSD[., 1] = J(Obs, 1, 0) // Set to TSD_DN to 0
@@ -214,12 +195,10 @@ program define mata_setup
 		cmTSD[17,1] = "TSD_L8E"
 		cmTSD[18,1] = "TSD_L9S"
 		cmTSD[19,1] = "TSD_L9E"
-	}
-}			
+	}	
 	*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
 		
 	*mMOR - Mortality (=1 if patient dies before next event) 
-{	
 	mata {
 		mMOR = st_data(., "MOR_DN MOR_L1S MOR_L1E MOR_L2S MOR_L2E MOR_L3S MOR_L3E MOR_L4S MOR_L4E MOR_L5S MOR_L5E MOR_L6S MOR_L6E MOR_L7S MOR_L7E MOR_L8S MOR_L8E MOR_L9S MOR_L9E")
 		rmMOR = J(Obs, 2, "")
@@ -244,12 +223,10 @@ program define mata_setup
 		cmMOR[17,1] = "MOR_L8E"
 		cmMOR[18,1] = "MOR_L9S"
 		cmMOR[19,1] = "MOR_L9E"
-	}
-}			
+	}	
 	*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 	*mOC - Outcome
-{	
 	mata {
 		mOC = J(Obs,2,.)				
 		rmOC = J(Obs, 2, "")
@@ -258,11 +235,9 @@ program define mata_setup
 		cmOC[1,1] = "Time"
 		cmOC[2,1] = "Mort"
 	}
-}		
 	*mata: _matrix_list(mOC, rmOC, cmOC)	
 		
-	*mTXR - Treatment Regimen 
-{		
+	*mTXR - Treatment Regimen 	
 	mata {
 		mTXR = st_data(., "CR_L1 CR_L2 CR_L3 CR_L4 CR_L5 CR_L6 CR_L7 CR_L8 CR_L9")		
 		rmTXR = J(Obs, 2, "")
@@ -277,12 +252,10 @@ program define mata_setup
 		cmTXR[7,1] = "TXR_L7"
 		cmTXR[8,1] = "TXR_L8"
 		cmTXR[9,1] = "TXR_L9"
-	}
-}		
+	}	
 	*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
 	*mTXD - Treatment Duration
-{		
 	mata {
 		mTXD = st_data(., "CD_L1 CD_L2 CD_L3 CD_L4 CD_L5 CD_L6 CD_L7 CD_L8 CD_L9")		
 		rmTXD = J(Obs, 2, "")
@@ -298,11 +271,9 @@ program define mata_setup
 		cmTXD[8,1] = "TXD_L8"
 		cmTXD[9,1] = "TXD_L9"
 	}
-}		
 	*mata: _matrix_list(mTXD, rmTXD, cmTXD)	
 		
 	*mBCR - Best Clinical Response 
-{	
 	mata {
 		mBCR = st_data(., "BCR_L1 BCR_L2 BCR_L3 BCR_L4 BCR_L5 BCR_L6 BCR_L7 BCR_L8 BCR_L9 BCR_SCT")		
 		rmBCR = J(Obs, 2, "")
@@ -318,12 +289,10 @@ program define mata_setup
 		cmBCR[8,1] = "BCR_L8"
 		cmBCR[9,1] = "BCR_L9"
 		cmBCR[10,1] = "BCR_SCT"
-	}
-}			
+	}	
 	*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	*mTFI - Treatment-free Interval 
-{		
 	mata {
 		mTFI = st_data(., "CI_L1 CI_L2 CI_L3 CI_L4 CI_L5 CI_L6 CI_L7 CI_L8 CI_L9")		
 		rmTFI = J(Obs, 2, "")
@@ -339,7 +308,6 @@ program define mata_setup
 		cmTFI[8,1] = "TFI_L7"
 		cmTFI[9,1] = "TFI_L8"
 	}
-}		
 	*mata: _matrix_list(mTFI, rmTFI, cmTFI)
 
 	di as text _n "Setting up patient characteristic vectors..."

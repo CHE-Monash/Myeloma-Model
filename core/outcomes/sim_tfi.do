@@ -7,16 +7,15 @@
 **********
 
 mata {
-	// Filters
-	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-	idx = selectindex(vEligible)
-	
+    // Select patients
+    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
 	if (rows(idx) > 0) {
+		
 		// Generate random numbers for all patients
 		vRN = runiform(rows(mMOR), 1)
 		
 		// Initialize outcome vector
-		vOutcome = J(rows(mMOR), 1, .)
+		vOut = J(rows(mMOR), 1, .)
 		
 		// Select coefficient matrix based on Line
 		if (Line == 2) {

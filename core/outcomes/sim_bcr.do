@@ -8,15 +8,11 @@
 *   - Single implementation works across all therapy lines
 *   - Handles 6 categories (L1-L2): CR, nCR, VGPR, MR, PR, SD/PD
 *   - Handles 3 categories (L3-L9): CR, VGPR, PR
-*   - Uses vectorised matrix multiplication (no patient loops)
 *   - Dynamically adjusts predictors based on line number
 *
 * Categories:
 * 6-category (L1-L2): 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
 * 3-category (L3+): 1=CR/VGPR, 3=PR/MR, 5=SD/PD
-*
-* Author: Modernised vectorised implementation
-* Date: October 2025
 **********
 
 mata:
@@ -34,25 +30,28 @@ mata:
 	
 	// Extract previous BCR
 	if (Line >= 2) {
-		if (Line == 2) {
-			// L2: BCR_L1 for all, plus BCR_SCT interactions for ASCT patients
-			BCR_L1 = mBCR[., 1]
-			pBCR_VGPR = (BCR_L1 :== 2)
-			pBCR_PR = (BCR_L1 :== 3)
-			pBCR_MR = (BCR_L1 :== 4)
-			pBCR_SD = (BCR_L1 :== 5)
-			pBCR_PD = (BCR_L1 :== 6)
-			
+		if (Line == 2 | Line == 3) { // 6-category
+			pBCR = mBCR[., Line]
+			pBCR_CR = (pBCR :== 1)
+			pBCR_VG = (pBCR :== 2)
+			pBCR_PR = (pBCR :== 3)
+			pBCR_MR = (pBCR :== 4)
+			pBCR_SD = (pBCR :== 5)
+			pBCR_PD = (pBCR :== 6)
+		}
+		if (Line == 2) { // Also need BCR_SCT
 			BCR_SCT = mBCR[., 10]
+			pBCR_SCT_0 = (BCR_SCT :== 0) // No ASCT patients
 			pBCR_SCT_1 = (BCR_SCT :== 1)
 			pBCR_SCT_2 = (BCR_SCT :== 2)
 			pBCR_SCT_3 = (BCR_SCT :== 3)
 			pBCR_SCT_4 = (BCR_SCT :== 4)
 		}
 		else {
-			// L3+: Use previous line BCR
+			// L4+ 3-category
 			prevLineIdx = Line - 1
 			prevBCR = mBCR[., prevLineIdx]
+			pBCR_CR = (prevBCR :== 1)
 			pBCR_PR = (prevBCR :== 3)
 			pBCR_SD = (prevBCR :== 5)
 		}
@@ -78,12 +77,22 @@ mata:
 	}
 	
 	// Build patient matrix
-	pMatrix = (vAge, vAge2, vMale, vECOG0, vECOG1, vECOG2, vRISS1, vRISS2, vRISS3)
+	mPat = (vAge, vAge2, vMale, vECOG0, vECOG1, vECOG2, vRISS1, vRISS2, vRISS3)
 	
 	// Add SCT
-	if (Line == 1) pMatrix = pMatrix, vSCT_DN
-	else pMatrix = pMatrix, vSCT_L1
+	if (Line == 1) mPat = mPat, vSCT_DN
 	
+	// Add previous BCR
+	if (Line == 2 | Line == 3) {
+		mPat = mPat, (pBCR_CR, pBCR_VG, pBCR_PR, pBCR_MR, pBCR_SD, pBCR_PD)
+	}	
+	if (Line == 2) {
+		mPat = mPat, (pBCR_SCT_0, pBCR_SCT_1, pBCR_SCT_2, pBCR_SCT_3, pBCR_SCT_4)
+	}
+	else if (Line >= 4) {
+		mPat = mPat, (pBCR_CR, pBCR_PR, pBCR_SD)
+	}
+		
 	// Add TXR dummies
 	if (Line <= 4) {
 		if (Line == 1) oVector = oL1_TXR
@@ -93,37 +102,27 @@ mata:
 		
 		currentTX = mTXR[., Line]
 		
-		if (cols(oVector) >= 1) pMatrix = pMatrix, (currentTX :== oVector[1, 1])
-		if (cols(oVector) >= 2) pMatrix = pMatrix, (currentTX :== oVector[1, 2])
-		if (cols(oVector) >= 3) pMatrix = pMatrix, (currentTX :== oVector[1, 3])
-		if (cols(oVector) >= 4) pMatrix = pMatrix, (currentTX :== oVector[1, 4])
+		if (cols(oVector) >= 1) mPat = mPat, (currentTX :== oVector[1, 1])
+		if (cols(oVector) >= 2) mPat = mPat, (currentTX :== oVector[1, 2])
+		if (cols(oVector) >= 3) mPat = mPat, (currentTX :== oVector[1, 3])
+		if (cols(oVector) >= 4) mPat = mPat, (currentTX :== oVector[1, 4])
 	}
 	
-	// Add previous BCR
-	if (Line == 2) {
-		pMatrix = pMatrix, (pBCR_VGPR, pBCR_PR, pBCR_MR, pBCR_SD, pBCR_PD)
-		pMatrix = pMatrix, (pBCR_SCT_1 :* vSCT_L1, pBCR_SCT_2 :* vSCT_L1, 
-		                    pBCR_SCT_3 :* vSCT_L1, pBCR_SCT_4 :* vSCT_L1)
-	}
-	else if (Line >= 3) {
-		pMatrix = pMatrix, (pBCR_PR, pBCR_SD)
-	}
-	
-	nPredictors = cols(pMatrix)
+	nPredictors = cols(mPat)
 	
 	// Extract coefficients
-	if (Line == 1) bMatrix = bL1_BCR
-	if (Line == 2) bMatrix = bL2_BCR
-	if (Line == 3) bMatrix = bL3_BCR
-	if (Line == 4) bMatrix = bL4_BCR
-	if (Line >= 5) bMatrix = bLX_BCR
+	if (Line == 1) vCoef_full = bL1_BCR
+	if (Line == 2) vCoef_full = bL2_BCR
+	if (Line == 3) vCoef_full = bL3_BCR
+	if (Line == 4) vCoef_full = bL4_BCR
+	if (Line >= 5) vCoef_full = bLX_BCR
 	
-	coefVector = bMatrix[1, 1..nPredictors]'
-	cutPointIndices = (cols(bMatrix) - nCutPoints + 1)..cols(bMatrix)
-	cutPoints = bMatrix[1, cutPointIndices]
+	vCoef = vCoef_full[1, 1..nPredictors]'
+	cutPointIndices = (cols(vCoef_full) - nCutPoints + 1)..cols(vCoef_full)
+	cutPoints = vCoef_full[1, cutPointIndices]
 	
 	// Calculate XB
-	XB = pMatrix * coefVector
+	XB = mPat * vCoef
 	
 	// Calculate probabilities
 	cumProbs = calcOrdLogitProbs(XB, cutPoints)
@@ -149,3 +148,14 @@ mata:
 		}
 	}
 end
+
+// Check for override file, execute if it exists
+mata: st_local("current_line", strofreal(Line))
+if "${Line}" == "`current_line'" {
+	local override_file "${analysis_path}/outcomes/sim_bcr_override_${Int}_l${Line}.do"
+	capture confirm file "`override_file'"
+	if _rc == 0 {
+		di "Exists"
+		quietly do "`override_file'"
+	}
+}

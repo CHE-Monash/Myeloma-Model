@@ -12,8 +12,6 @@
 **********
 
 mata:
-mata clear
-
 //=============================================================================
 // SURVIVAL DISTRIBUTION FUNCTIONS
 //=============================================================================
@@ -428,96 +426,4 @@ void validateRandomNumbers(
 // This would standardize the pattern and reduce errors
 //=============================================================================
 
-
-//=============================================================================
-// EXAMPLE USAGE PATTERNS (for reference)
-//=============================================================================
-//
-// *** SURVIVAL OUTCOME (CI, CD, TNI, OS) ***
-//
-// mata:
-//     // Build patient matrix
-//     pCI_L2 = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, 
-//               (prevBCR:==3), (prevBCR:==5), vCons)
-//     
-//     // Extract coefficients
-//     coefVector = bCI_L2[1, 1..10]'
-//     aux = bCI_L2[1, cols(bCI_L2)]  // Shape/gamma parameter (final column)
-//     
-//     // Calculate XB
-//     XB = pCI_L2 * coefVector
-//     
-//     // Get valid patients
-//     validIdx = getValidPatients(mMOR, OMC, mState, OMC+1)
-//     
-//     // Calculate survival times
-//     RN = runiform(nObs, 1)
-//     outcome = J(nObs, 1, .)
-//     outcome[validIdx] = calcSurvivalTime(XB[validIdx], RN[validIdx], 
-//                                          "weibull", aux)
-//     
-//     // Curtail at maximum observed
-//     outcome = curtailValuesSafe(outcome, maxCI_L2)
-// end
-//
-//
-// *** ORDERED LOGIT OUTCOME (BCR) ***
-//
-// mata:
-//     // Build patient matrix
-//     pBCR_L3 = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3,
-//                (prevBCR:==3), (prevBCR:==5))
-//     
-//     // Extract coefficients and cut points
-//     coefVector = bBCR_L3[1, 1..9]'
-//     cutPoints = bBCR_L3[1, (10, 11)]  // Final 2 columns are cut points
-//     
-//     // Calculate XB
-//     XB = pBCR_L3 * coefVector
-//     
-//     // Calculate probabilities and assign outcomes
-//     RN = runiform(nObs, 1)
-//     probs = calcOrderedLogitProbs(XB, cutPoints)
-//     outcome = assignOrderedOutcome(RN, probs, (1, 3, 5))
-//     
-//     // Get valid patients and update
-//     validIdx = getValidPatients(mMOR, OMC, mState, OMC+1)
-//     mBCR[validIdx, 3] = outcome[validIdx]
-// end
-//
-//
-// *** CONDITIONAL SURVIVAL (OS at later time points) ***
-//
-// mata:
-//     // Build patient matrix
-//     pOS_L2S = (vAge, vAge2, vMale, vECOG1, vECOG2, vRISS2, vRISS3, vCons)
-//     
-//     // Extract coefficients
-//     coefVector = bOS[1, 1..8]'
-//     aux = bOS[1, cols(bOS)]
-//     
-//     // Calculate XB
-//     XB = pOS_L2S * coefVector
-//     
-//     // Calculate conditional survival (given already survived to mTSD)
-//     outcome = calcConditionalSurvivalTime(XB, mTSD[., OMC], "weibull", aux)
-//     
-//     // Update OS matrix
-//     validIdx = getValidPatients(mMOR, OMC)
-//     mOS[validIdx, OMC] = outcome[validIdx]
-// end
-//
-//=============================================================================
-
 end
-
-di as text "{hline 80}"
-di as result "Mata utility functions loaded successfully"
-di as text "{hline 80}"
-di as text "Available functions:"
-di as text "  Survival: calcSurvivalTime(), calcConditionalSurvivalTime()"
-di as text "  Ordered logit: calcOrderedLogitProbs(), assignOrderedOutcome()"
-di as text "  Filtering: getValidPatients(), isAlive()"
-di as text "  Utilities: curtailValues(), curtailValuesSafe()"
-di as text "  Validation: validateDimensions(), validateOutcomes(), validateRandomNumbers()"
-di as text "{hline 80}"

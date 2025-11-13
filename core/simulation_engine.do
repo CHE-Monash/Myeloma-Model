@@ -47,7 +47,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$Data" == "Population" & $Line == 1) {
+		if ("$data" == "population_${pop_number}" & $line == 1) {
 			exit
 		}
 
@@ -124,7 +124,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$Data" == "Population" & $Line == 2) {
+		if ("$data" == "population_${pop_number}" & $line == 2) {
 			exit
 		}
 
@@ -186,7 +186,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$Data" == "Population" & $Line == 3) {
+		if ("$data" == "population_${pop_number}" & $line == 3) {
 			exit
 		}
 		
@@ -231,7 +231,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
-		
+
 	di "L3E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"		
 		*mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
@@ -260,7 +260,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$Data" == "Population" & $Line == 4) {
+		if ("$data" == "population_${pop_number}" & $line == 4) {
 			exit
 		}
 
@@ -313,7 +313,6 @@ di "Running simulation"
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L4E - Treatment-free Interval"
-
 		quietly do "core/outcomes/sim_tfi.do"	
 		*mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)

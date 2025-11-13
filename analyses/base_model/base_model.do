@@ -5,7 +5,7 @@
 **********
 *Analysis Configuration
 	local analysis_name "base_model"
-	local coefficient_file "coefficients_base_model"
+	local coefficient_file "coefficients_$Coeffs"
 
 **********
 *Load Programs
@@ -37,6 +37,8 @@
 			di as text _newline "========================================" 
 			di as text "Processing bootstrap iteration `b' of $MaxBS..."
 			di as text "========================================"
+			
+			global BSIteration "`b'"
 			
 			mata: mata clear
 			mata: mata matuse "$coefficients_path/bootstrap/`coefficient_file'_B`b'"

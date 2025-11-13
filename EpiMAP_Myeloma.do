@@ -8,36 +8,33 @@
 	set more off
 	
 **********
-*Capture arguments 
-	global Analysis `1'      // Analysis name (base_model, vrd_l1_post, etc.)
-	global Int `2'           // Intervention
-	global Line `3'          // Line of therapy
-	global Coeffs `4'        // Coefficient set
-	global Data `5'          // Data type (Population, Predicted, Cohort10, Population_3, etc.)
-	global MinID `6'         // Min patient ID
-	global MaxID `7'         // Max patient ID
-	global Boot `8'          // Bootstrap flag
-	global MinBS `9'         // Min bootstrap sample
-	global MaxBS `10'        // Max bootstrap sample
-	global Report `11'       // Report flag
+* Validate required globals are set
+foreach req in analysis int line coeffs data min_id max_id boot report {
+    capture confirm existence $`req'
+    if _rc {
+        di as error "Error: Global `req' not set"
+        di as error "This script must be called from run.do"
+        exit 198
+    }
+}
 
 **********
 *Parse Data parameter for population-specific requests
-	if regexm("$Data", "population_([0-9]+)") {
-		global PopulationNumber = regexs(1)
-		global DataType = "population"
-		di "Using specific population: ${PopulationNumber}"
+	if regexm("$data", "population_([0-9]+)") {
+		global pop_number = regexs(1)
+		global data_type = "population"
+		di "Using specific population: ${pop_number}"
 	}
 	else {
-		global DataType = "$Data"
-		global PopulationNumber = 1  // Default population
+		global data_type = "$data"
+		global pop_number = 1  // Default population
 	}
 
 **********
 *Validate Analysis exists
-	capture confirm file "analyses/$Analysis/${Analysis}.do"
+	capture confirm file "analyses/$analysis/${analysis}.do"
 	if _rc != 0 {
-		di as error "Error: Analysis '$Analysis' not found."
+		di as error "Error: Analysis '$analysis' not found."
 		di as error "Available analyses:"
 		
 		local analyses : dir "analyses" dirs "*"
@@ -49,12 +46,12 @@
 
 **********
 *Validate Population data if needed
-	if ("$DataType" == "population") {
-		capture confirm file "patients/population/2025-2030/population_${PopulationNumber}.dta"
+	if ("$data_type" == "population") {
+		capture confirm file "patients/population/2025-2030/population_${pop_number}.dta"
 		if _rc != 0 {
-			di as error "Error: Population ${PopulationNumber} not found."
+			di as error "Error: Population ${pop_number} not found."
 			di as error "Available populations:"
-			local populations : dir "data/populations" files "EpiMAP_Population_*.dta"
+			local populations : dir "data/populations" files "population_*.dta"
 			foreach pop of local populations {
 				di "  - `pop'"
 			}
@@ -64,7 +61,7 @@
 
 **********
 *Set paths based on analysis
-	global analysis_path "analyses/$Analysis"
+	global analysis_path "analyses/$analysis"
 	global coefficients_path "$analysis_path/data/coefficients"
 	global patients_path "$analysis_path/data/patients" 
 	global simulated_path "$analysis_path/data/simulated"
@@ -75,19 +72,19 @@
 
 **********
 *Run analysis
-	di as text "Running EpiMAP Myeloma Analysis: $Analysis"
-	di as text "Intervention: $Int, Line: $Line, Data: $DataType"
-	if ("$DataType" == "population") di as text "Population: ${PopulationNumber}"
-	di as text "Patient range: $MinID to $MaxID"
+	di as text "Running EpiMAP Myeloma Analysis: $analysis"
+	di as text "Intervention: $int, Line: $line, Data: $data_type"
+	if ("$data_type" == "population") di as text "Population: ${pop_number}"
+	di as text "Patient range: $min_ID to $max_ID"
 	
 	// Run the specific analysis
-	do "$analysis_path/${Analysis}.do"
+	do "$analysis_path/${analysis}.do"
 	
 	di "Analysis completed successfully."
 	
 **********
 *Generate report if requested
-	if ("$Report" == "1" & "$Boot" == "0") {
+	if ("$report" == "1" & "$boot" == "0") {
 		di as text _n(2) "{hline 78}"
 		di as text "{bf:Generating Baseline Characteristics Report}"
 		di as text "{hline 78}"
@@ -101,7 +98,7 @@
 			di as text "  Skipping report generation"
 		}
 	}
-	else if ("$Report" == "1" & "$Boot" == "1") {
+	else if ("$report" == "1" & "$boot" == "1") {
 		di as text _n(2) "{bf:Note:} Report generation skipped for bootstrap runs"
 		di as text "Generate report manually after bootstrap completion"
 	}
@@ -110,13 +107,13 @@
 *Final summary
 	di as result "{bf:EpiMAP Myeloma v2.0 - Execution Complete}"
 	di as text "Simulated data saved to:"
-	if ("$Boot" == "0") {
-		di as result "  $simulated_path/$Int $Line $Data $MinID $MaxID.dta"
+	if ("$boot" == "0") {
+		di as result "  $simulated_path/${int}_${line}_${data}_${min_ID}_${max_ID}.dta"
 	}
 	else {
-		di as result "  $simulated_path/bootstrap/ (samples $MinBS to $MaxBS)"
+		di as result "  $simulated_path/bootstrap/ (samples ${min_BS} to ${max_BS})"
 	}
-	if ("$Report" == "1") {
+	if ("$report" == "1") {
 		di as text "Report saved to:"
 		di as result "  $simulated_path/reports/"
 	}

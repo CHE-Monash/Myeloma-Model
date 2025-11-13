@@ -7,10 +7,9 @@
 **********
 
 mata {
-	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-	idxEligible = selectindex(vEligible)
-	
-	if (rows(idxEligible) > 0) {
+    // Select patients
+    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+	if (rows(idx) > 0) {
 		
 		// Determine model stage
 		if (Line == 0) {
@@ -34,26 +33,26 @@ mata {
 		
 		vRN = runiform(rows(mMOR), 1)
 		
-		vXB1 = J(rows(idxEligible), 1, 1)
-		vXB2 = J(rows(idxEligible), 1, 0)
-		vXB3 = J(rows(idxEligible), 1, 0)
-		vXB4 = J(rows(idxEligible), 1, 0)
+		vXB1 = J(rows(idx), 1, 1)
+		vXB2 = J(rows(idx), 1, 0)
+		vXB3 = J(rows(idx), 1, 0)
+		vXB4 = J(rows(idx), 1, 0)
 		
 		// Patient characteristics
-		vAge_e = mAge[idxEligible, OMC]
+		vAge_e = mAge[idx, OMC]
 		vAge2_e = vAge_e :^ 2
-		vMale_e = vMale[idxEligible]
-		vECOG0_e = (vECOG[idxEligible] :== 0)
-		vECOG1_e = (vECOG[idxEligible] :== 1)
-		vECOG2_e = (vECOG[idxEligible] :== 2)
-		vRISS1_e = (vRISS[idxEligible] :== 1)
-		vRISS2_e = (vRISS[idxEligible] :== 2)
-		vRISS3_e = (vRISS[idxEligible] :== 3)
-		vCons_e = vCons[idxEligible]
+		vMale_e = vMale[idx]
+		vECOG0_e = (vECOG[idx] :== 0)
+		vECOG1_e = (vECOG[idx] :== 1)
+		vECOG2_e = (vECOG[idx] :== 2)
+		vRISS1_e = (vRISS[idx] :== 1)
+		vRISS2_e = (vRISS[idx] :== 2)
+		vRISS3_e = (vRISS[idx] :== 3)
+		vCons_e = vCons[idx]
 		
 		// Build patient matrix (L1)
 		if (Line == 0) {
-			vSCT_e = vSCT_DN[idxEligible]
+			vSCT_e = vSCT_DN[idx]
 			mPat = (vAge_e, vAge2_e, vMale_e, 
 					   vECOG0_e, vECOG1_e, vECOG2_e, 
 			           vRISS1_e, vRISS2_e, vRISS3_e, 
@@ -76,10 +75,11 @@ mata {
 				coef_XB4 = vCoef[1, (3*nPredictors+1)..(4*nPredictors)]'
 				vXB4 = exp(mPat * coef_XB4)
 			}
-		}	
+		}
+		
 		// Build patient matrix (L2 or L3)
 		else if (Line == 1 | Line == 2) {
-			prevBCR = mBCR[idxEligible, Line]
+			prevBCR = mBCR[idx, Line]
 			pBCR_1 = (prevBCR :== 1)
 			pBCR_2 = (prevBCR :== 2)
 			pBCR_3 = (prevBCR :== 3)
@@ -112,7 +112,7 @@ mata {
 		}
 		// Build patient matrix (L4+)
 		else {
-			prevBCR = mBCR[idxEligible, Line]
+			prevBCR = mBCR[idx, Line]
 			pBCR_1 = (prevBCR :== 1)
 			pBCR_3 = (prevBCR :== 3)
 			pBCR_5 = (prevBCR :== 5)
@@ -145,8 +145,8 @@ mata {
 		vPR3 = vPR2 :+ (vXB3 :/ (vXB1 :+ vXB2 :+ vXB3 :+ vXB4))
 		vPR4 = vPR3 :+ (vXB4 :/ (vXB1 :+ vXB2 :+ vXB3 :+ vXB4))
 		
-		vRN_e = vRN[idxEligible]
-		vOut = J(rows(idxEligible), 1, .)
+		vRN_e = vRN[idx]
+		vOut = J(rows(idx), 1, .)
 		
 		// Determine Outcome
 		vOut = (vRN_e :< vPR1) :* vTXR[1,1]
@@ -164,6 +164,18 @@ mata {
 		}
 		
 		// Update matrix
-		mTXR[idxEligible, Line+1] = vOut
+		mTXR[idx, Line+1] = vOut
 	}
 }
+
+// Check for override file, execute if it exists
+mata: st_local("current_line", strofreal(Line+1))
+if "${Line}" == "`current_line'" {
+	local override_file "${analysis_path}/outcomes/sim_txr_override_${Int}_l${Line}.do"
+	capture confirm file "`override_file'"
+	if _rc == 0 {
+		di "Overriding TXR"
+		quietly do "`override_file'"
+	}
+}
+
