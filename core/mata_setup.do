@@ -55,7 +55,7 @@ program define mata_setup
 		
 	*mSCT
 	mata {
-		mSCT = st_data(., "SCT SCT") // Currently using same variable twice
+		mSCT = st_data(., "SCT_DN SCT_L1") // Currently using same variable twice
 		rmSCT = J(Obs,2,"")
 		rmSCT[.,2] = strofreal(1::Obs)
 		cmSCT = J(2,2,"")
@@ -239,7 +239,7 @@ program define mata_setup
 		
 	*mTXR - Treatment Regimen 	
 	mata {
-		mTXR = st_data(., "CR_L1 CR_L2 CR_L3 CR_L4 CR_L5 CR_L6 CR_L7 CR_L8 CR_L9")		
+		mTXR = st_data(., "TXR_L1 TXR_L2 TXR_L3 TXR_L4 TXR_L5 TXR_L6 TXR_L7 TXR_L8 TXR_L9")		
 		rmTXR = J(Obs, 2, "")
 		rmTXR[., 2] = strofreal(1::Obs)
 		cmTXR = J(9, 2, "")
@@ -257,7 +257,7 @@ program define mata_setup
 		
 	*mTXD - Treatment Duration
 	mata {
-		mTXD = st_data(., "CD_L1 CD_L2 CD_L3 CD_L4 CD_L5 CD_L6 CD_L7 CD_L8 CD_L9")		
+		mTXD = st_data(., "TXD_L1 TXD_L2 TXD_L3 TXD_L4 TXD_L5 TXD_L6 TXD_L7 TXD_L8 TXD_L9")		
 		rmTXD = J(Obs, 2, "")
 		rmTXD[., 2] = strofreal(1::Obs)
 		cmTXD = J(9, 2, "")
@@ -294,7 +294,7 @@ program define mata_setup
 		
 	*mTFI - Treatment-free Interval 
 	mata {
-		mTFI = st_data(., "CI_L1 CI_L2 CI_L3 CI_L4 CI_L5 CI_L6 CI_L7 CI_L8 CI_L9")		
+		mTFI = st_data(., "TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 TFI_L9")		
 		rmTFI = J(Obs, 2, "")
 		rmTFI[., 2] = strofreal(1::Obs)
 		cmTFI = J(9, 2, "")
@@ -351,7 +351,7 @@ program define mata_setup
 		printf("  - Loading demographic vectors...\n")
 		
 		// --- Demographics ---
-		vAge = st_data(., "Age")                  // Age (continuous)
+		vAge = st_data(., "Age_DN")               // Age at diagnosis (continuous)
 		vAge2 = vAge :^ 2                         // Age squared (for quadratic effects)
 		vMale = st_data(., "Male")                // Sex (0=Female, 1=Male)
 		
@@ -382,9 +382,9 @@ program define mata_setup
 		displayas("text")
 		printf("  - Loading treatment characteristic vectors...\n")
 		
-		vSCT_DN = st_data(., "SCT")               // Intent for ASCT at DN (0/1)
-		vSCT_L1 = st_data(., "SCT")               // Receipt of ASCT at L1 (0/1)
-		vMNT = st_data(., "MNT")                  // Receipt of Maintenance therapy at L1 (0/1)
+		vSCT_DN = st_data(., "SCT_DN")               // Intent for ASCT at DN (0/1)
+		vSCT_L1 = st_data(., "SCT_L1")               // Receipt of ASCT at L1 (0/1)
+		vMNT = st_data(., "MNT")                  	// Receipt of Maintenance therapy at L1 (0/1)
 		
 		// --- Utility Vector ---
 		vCons = st_data(., "Cons")                // Constant vector (all ones)

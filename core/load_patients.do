@@ -8,7 +8,7 @@ program define load_patients
 	// Determine data source based on $data_type (not $data)
 	if ("$data_type" == "population") {
 		// Use population number extracted by main dispatcher
-		use "patients/population/1995-2040/population${pop_number}.dta", clear
+		use "patients/population_1995_2040_${pop_number}.dta", clear
 		di as text "Loaded population ${pop_number}"
 	}
 	else if ("$data_type" == "predicted") {
@@ -20,15 +20,16 @@ program define load_patients
 		di as error "Valid options: Population_#, Predicted"
 		exit 198
 	}
-
-	// Standard data preparation and filtering
-	keep if State <= ($line * 2) + 2
-	replace ID = _n
-	keep if ID >= $min_id & ID <= $max_id
 	
-	quietly sum ID
+	// Filters
+	qui keep if YearDN >= $min_year & YearDN <= $max_year 	// Based on year of diagnosis
+	qui keep if State <= ($line * 2) + 2 					// Based on disease stage
+	qui replace ID = _n
+	qui keep if ID >= $min_id & ID <= $max_id				// Based on ID
+	
+	qui sum ID
 	scalar Obs = r(N)
-	di as text "Final sample size: `=Obs' patients (IDs $min_ID to $max_ID)"
+	di as text "Final sample size: `=Obs' patients"
 	
 	mata: Limit = 100 // Age limit
 	

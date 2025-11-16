@@ -7,20 +7,18 @@
 **********
 
 mata {
-	// Filters
-	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-	idxEligible = selectindex(vEligible)
-	
+	// Filter for alive and eligible
+	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1))	
 	if (rows(idxEligible) > 0) {
+		
 		// Generate random numbers for all patients
 		vRN = runiform(rows(mMOR), 1)
 		
 		// Initialize outcome vector
-		vOutcome = J(rows(mMOR), 1, .)
+		vOC = J(rows(mMOR), 1, .)
 		
 		// GROUP 1: ASCT Patients
-		vIsASCT = (vSCT_L1[.,1] :== 1) :& vEligible
-		idxASCT = selectindex(vIsASCT)
+		idxASCT = idx[selectindex(vSCT_L1[idx, 1] :== 1)]
 		
 		if (rows(idxASCT) > 0) {
 			// Patient vectors
@@ -58,15 +56,14 @@ mata {
 			
 			// Calculate outcome (survival time)
 			vRN_ASCT = vRN[idxASCT]
-			vOut[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
+			vOC[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
 			// Curtail if beyond maximum observed
-			vOut[idxASCT] = rowmin((vOut[idxASCT], J(rows(idxASCT), 1, maxL1_TFI_ASCT)))
+			vOC[idxASCT] = rowmin((vOC[idxASCT], J(rows(idxASCT), 1, maxL1_TFI_ASCT)))
 		}
 		
 		// GROUP 2: NoASCT Patients
-		vIsNoASCT = (vSCT_L1[.,1] :== 0) :& vEligible
-		idxNoASCT = selectindex(vIsNoASCT)
+		idxNoASCT = idx[selectindex(vSCT_L1[idx, 1] :== 0)]
 		
 		if (rows(idxNoASCT) > 0) {
 			// Patient vectors
@@ -106,22 +103,16 @@ mata {
 			
 			// Calculate outcome (survival time)
 			vRN_NoASCT = vRN[idxNoASCT]
-			vOut[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
+			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
 			// Curtail if beyond maximum observed
-			vOut[idxNoASCT] = rowmin((vOut[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT)))
+			vOC[idxNoASCT] = rowmin((vOC[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT)))
 
 		}
 		
-		// Handle prevalent patients
-		prevalent = selectindex(mState[., 1] :> OMC + 1)
-		if (rows(prevalent) > 0) {
-			vOutcome[prevalent] = mTNE[prevalent, OMC]
-		}
-		
 		// Update matrices
-		mTFI[., LX+1] = round(vOut, 0.1)
-		mTNE[., OMC] = round(vOut, 0.1)
+		mTFI[., LX+1] = round(vOC, 0.1)
+		mTNE[., OMC] = round(vOC, 0.1)
 		mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
 	}
 }

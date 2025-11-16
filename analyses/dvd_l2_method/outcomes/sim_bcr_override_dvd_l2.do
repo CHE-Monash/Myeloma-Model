@@ -1,27 +1,22 @@
 **********
 * SIM BCR OVERRIDE - DVd L2 Method
 *
-* Purpose: Override BCR for DVd at Line 2 using Common Comparator Method
+* Purpose: Override BCR for DVd at Line 2 
 *
 * Context: Called AFTER standard sim_bcr.do has run
 *          Applies to entire cohort (all patients receive DVd at L2)
-*          Only active when $Intervention = "DVd" AND Line = 2
+*          Only active when $int = "DVd" AND $line = 2
 *
 * Author: Adam Irving
 * Date: November 2025
 **********
 
-// Load Common Comparator Predictions		
-local bsIteration = "$BSIteration"
-local bcrDir = "$analysis_path/data/bcr"
-		
-if ("`bsIteration'" != "" & "`bsIteration'" != "0") {
-    // Bootstrap mode
-    capture mata: mata matuse "`bcrDir'/bootstrap/bcr_dvd_l2_B`bsIteration'.mmat"
+// Load BCR distribution based on bootstrap & scenario
+if ("boot" == 0) {
+	mata: mata matuse "$analysis_path/data/bcr/$scenario/bcr_dvd_l2.mmat"
 }
-else {
-    // Point estimate mode
-    capture mata: mata matuse "`bcrDir'/bcr_dvd_l2.mmat"
+else if ("boot" == 1) {
+	mata: mata matuse "$analysis_path/data/bcr/$scenario/bootstrap/bcr_dvd_l2_B`b'.mmat"
 }
 
 mata {
@@ -33,34 +28,34 @@ mata {
 		
 	// Calculate XB
 		
-		// Extract previous BCR for L2
+		// Extract previous BCR
 		BCR_L1 = mBCR[., 1]
-		pBCR_CR = (BCR_L1 :== 1)
-		pBCR_VG = (BCR_L1 :== 2)
-		pBCR_PR = (BCR_L1 :== 3)
-		pBCR_MR = (BCR_L1 :== 4)
-		pBCR_SD = (BCR_L1 :== 5)
-		pBCR_PD = (BCR_L1 :== 6)
+		pBCR_L1_CR = (BCR_L1 :== 1)
+		pBCR_L1_VG = (BCR_L1 :== 2)
+		pBCR_L1_PR = (BCR_L1 :== 3)
+		pBCR_L1_MR = (BCR_L1 :== 4)
+		pBCR_L1_SD = (BCR_L1 :== 5)
+		pBCR_L1_PD = (BCR_L1 :== 6)
 		
 		BCR_SCT = mBCR[., 10]
 		pBCR_SCT_0 = (BCR_SCT :== 0)
-		pBCR_SCT_1 = (BCR_SCT :== 1)
-		pBCR_SCT_2 = (BCR_SCT :== 2)
-		pBCR_SCT_3 = (BCR_SCT :== 3)
-		pBCR_SCT_4 = (BCR_SCT :== 4)
+		pBCR_SCT_CR = (BCR_SCT :== 1)
+		pBCR_SCT_VG = (BCR_SCT :== 2)
+		pBCR_SCT_PR = (BCR_SCT :== 3)
+		pBCR_SCT_MR = (BCR_SCT :== 4)
 		
-		// Build patient matrix 
+		// Build patient matrix (without TXR)
 		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 				vECOG0[idx], vECOG1[idx], vECOG2[idx],
 				vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
-		mPat = mPat, (pBCR_CR[idx], pBCR_VG[idx], pBCR_PR[idx],
-					  pBCR_MR[idx], pBCR_SD[idx], pBCR_PD[idx])
+		mPat = mPat, (pBCR_L1_CR[idx], pBCR_L1_VG[idx], pBCR_L1_PR[idx],
+					  pBCR_L1_MR[idx], pBCR_L1_SD[idx], pBCR_L1_PD[idx])
 						
-		mPat = mPat, (pBCR_SCT_0[idx], pBCR_SCT_1[idx], pBCR_SCT_2[idx], 
-					  pBCR_SCT_3[idx], pBCR_SCT_4[idx])
+		mPat = mPat, (pBCR_SCT_0[idx], pBCR_SCT_CR[idx], pBCR_SCT_VG[idx], 
+					  pBCR_SCT_PR[idx], pBCR_SCT_MR[idx])
 		
-		// Get coefficients (excluding TXR coefficients)
+		// Get coefficients (excluding TXR)
 		vCoef = bL2_BCR
 		nPredictors = cols(mPat)
 		vCoef = vCoef[1, 1..nPredictors]'
@@ -107,7 +102,7 @@ mata {
 			}
 		}
 		
-	// Replace BCR outcome with Common Comparator predictions
+	// Override BCR
 	mBCR[idx, LX] = vOut
 	
 	}

@@ -41,13 +41,13 @@ di "Running simulation"
 	di "L1S - Age"
 		quietly do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-
+		
 	di "L1S - Treatment Regimen"
 		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$data" == "population_${pop_number}" & $line == 1) {
+		if ("$data" == "population" & $line == 1) {
 			exit
 		}
 
@@ -124,7 +124,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$data" == "population_${pop_number}" & $line == 2) {
+		if ("$data" == "population" & $line == 2) {
 			exit
 		}
 
@@ -186,7 +186,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$data" == "population_${pop_number}" & $line == 3) {
+		if ("$data" == "population" & $line == 3) {
 			exit
 		}
 		
@@ -260,7 +260,7 @@ di "Running simulation"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
-		if ("$data" == "population_${pop_number}" & $line == 4) {
+		if ("$data" == "population" & $line == 4) {
 			exit
 		}
 

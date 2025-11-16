@@ -152,7 +152,7 @@ end
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line))
 if "${Line}" == "`current_line'" {
-	local override_file "${analysis_path}/outcomes/sim_bcr_override_${Int}_l${Line}.do"
+	local override_file "${analysis_path}/outcomes/sim_bcr_override_${int}_l${line}.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
 		di "Exists"

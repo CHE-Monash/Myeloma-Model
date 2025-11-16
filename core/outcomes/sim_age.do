@@ -1,10 +1,11 @@
 **********
-*SIM Age
+* SIM Age
 * 
 * Purpose: Update patient age and handle age limit deaths
 * Method: Comparing times
 * Outcome: Continuous age in years
 **********
+
 mata {
 	// Filters
 	vStateValid = (mState[.,1] :<= OMC+1)

@@ -21,7 +21,7 @@
 *Determine processing approach
 	if("$boot" == "0") {
 		// No Bootstrapping
-		mata: mata matuse "$coefficients_path/`coefficient_file'"
+		qui mata: mata matuse "$coefficients_path/`coefficient_file'"
 				
 		quietly do "core/mata_functions.do"
 		load_patients
@@ -29,7 +29,7 @@
 		simulation
 		process_data
 		
-		save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}.dta", replace
+		save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", replace
 		di as text "Results saved to: $simulated_path/${int}_${line}_${data}_${min_id}_${max_id}.dta"
 	}
 	else {
@@ -52,7 +52,7 @@
 			simulation
 			process_data
 			
-			save "$simulated_path/bootstrap/${int}_${line}_${data}_${min_id}_${max_id}_B`b'.dta", replace
+			save "$simulated_path/bootstrap/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}_B`b'.dta", replace
 			di as text "Bootstrap iteration `b' completed"
 		}
 		

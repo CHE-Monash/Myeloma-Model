@@ -9,7 +9,7 @@
 	
 **********
 * Validate required globals are set
-foreach req in analysis int line coeffs data min_id max_id boot report {
+foreach req in analysis int line coeffs data min_year max_year min_id max_id boot report {
     capture confirm existence $`req'
     if _rc {
         di as error "Error: Global `req' not set"
@@ -47,7 +47,7 @@ foreach req in analysis int line coeffs data min_id max_id boot report {
 **********
 *Validate Population data if needed
 	if ("$data_type" == "population") {
-		capture confirm file "patients/population/2025-2030/population_${pop_number}.dta"
+		capture confirm file "patients/population_1995_2040_${pop_number}.dta"
 		if _rc != 0 {
 			di as error "Error: Population ${pop_number} not found."
 			di as error "Available populations:"

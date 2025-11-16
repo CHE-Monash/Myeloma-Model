@@ -8,20 +8,17 @@
 	
 mata {
 	// Initialize outcome
-	vOutcome = J(st_nobs(), 1, .)
+	vOC = J(st_nobs(), 1, .)
 		
-	// Filter for incident patients
-	incident = selectindex(mState[., 1] :<= OMC + 1)
-	
-	// Calculate for incident patients
-	if (rows(incident) > 0) {
+	// Filter for eligible
+	idx = selectindex(mState[., 1] :<= OMC + 1)
+	if (rows(idx) > 0) {
 		
 		// Assemble patient matrix
-		mPat = (vAge, vAge2, vMale, 
-				   vECOG0, vECOG1, vECOG2, 
-				   vRISS1, vRISS2, vRISS3, 
-				   vSCT_DN,
-				   vCons)
+		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
+				vECOG0[idx], vECOG1[idx], vECOG2[idx], 
+				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
+				vSCT_DN[idx], vCons[idx])
 		
 		// Extract coefficients
 		nPredictors = cols(mPat)
@@ -33,20 +30,14 @@ mata {
 		vXB = mPat * vCoef
 			
 		// Generate random numbers
-		vRN = runiform(rows(incident), 1)
+		vRN = runiform(rows(idx), 1)
 			
 		// Calculate outcome (survival time)
-		vOut = calcSurvTime(vXB, vRN, dist, aux)
+		vOC[idx] = calcSurvTime(vXB, vRN, dist, aux)
 	}	
 		
-	// Grab prevalent patient data
-	prevalent = selectindex(mState[., 1] :> OMC + 1)
-	if (rows(prevalent) > 0) {
-		vOut[prevalent] = mTNE[prevalent, OMC]
-	}
-		
 	// Update matrices	
-	mTFI[., LX+1] = round(vOut, 0.1)                                
-	mTNE[., OMC] = round(vOut, 0.1)
+	mTFI[., LX+1] = round(vOC, 0.1)                                
+	mTNE[., OMC] = round(vOC, 0.1)
 	mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
 }

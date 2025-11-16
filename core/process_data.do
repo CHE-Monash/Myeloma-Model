@@ -84,6 +84,5 @@ program process_data
 			gen YearMOR = yofd(DateMOR)
 		}
 		format Date* %td
-	
-
+		
 end
