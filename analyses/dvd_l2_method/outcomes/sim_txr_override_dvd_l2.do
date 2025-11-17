@@ -12,12 +12,11 @@
 **********
 
 mata {
- 
-    // Get alive, non-prevalent patients
+    // Filter for alive and eligible
     idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
     if (rows(idx) > 0) {
 		
-		// Override Line 2 treatment to DVD
+		// Override Line 2 treatment to DVd
 		mTXR[., 2] = J(rows(mTXR), 1, 80)
     }
 }	

@@ -53,7 +53,7 @@ di "Running simulation"
 
 	di "L1S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd_l1.do"
-		*mata: _matrix_list(bL1_TXD, rbL1_TXD, cbL1_TXD)
+		*mata: _matrix_list(bL1_TXD_ASCT_S1, rbL1_TXD_ASCT_S1, cbL1_TXD_ASCT_S1)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
@@ -116,11 +116,11 @@ di "Running simulation"
 	mata: OMC = 4
 		
 	di "L2S - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L2S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		

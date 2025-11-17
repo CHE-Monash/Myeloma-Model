@@ -7,14 +7,13 @@
 **********
 
 mata {
-	
 	if (txr_model_exists(Line)) {
 	// Model exists - run multinomial logit
 			
 	vCoef = get_txr_coef(Line)
 	vTXR = get_txr_outcome(Line)
 		
-		// Select patients
+		// Filter for alive and eligible
 		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
 		if (rows(idx) > 0) {
 		
@@ -177,8 +176,8 @@ mata {
 
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line+1))
-if "${Line}" == "`current_line'" {
-	local override_file "${analysis_path}/outcomes/sim_txr_override_${Int}_l${Line}.do"
+if "${line}" == "`current_line'" {
+	local override_file "${analysis_path}/outcomes/sim_txr_override_${int}_l${line}.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
 		di "Overriding TXR"
