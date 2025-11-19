@@ -1,17 +1,14 @@
 **********
-* SIM TFI DN - Vectorised Implementation
+* SIM TFI DN
 * 
-* Purpose: Calculate Treatment-free Interval at Diagnosis (time from diagnosis to Line 1 start)
+* Purpose: Treatment-free Interval at Diagnosis (Time from DN to L1S)
 * Method: Parametric survival analysis
-* Outcome: Continuous survival time (in days)
+* Outcome: Continuous time (months)
 **********
 	
 mata {
-	// Initialize outcome
-	vOC = J(st_nobs(), 1, .)
-		
 	// Filter for eligible
-	idx = selectindex(mState[., 1] :<= OMC + 1)
+	idx = selectindex(mState[., 1] :<= OMC + 1)	
 	if (rows(idx) > 0) {
 		
 		// Assemble patient matrix
@@ -23,21 +20,18 @@ mata {
 		// Extract coefficients
 		nPredictors = cols(mPat)
 		vCoef= bDN_TFI[1,1..nPredictors]'
-		dist = fbDN_TFI
 		aux = bDN_TFI[1, cols(bDN_TFI)]
 			
 		// Calculate XB
 		vXB = mPat * vCoef
 			
-		// Generate random numbers
+		// Calculate outcome 
 		vRN = runiform(rows(idx), 1)
-			
-		// Calculate outcome (survival time)
-		vOC[idx] = calcSurvTime(vXB, vRN, dist, aux)
-	}	
+		vOC = calcSurvTime(vXB, vRN, fbDN_TFI, aux)
 		
-	// Update matrices	
-	mTFI[., LX+1] = round(vOC, 0.1)                                
-	mTNE[., OMC] = round(vOC, 0.1)
-	mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
+		// Update matrices	
+		mTFI[idx, LX+1] = round(vOC, 0.1)  
+		mTNE[idx, OMC] = round(vOC, 0.1)
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
+	}	
 }

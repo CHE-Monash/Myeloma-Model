@@ -7,22 +7,17 @@
 **********
 	
 mata {
-	// Initialize outcome
-	vOC = J(st_nobs(), 1, .)
-	
-	// Filter for valid patients
+	// Filter for eligible patients
 	idx = selectindex(mState[., 1] :<= OMC + 1)
-		
-	// Calculate for valid patients
 	if (rows(idx) > 0) {
 	
 		// Assemble patient matrix
-		mPat = (vAge, vAge2, vMale, 
-				vECOG0, vECOG1, vECOG2, 
-				vRISS1, vRISS2, vRISS3, 
-				vAge70, vAge75, 
-				vCMc0, vCMc1, vCMc2, vCMc3,
-				vCons)
+		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
+				vECOG0[idx], vECOG1[idx], vECOG2[idx], 
+				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
+				vAge70[idx], vAge75[idx], 
+				vCMc0[idx], vCMc1[idx], vCMc2[idx], vCMc3[idx],
+				vCons[idx])
 
 		// Extract coefficients
 		nPredictors = cols(mPat)
@@ -39,10 +34,8 @@ mata {
 			
 		// Determine outcome 
 		vOC = (vPR :> vRN)
-	}
 		
-	// Update matrices 
-	vSCT_DN = vOC 
-	mSCT[., 1] = vOC
-} 
-	
+		// Update matrices 
+		vSCT_DN[idx] = vOC
+	}
+}

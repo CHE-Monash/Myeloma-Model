@@ -3,20 +3,17 @@
 *
 * Purpose: Treatment-free Interval at Line 1 End (time from L1E to L2S)
 * Method: Parametric survival analysis, split by ASCT status
-* Outcome: Continuous time (Months)
+* Outcome: Continuous time (months)
 **********
 
 mata {
 	// Filter for alive and eligible
 	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1))	
-	if (rows(idxEligible) > 0) {
+	if (rows(idx) > 0) {
 		
-		// Generate random numbers for all patients
+		// Generate random numbers
 		vRN = runiform(rows(mMOR), 1)
-		
-		// Initialize outcome vector
-		vOC = J(rows(mMOR), 1, .)
-		
+
 		// GROUP 1: ASCT Patients
 		idxASCT = idx[selectindex(vSCT_L1[idx, 1] :== 1)]
 		
@@ -85,7 +82,7 @@ mata {
 			vBCR6_NoASCT = (mBCR[idxNoASCT, Line] :== 6)
 			vCons_NoASCT = vCons[idxNoASCT]
 			
-			// Patient matrix (Non-SCT includes BCR 5 and 6)
+			// Patient matrix (NoASCT includes BCR 5 and 6)
 			mPat_NoASCT = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, 
 						   vECOG0_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT,
 			               vRISS1_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT, 
@@ -111,8 +108,8 @@ mata {
 		}
 		
 		// Update matrices
-		mTFI[., LX+1] = round(vOC, 0.1)
-		mTNE[., OMC] = round(vOC, 0.1)
-		mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
+		mTFI[idx, LX+1] = round(vOC, 0.1)
+		mTNE[idx, OMC] = round(vOC, 0.1)
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
 }

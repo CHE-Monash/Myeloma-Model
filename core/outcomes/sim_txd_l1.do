@@ -1,45 +1,29 @@
 **********
-*SIM CD L1
+*SIM TXD L1
 *
 * Purpose: Chemotherapy Duration for Line 1
+* Method: Parametric survival analysis
+* Outcome: Continuous time (months)
 **********
 
 mata {
-	// Filters
+	// Filter for alive and eligible
 	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-	idxEligible = selectindex(vEligible)
-	
-	if (rows(idxEligible) > 0) {
-		// Generate random numbers for all eligible patients
-		vRN = runiform(rows(mMOR), 1)
+	idx = selectindex(vEligible)
+	if (rows(idx) > 0) {
 		
-		// Initialize outcome vector
-		vOut = J(rows(mMOR), 1, .)
+		// Generate random numbers
+		vRN = runiform(rows(idx), 1)
 		
-		// ========================================
-		// GROUP 1: Fixed + ASCT (with splines)
-		// ========================================
-		// CR != 7 AND SCT == 1
-		vIsASCT = (mTXR[.,1] :!= 7) :& (mSCT[.,1] :== 1) :& vEligible
-		idxASCT = selectindex(vIsASCT)
-		
+		// Group 1: Fixed + ASCT (with splines)
+		vASCT = (mTXR[.,1] :!= 7) :& (vSCT_DN :== 1) :& vEligible
+		idxASCT = selectindex(vASCT)
 		if (rows(idxASCT) > 0) {
-			// Patient vectors
-			vAge_ASCT = mAge[idxASCT, OMC]
-			vAge2_ASCT = vAge_ASCT :^ 2
-			vMale_ASCT = vMale[idxASCT] 
-			vECOG0_ASCT = (vECOG[idxASCT] :== 0)
-			vECOG1_ASCT = (vECOG[idxASCT] :== 1)
-			vECOG2_ASCT = (vECOG[idxASCT] :== 2)
-			vRISS1_ASCT = (vRISS[idxASCT] :== 1)
-			vRISS2_ASCT = (vRISS[idxASCT] :== 2)
-			vRISS3_ASCT = (vRISS[idxASCT] :== 3)
-			vCons_ASCT = vCons[idxASCT]
 			
-			// Patient matrix
-			mPat_ASCT = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, 
-					   vECOG0_ASCT, vECOG1_ASCT, vECOG2_ASCT, 
-					   vRISS1_ASCT, vRISS2_ASCT, vRISS3_ASCT)
+			// Assemble patient matrix
+			mPat_ASCT = (vAge[idxASCT], vAge2[idxASCT], vMale[idxASCT], 
+					   vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
+					   vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT])
 			nCR = cols(oL1_TXR)
 			if (nCR >= 1) {
 				vCR1_ASCT = (mTXR[idxASCT, 1] :== oL1_TXR[1,1])
@@ -53,7 +37,7 @@ mata {
 				vCR3_ASCT = (mTXR[idxASCT, 1] :== oL1_TXR[1,3])
 				mPat_ASCT = (mPat_ASCT , vCR3_ASCT)	
 			}
-			mPat_ASCT = (mPat_ASCT, vCons_ASCT)
+			mPat_ASCT = (mPat_ASCT, vCons[idxASCT])
 
 			// --- SPLINE 1 ---
 				// Extract coefficients
@@ -124,32 +108,19 @@ mata {
 					}
 			
 			// Store final durations for ASCT patients
-			vOut[idxASCT] = vDur_S1
+			vOC[idxASCT] = vDur_S1
 		}
 	
-		// ========================================
-		// GROUP 2: Fixed + No ASCT
-		// ========================================
-		vIsNoASCT = (mTXR[.,1] :!= 7) :& (mSCT[.,1] :== 0) :& vEligible
-		idxNoASCT = selectindex(vIsNoASCT)
-		
+		// Group 2: Fixed + No ASCT
+		vNoASCT = (mTXR[.,1] :!= 7) :& (vSCT_DN :== 0) :& vEligible
+		idxNoASCT = selectindex(vNoASCT)
 		if (rows(idxNoASCT) > 0) {
-			// Patient vectors
-			vAge_NoASCT = mAge[idxNoASCT, OMC]
-			vAge2_NoASCT = vAge_NoASCT :^ 2
-			vMale_NoASCT = vMale[idxNoASCT]
-			vECOG0_NoASCT = (vECOG[idxNoASCT] :== 0)
-			vECOG1_NoASCT = (vECOG[idxNoASCT] :== 1)
-			vECOG2_NoASCT = (vECOG[idxNoASCT] :== 2)
-			vRISS1_NoASCT = (vRISS[idxNoASCT] :== 1)
-			vRISS2_NoASCT = (vRISS[idxNoASCT] :== 2)
-			vRISS3_NoASCT = (vRISS[idxNoASCT] :== 3)
-			vCons_NoASCT = vCons[idxNoASCT]
 
 			// Patient matrix
-			mPat_NoASCT = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, 
-					       vECOG0_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT, 
-					       vRISS1_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT)
+			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
+					       vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT], 
+					       vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT])
+
 			if (nCR >= 1) {
 				vCR1_NoASCT = (mTXR[idxNoASCT, 1] :== oL1_TXR[1,1])
 				mPat_NoASCT = (mPat_NoASCT , vCR1_NoASCT)
@@ -162,7 +133,7 @@ mata {
 				vCR3_NoASCT = (mTXR[idxNoASCT, 1] :== oL1_TXR[1,3])
 				mPat_NoASCT = (mPat_NoASCT , vCR3_NoASCT)	
 			}	
-			mPat_NoASCT = (mPat_NoASCT , vCons_NoASCT)
+			mPat_NoASCT = (mPat_NoASCT , vCons[idxNoASCT])
 						
 			// Extract coefficients 
 			nPredictors = cols(mPat_NoASCT)
@@ -174,65 +145,43 @@ mata {
 			
 			// Calculate survival time
 			vRN_NoASCT = vRN[idxNoASCT]
-			vOut[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TXD_NoASCT, aux_NoASCT)
+			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TXD_NoASCT, aux_NoASCT)
 		}
 				
-		// Update outcome matrices
-		mTXD[idxEligible, 1] = round(vOut[idxEligible], 0.1)
-		mTNE[idxEligible, OMC] = round(vOut[idxEligible], 0.1)
-		mTSD[idxEligible, OMC+1] = mTSD[idxEligible, OMC] :+ mTNE[idxEligible, OMC]
-	}
-}	
-
-// ========================================
-// GROUP 3: Continuous Therapy (CR == 7)
-// Separate mata block to avoid parsing errors
-// ========================================
-capture confirm matrix bL1_TXD_Cont
-if _rc == 0 {
-	mata {
-		vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
-		vIsCont = (mTXR[.,1] :== 7) :& vEligible
-		idxCont = selectindex(vIsCont)
-		
-		if (rows(idxCont) > 0) {
-			// Build patient matrix from source vectors (no CR dummies for continuous)
-			vAge_Cont = mAge[idxCont, OMC]
-			vAge2_Cont = vAge_Cont :^ 2
-			vMale_Cont = vMale[idxCont]
-			vECOG0_Cont = (vECOG[idxCont] :== 0)
-			vECOG1_Cont = (vECOG[idxCont] :== 1)
-			vECOG2_Cont = (vECOG[idxCont] :== 2)
-			vRISS1_Cont = (vRISS[idxCont] :== 1)
-			vRISS2_Cont = (vRISS[idxCont] :== 2)
-			vRISS3_Cont = (vRISS[idxCont] :== 3)
-			vCons_Cont = vCons[idxCont]
-			
-			mPat_Cont = (vAge_Cont, vAge2_Cont, vMale_Cont,
-					     vECOG0_Cont, vECOG1_Cont, vECOG2_Cont, 
-					     vRISS1_Cont, vRISS2_Cont, vRISS3_Cont, 
-					     vCons_Cont)
-			
-			// Extract coefficients 
-			nPredictors = cols(mPat_Cont)
-			coef_Cont = bL1_TXD_Cont[1, 1..nPredictors]'
-			dist_Cont = fbL1_TXD_Cont
-			aux_Cont = bL1_TXD_Cont[1, cols(bL1_TXD_Cont)]
-
-			// Calculate XB
-			vXB_Cont = mPat_Cont * coef_Cont
-			
-			// Calculate survival time using mata function
-			vRN_Cont = vRN_Cont[idxCont]
-			vOut_Cont = calcSurvTime(vXB_Cont, vRN_Cont, dist_Cont, aux_Cont)
-			
-			// Curtail if beyond observed maximum
-			vOut_Cont = (vOut_Cont :> maxL1_TXD_Cont) :* maxL1_TXD_Cont :+ (vOut_Cont :<= maxL1_TXD_Cont) :* vOut_Cont
-			
-			// Update matrices
-			mTXD[idxCont, 1] = round(vOut_Cont, 0.1)
-			mTNE[idxCont, OMC] = round(vOut_Cont, 0.1)
-			mTSD[idxCont, OMC+1] = mTSD[idxCont, OMC] :+ mTNE[idxCont, OMC]
+		// Group 3: Continuous Therapy (CR == 7)
+		if (anyof(oL1_TXR, 7)) {
+			vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
+			vCont = (mTXR[.,1] :== 7) :& vEligible
+			idxCont = selectindex(vCont)
+			if (rows(idxCont) > 0) {
+					
+				// Assemble patient matrix	
+				mPat_Cont = (vAge[idxCont], vAge2[idxCont], vMale[idxCont],
+							 vECOG0[idxCont], vECOG1[idxCont], vECOG2[idxCont], 
+							 vRISS1[idxCont], vRISS2[idxCont], vRISS3[idxCont], 
+							 vCons[idxCont])
+				
+				// Extract coefficients 
+				nPredictors = cols(mPat_Cont)
+				coef_Cont = bL1_TXD_Cont[1, 1..nPredictors]'
+				dist_Cont = fbL1_TXD_Cont
+				aux_Cont = bL1_TXD_Cont[1, cols(bL1_TXD_Cont)]
+					
+				// Calculate XB
+				vXB_Cont = mPat_Cont * coef_Cont
+					
+				// Calculate survival time
+				vRN_Cont = vRN[idxCont]
+				vOC[idxCont] = calcSurvTime(vXB_Cont, vRN_Cont, dist_Cont, aux_Cont)
+					
+				// Curtail if beyond observed maximum
+				vOC[idxCont] = (vOC[idxCont] :> maxL1_TXD_Cont) :* maxL1_TXD_Cont :+ (vOC[idxCont] :<= maxL1_TXD_Cont) :* vOC[idxCont]
+			}
 		}
+		
+		// Update outcome matrices
+		mTXD[idx, 1] = round(vOC[idx], 0.1)
+		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]	
 	}
-
+}

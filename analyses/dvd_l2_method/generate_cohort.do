@@ -61,8 +61,9 @@ forval s = 1/`n_samples' {
     keep if YearL2 >= `l2_start_year' & YearL2 <= `l2_end_year'	// L2S between dates
       
     // Clean for simulation 
-    replace TXR_L2 = .
-	replace State = 4
+    replace State = 4
+	replace Age_L2S = .
+	replace TXR_L2 = .
 	gen Age70 = Age_DN >= 70
 	gen Age75 = Age_DN >= 75
     

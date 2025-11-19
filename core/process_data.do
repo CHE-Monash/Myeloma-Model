@@ -8,7 +8,7 @@ program process_data
 	di as text "Processing Simulated Data"
 
 	*Create mSum in Mata 
-		mata: mSum = mCore , mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState , mSCT , vMNT
+		mata: mSum = mCore , mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState , vSCT_DN , vSCT_L1 , vMNT
 	
 	*Convert mSum to stSum
 		mata: st_matrix("stSum", mSum)

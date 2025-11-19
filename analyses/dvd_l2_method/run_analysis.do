@@ -15,13 +15,13 @@ cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Simula
 // Define settings
 global analysis		"dvd_l2_method"    	// Analysis name
 global int			"dvd"            	// Intervention
-global line         "0"             	// Line being assessed (1/9)
+global line         "2"             	// Line being assessed (1/9)
 global coeffs		"dvd_l2_pre"    	// Which coefficients
-global data		    "population"   	 	// Which patients
+global data		    "predicted"   	 	// Which patients
 global min_year		"2000"				// Patients diagnosed from (>= 1995)
 global max_year		"2025"				// Patients diagnosed until (<= 2040)
 global min_id       "1"             	// First patient ID (>= 1)
-global max_id       "100000"            // Last patient ID (Population <= 101,212, Prediction <= 79991)
+global max_id       "10"     	      	// Last patient ID (Population <= 101,212, Prediction <= 79991)
 global boot		    "0"             	// Bootstrap flag (0/1)
 global min_bs 		""	             	// First bootstrap
 global max_bs 		"" 	            	// Last bootstrap

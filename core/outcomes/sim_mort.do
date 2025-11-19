@@ -74,14 +74,4 @@ mata {
 			mTFI[idxDies, (OMC+1)/2] = vTimeMonths
 		}
 	}
-		
-	// Update mSCT only if death before L1E (OMC <= 2)
-	if (OMC <= 2 & rows(idxEligible) > 0) {
-		if (rows(idxDies) > 0) {
-			mSCT[idxDies, 1] = J(rows(idxDies), 1, 0)
-		}
-		if (rows(idxLives) > 0) {
-			mSCT[idxLives, 1] = mSCT[idxLives, 1]  // Keep existing values
-		}
-	}
 }

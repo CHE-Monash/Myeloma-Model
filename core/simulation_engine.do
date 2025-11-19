@@ -16,7 +16,7 @@ di "Running simulation"
 	di "DN - SCT"	
 		quietly do "core/outcomes/sim_asct_dn.do"
 		*mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
-		*mata: _matrix_list(mSCT, rmSCT, cmSCT)		
+		*mata: _matrix_list(vSCT_DN)		
 		
 	di "DN - Treatment-free Interval"		
 		quietly do "core/outcomes/sim_tfi_dn.do"
@@ -84,7 +84,7 @@ di "Running simulation"
 	di "L1E - SCT"
 		quietly do "core/outcomes/sim_asct_l1.do"			
 		*mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
-		*mata: _matrix_list(mSCT, rmSCT, cmSCT)
+		*mata: _matrix_list(vSCT_L1)
 
 	di "L1E - SCT Best Clinical Response"
 		quietly do "core/outcomes/sim_bcr_asct.do"			
@@ -99,7 +99,7 @@ di "Running simulation"
 	di "L1E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi_l1.do"			
 		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
-		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
+		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 	
 	di "L1E - Overall Survival"
@@ -116,11 +116,11 @@ di "Running simulation"
 	mata: OMC = 4
 		
 	di "L2S - Age"
-		do "core/outcomes/sim_age.do"	
+		quietly do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L2S - Treatment Regimen"
-		do "core/outcomes/sim_txr.do"
+		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		
@@ -189,18 +189,6 @@ di "Running simulation"
 		if ("$data" == "population" & $line == 3) {
 			exit
 		}
-		
-/*		mata: oL3_TXR = 0
-		scalar o = "oL3_TXR"
-		forval i = 1/`=Obs' {
-			mata {
-				if (mMOR[`i',`=OMC'-1] == 0) mCore[`i',cCR] = 0
-				if (mMOR[`i',`=OMC'-1] == 0) mCR[`i',`=LX'+2] = 0
-				if (mMOR[`i',`=OMC'-1] != 0) mCore[`i',cCR] = .					
-			}
-		}
-*/
-		*mata: _matrix_list(mL3_TXR, rmL3_TXR, cmL3_TXR)
 				
 	di "L3S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
@@ -263,24 +251,6 @@ di "Running simulation"
 		if ("$data" == "population" & $line == 4) {
 			exit
 		}
-
-/*		mata {
-			// Identify alive and dead patients
-			idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-			idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-			
-			// Set treatment regimen to 0 for alive patients
-			if (rows(idxAlive) > 0) {
-				mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-			}
-			
-			// Set to missing for dead patients
-			if (rows(idxDead) > 0) {
-				mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-			}
-		}
-*/		
-		*mata: _matrix_list(mL4_TXR, rmL4_TXR, cmL4_TXR)
 			
 	di "L4S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"
@@ -336,21 +306,8 @@ di "Running simulation"
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L5S - Treatment Regimen"
-	mata {
-		// Identify alive and dead patients
-		idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-		idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-		
-		// Set treatment regimen to 0 for alive patients
-		if (rows(idxAlive) > 0) {
-			mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-		}
-		
-		// Set to missing for dead patients
-		if (rows(idxDead) > 0) {
-			mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-		}
-	}
+		quietly do "core/outcomes/sim_txr.do"
+		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L5S - Treatment Duration"
 		scalar m = "mL5_TXD"
@@ -409,21 +366,8 @@ di "Running simulation"
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L6S - Treatment Regimen"
-		mata {
-			// Identify alive and dead patients
-			idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-			idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-			
-			// Set treatment regimen to 0 for alive patients
-			if (rows(idxAlive) > 0) {
-				mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-			}
-			
-			// Set to missing for dead patients
-			if (rows(idxDead) > 0) {
-				mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-			}
-		}
+		quietly do "core/outcomes/sim_txr.do"
+		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L6S - Treatment Duration"
 		scalar m = "mL6_TXD"
@@ -482,21 +426,8 @@ di "Running simulation"
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L7S - Treatment Regimen"
-		mata {
-			// Identify alive and dead patients
-			idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-			idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-			
-			// Set treatment regimen to 0 for alive patients
-			if (rows(idxAlive) > 0) {
-				mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-			}
-			
-			// Set to missing for dead patients
-			if (rows(idxDead) > 0) {
-				mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-			}
-		}
+		quietly do "core/outcomes/sim_txr.do"
+		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L7S - Chemo Duration"
 		quietly do "core/outcomes/sim_txd.do"	
@@ -551,21 +482,8 @@ di "Running simulation"
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L8S - Treatment Regimen"
-		mata {
-			// Identify alive and dead patients
-			idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-			idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-			
-			// Set treatment regimen to 0 for alive patients
-			if (rows(idxAlive) > 0) {
-				mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-			}
-			
-			// Set to missing for dead patients
-			if (rows(idxDead) > 0) {
-				mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-			}
-		}
+		quietly do "core/outcomes/sim_txr.do"
+		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L8S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
@@ -620,21 +538,8 @@ di "Running simulation"
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L9S - Treatment Regimen"
-		mata {
-			// Identify alive and dead patients
-			idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-			idxDead = selectindex(mMOR[., OMC-1] :!= 0)
-			
-			// Set treatment regimen to 0 for alive patients
-			if (rows(idxAlive) > 0) {
-				mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
-			}
-			
-			// Set to missing for dead patients
-			if (rows(idxDead) > 0) {
-				mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
-			}
-		}
+		quietly do "core/outcomes/sim_txr.do"
+		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L9S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	

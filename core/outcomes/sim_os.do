@@ -5,9 +5,7 @@
 * Outcome: Continuous survival time (in days)
 **********
 
-mata {  
-    nObs = rows(vAge)
-    
+mata {    
 	// Determine which column of mBCR to use based on OMC
 	if (OMC == 1 | OMC == 2) {
 		currentBCR = J(nObs, 1, 5)
@@ -23,15 +21,12 @@ mata {
 	}
     
 	// Create BCR dummy variables
-	bcr1 = (currentBCR :== 1)
-	bcr2 = (currentBCR :== 2)
-	bcr3 = (currentBCR :== 3)
-	bcr4 = (currentBCR :== 4)
-	bcr5 = (currentBCR :== 5)
-	bcr6 = (currentBCR :== 6)
-	
-	// Initialize outcome
-    vOS = J(nObs, 1, .)
+	vBCR1 = (currentBCR :== 1)
+	vBCR2 = (currentBCR :== 2)
+	vBCR3 = (currentBCR :== 3)
+	vBCR4 = (currentBCR :== 4)
+	vBCR5 = (currentBCR :== 5)
+	vBCR6 = (currentBCR :== 6)
 	
 	// Determine coefficient segments
 	// Segment maps to BCR coefficient position: BCR_start = 10 + segment*6	
@@ -90,18 +85,19 @@ mata {
         // Calculate for this segment if patients exist
         if (rows(idx) > 0) {
             // Build patient matrix  - reference categories not required as using coefCols
-			pMatrix = (vAge[idx], vAge2[idx], vMale[idx], 
-			           vECOG1[idx], vECOG2[idx], 
-				       vRISS2[idx], vRISS3[idx],
-			           bcr1[idx], bcr2[idx], bcr3[idx], bcr4[idx], bcr5[idx], bcr6[idx],
-			           vCons[idx])
+			pMat = (vAge[idx], vAge2[idx], vMale[idx], 
+			        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
+				    vRISS1[idx], vRISS2[idx], vRISS3[idx],
+			        vBCR1[idx], vBCR2[idx], vBCR3[idx], 
+					vBCR4[idx], vBCR5[idx], vBCR6[idx],
+			        vCons[idx])
 			
             // Extract coefficients
 			vCoef = bOS[1, coefCols]'
 			aux =  bOS[1, cols(bOS)]
             
             // Calculate XB
-            vXB = pMatrix * vCoef
+            vXB = pMat * vCoef
             
             // Calculate probability of survival to current time point
 			if (OMC > 1) {
@@ -113,11 +109,10 @@ mata {
 			}
             
             // Calculate survival time
-            vOS[idx] = calcSurvTime(vXB, vRN, fbOS, aux)
+            vOC[idx] = calcSurvTime(vXB, vRN, fbOS, aux)
+			
+			// Update matrix
+            mOS[idx, OMC] = round(vOC[idx], 0.1)
         }
     }
-    
-    // Update matrix
-    mOS[., OMC] = round(vOS, 0.1)
-	
 }

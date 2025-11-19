@@ -75,5 +75,10 @@ mata {
 			// Set mTNE for previous OMC to missing
 			mTNE[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, .)
 		}
+	
+	// Update vAge and vAge2 vectors for current OMC
+	vAge = mAge[., OMC]
+	vAge2 = vAge :^ 2
+	
 	}
 }

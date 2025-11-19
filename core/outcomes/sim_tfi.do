@@ -1,5 +1,5 @@
 **********
-*SIM TFI (L2+) 
+* SIM TFI (L2+) 
 *
 * Purpose: Treatment-free Interval at Line 2+ End (time from LXE to L(X+1)S)
 * Method: Parametric survival analysis
@@ -7,16 +7,10 @@
 **********
 
 mata {
-    // Select patients
+    // Filter for alive and eligible
     idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
 	if (rows(idx) > 0) {
-		
-		// Generate random numbers for all patients
-		vRN = runiform(rows(mMOR), 1)
-		
-		// Initialize outcome vector
-		vOut = J(rows(mMOR), 1, .)
-		
+
 		// Select coefficient matrix based on Line
 		if (Line == 2) {
 			vCoef = bL2_TFI
@@ -43,50 +37,32 @@ mata {
 			BCR_cat = 3 			
 		}
 		
-		// Patient vectors
-		vAge_e = mAge[idx, OMC]
-		vAge2_e = vAge_e :^ 2
-		vMale_e = vMale[idx]
-		vECOG0_e = (vECOG[idx] :== 0)
-		vECOG1_e = (vECOG[idx] :== 1)
-		vECOG2_e = (vECOG[idx] :== 2)
-		vRISS1_e = (vRISS[idx] :== 1)
-		vRISS2_e = (vRISS[idx] :== 2)
-		vRISS3_e = (vRISS[idx] :== 3)
-		vBCR1_e = (mBCR[idx, Line] :== 1)
-		vBCR2_e = (mBCR[idx, Line] :== 2)
-		vBCR3_e = (mBCR[idx, Line] :== 3)
-		vBCR4_e = (mBCR[idx, Line] :== 4)
-		vBCR5_e = (mBCR[idx, Line] :== 5)
-		vBCR6_e = (mBCR[idx, Line] :== 6)
-		vCons_e = vCons[idx]
-		
-		// Build patient matrix
-		mPat = (vAge_e, vAge2_e, vMale_e, 
-				   vECOG0_e, vECOG1_e, vECOG2_e,
-		           vRISS1_e, vRISS2_e, vRISS3_e)
+		// Assemble patient matrix
+		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
+				vECOG0[idx], vECOG1[idx], vECOG2[idx],
+		        vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
 		// Add previous BCR
 		if (BCR_cat == 6) {
 			prevBCR = mBCR[idx, Line]
-			vBCR_CR_e = (prevBCR :== 1)
-			vBCR_VG_e = (prevBCR :== 2)
-			vBCR_PR_e = (prevBCR :== 3)
-			vBCR_MR_e = (prevBCR :== 4)
-			vBCR_SD_e = (prevBCR :== 5)
-			vBCR_PD_e = (prevBCR :== 6)
-			mPat = (mPat, vBCR_CR_e, vBCR_VG_e, vBCR_PR_e, vBCR_MR_e, vBCR_SD_e, vBCR_PD_e)
+			vBCR_CR = (prevBCR :== 1)
+			vBCR_VG = (prevBCR :== 2)
+			vBCR_PR = (prevBCR :== 3)
+			vBCR_MR = (prevBCR :== 4)
+			vBCR_SD = (prevBCR :== 5)
+			vBCR_PD = (prevBCR :== 6)
+			mPat = (mPat, vBCR_CR, vBCR_VG, vBCR_PR, vBCR_MR, vBCR_SD, vBCR_PD)
 		}
 		else if (BCR_cat == 3) {
 			prevBCR = mBCR[idx, Line]
-			vBCR_CR_e = (prevBCR :== 1)
-			vBCR_PR_e = (prevBCR :== 3)
-			vBCR_SD_e = (prevBCR :== 5)
-			mPat = (mPat, vBCR_CR_e, vBCR_PR_e, vBCR_SD_e)
+			vBCR_CR = (prevBCR :== 1)
+			vBCR_PR = (prevBCR :== 3)
+			vBCR_SD = (prevBCR :== 5)
+			mPat = (mPat, vBCR_CR, vBCR_PR, vBCR_SD)
 		}
 				
 		// Add constant
-		mPat = (mPat, vCons_e)		   
+		mPat = mPat, vCons[idx]
 		
 		// Extract coefficients
 		aux = vCoef[1, cols(vCoef)]
@@ -96,22 +72,16 @@ mata {
 		// Calculate XB
 		vXB = mPat * vCoef
 		
-		// Calculate outcome (survival time)
-		vRN_e = vRN[idx]
-		vOut[idx] = calcSurvTime(vXB, vRN_e, fbCoef, aux)
+		// Calculate outcome
+		vRN = runiform(rows(idx), 1)
+		vOC[idx] = calcSurvTime(vXB, vRN, fbCoef, aux)
 		
 		// Curtail if beyond maximum observed
-		vOut[idx] = rowmin((vOut[idx], J(rows(idx), 1, maxTFI)))
-		
-		// Handle prevalent patients
-		prevalent = selectindex(mState[., 1] :> OMC + 1)
-		if (rows(prevalent) > 0) {
-			vOut[prevalent] = mTNE[prevalent, OMC]
-		}
+		vOC[idx] = rowmin((vOC[idx], J(rows(idx), 1, maxTFI)))
 		
 		// Update matrices
-		mTFI[., LX+1] = round(vOut, 0.1)
-		mTNE[., OMC] = round(vOut, 0.1)
-		mTSD[., OMC+1] = mTSD[., OMC] + mTNE[., OMC]
+		mTFI[idx, LX+1] = round(vOC[idx], 0.1)
+		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
 }

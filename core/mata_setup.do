@@ -53,27 +53,6 @@ program define mata_setup
 	}
 	*mata: _matrix_list(mCom, rmCom, cmCom)
 		
-	*mSCT
-	mata {
-		mSCT = st_data(., "SCT_DN SCT_L1") // Currently using same variable twice
-		rmSCT = J(Obs,2,"")
-		rmSCT[.,2] = strofreal(1::Obs)
-		cmSCT = J(2,2,"")
-		cmSCT[1,1] = "SCT_DN"
-		cmSCT[2,1] = "SCT_L1"
-	}		
-	*mata: _matrix_list(mSCT, rmSCT, cmSCT)
-		
-	*mMNT
-	mata {
-		mMNT = st_data(.,"MNT")
-		rmMNT = J(Obs,2,"")
-		rmMNT[.,2] = strofreal(1::Obs)
-		cmMNT = J(1,2,"")
-		cmMNT[1,1] = "MNT"
-	}		
-	*mata: _matrix_list(mMNT, rmMNT, cmMNT)	
-		
 	*mCons
 	gen Cons = 1
 	mata {
