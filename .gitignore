@@ -28,18 +28,13 @@ ehthumbs.db
 *.do~
 *.ado~
 
-# Simulated data - CORRECTED for v2.0 structure
-# Target the actual paths in your repository
-v2.0/analyses/*/data/simulated/*.dta
-v2.0/analyses/*/data/simulated/*.csv
-v2.0/analyses/*/data/simulated/*.txt
-v2.0/analyses/*/data/simulated/*.log
-v2.0/analyses/*/data/simulated/bootstrap/
-
-# Keep .gitkeep files (they won't be ignored by the above patterns)x
+# Keep .gitkeep files (they won't be ignored by the above patterns)
 
 # Simulated output data
 analyses/*/data/simulated/*.dta
 analyses/*/data/simulated/results/
 analyses/*/data/simulated/reports/
 analyses/*/data/simulated/bootstrap/
+
+analyses/dvd_l2_method/data/
+analyses/dvd_l2_method/outcomes/

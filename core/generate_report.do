@@ -7,10 +7,10 @@
 * Requirements:
 *   - Stata 15+ (putpdf built-in)
 *   - Global variables from dispatcher:
-*       $Analysis, $Int, $Line, $Data, $MinID, $MaxID, $simulated_path
+*       $analysis, $int, $line, $data, $min_id, $max_id, $simulated_path
 * 
 * Output:
-*   - baseline_characteristics_[Analysis]_[Int]_[Data].pdf
+*   - baseline_characteristics_[$analysis]_[$int]_[$data].pdf
 *
 * Author: EpiMAP Research Team
 * Date: October 2025
@@ -24,7 +24,7 @@ di as text "{hline 78}"
 * VALIDATE REQUIRED GLOBALS
 ****************************************************************************
 
-capture confirm existence $Analysis
+capture confirm existence $analysis
 if _rc {
     di as error "Error: Global variables not set"
     di as error "This script must be called after running EpiMAP_Myeloma_v2.0.do"
@@ -32,11 +32,11 @@ if _rc {
 }
 
 di as text _n "Simulation Parameters:"
-di as text "  Analysis:     " as result "$Analysis"
-di as text "  Intervention: " as result "$Int"
-di as text "  Line:         " as result "$Line"  
-di as text "  Data:         " as result "$Data"
-di as text "  Patient IDs:  " as result "$MinID to $MaxID"
+di as text "  Analysis:     " as result "$analysis"
+di as text "  Intervention: " as result "$int"
+di as text "  Line:         " as result "$line"  
+di as text "  Data:         " as result "$data"
+di as text "  Patient IDs:  " as result "$min_id to $max_id"
 
 ****************************************************************************
 * CREATE OUTPUT DIRECTORY
@@ -51,7 +51,7 @@ di as text "  Output:       " as result "`report_dir'"
 * LOAD DATA
 ****************************************************************************
 
-local datafile "$simulated_path/$Int $Line $Data $MinID $MaxID.dta"
+local datafile "${simulated_path}/${int}_${line}_${data}_${min_id}_${max_id}.dta"
 
 capture confirm file "`datafile'"
 if _rc {
@@ -445,7 +445,7 @@ if !_rc {
 ****************************************************************************
 
 set graphics on
-local output_file "`report_dir'/report_${Analysis}_${Int}_${Data}.pdf"
+local output_file "`report_dir'/report_${analysis}_${int}_${data}.pdf"
 putpdf save "`output_file'", replace
 
 ****************************************************************************

@@ -146,12 +146,12 @@ mata {
 			
 		// Assign "Other" (code 0) to alive patients
 		if (rows(idxAlive) > 0) {
-			mTXR[idxAlive, LX+1] = J(rows(idxAlive), 1, 0)
+			mTXR[idxAlive, Line+1] = J(rows(idxAlive), 1, 0)
 		}
 			
 		// Set missing for dead patients
 		if (rows(idxDead) > 0) {
-			mTXR[idxDead, LX+1] = J(rows(idxDead), 1, .)
+			mTXR[idxDead, Line+1] = J(rows(idxDead), 1, .)
 		}
 			
 	}
@@ -159,12 +159,11 @@ mata {
 
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line+1))
-if "${line}" == "`current_line'" {
-	local override_file "${analysis_path}/outcomes/sim_txr_override_${int}_l${line}.do"
+if `current_line' == ${line} {
+	local override_file "${analysis_path}/outcomes/sim_txr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
-		di "Overriding TXR"
-		quietly do "`override_file'"
+		quietly do `override_file'
 	}
 }
 

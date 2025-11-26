@@ -108,7 +108,7 @@ mata {
 		}
 		
 		// Update matrices
-		mTFI[idx, LX+1] = round(vOC, 0.1)
+		mTFI[idx, 2] = round(vOC, 0.1)
 		mTNE[idx, OMC] = round(vOC, 0.1)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}

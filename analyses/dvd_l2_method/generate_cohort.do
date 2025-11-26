@@ -21,7 +21,7 @@ macro drop _all
 **********
 
 // Set working directory
-cd "~/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Simulation"
+cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Simulation"
 
 // Parameters
 local n_samples = 10

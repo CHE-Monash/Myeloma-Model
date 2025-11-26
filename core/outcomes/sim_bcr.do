@@ -1,10 +1,10 @@
 **********
 * SIM BCR 
 *
-* Purpose: Determine Best Clinical Response (BCR) for all LoTs
+* Purpose: Determine Best Clinical Response (BCR)
 * Method: Ordered logit
 * Outcome:
-* 6-category (L1-L2): 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
+* 6-category (L1,L2): 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
 * 3-category (L3+): 1=CR/VGPR, 3=PR/MR, 5=SD/PD
 **********
 
@@ -22,51 +22,28 @@ mata {
 	}
 	
 	// Extract previous BCR
-	if (Line >= 2) {
-		if (Line == 2 | Line == 3) { // 6-category
-			pBCR = mBCR[., Line]
-			pBCR_CR = (pBCR :== 1)
-			pBCR_VG = (pBCR :== 2)
-			pBCR_PR = (pBCR :== 3)
-			pBCR_MR = (pBCR :== 4)
-			pBCR_SD = (pBCR :== 5)
-			pBCR_PD = (pBCR :== 6)
-		}
-		if (Line == 2) { // Also need BCR_SCT
-			BCR_SCT = mBCR[., 10]
-			pBCR_SCT_0 = (BCR_SCT :== 0) // No ASCT patients
-			pBCR_SCT_1 = (BCR_SCT :== 1)
-			pBCR_SCT_2 = (BCR_SCT :== 2)
-			pBCR_SCT_3 = (BCR_SCT :== 3)
-			pBCR_SCT_4 = (BCR_SCT :== 4)
-		}
-		else {
-			// L4+ 3-category
-			prevLineIdx = Line - 1
-			prevBCR = mBCR[., prevLineIdx]
-			pBCR_CR = (prevBCR :== 1)
-			pBCR_PR = (prevBCR :== 3)
-			pBCR_SD = (prevBCR :== 5)
-		}
+	if (Line == 2 | Line == 3) { // L1, L2 6-category
+		pBCR = mBCR[., Line-1]
+		pBCR_CR = (pBCR :== 1)
+		pBCR_VG = (pBCR :== 2)
+		pBCR_PR = (pBCR :== 3)
+		pBCR_MR = (pBCR :== 4)
+		pBCR_SD = (pBCR :== 5)
+		pBCR_PD = (pBCR :== 6)
 	}
-	
-	// Extract TXR dummies
-	if (Line <= 4) {
-		if (Line == 1) oVector = oL1_TXR
-		if (Line == 2) oVector = oL2_TXR
-		if (Line == 3) oVector = oL3_TXR
-		if (Line == 4) oVector = oL4_TXR
-		
-		currentTX = mTXR[., Line]
-		
-		if (cols(oVector) >= 2) TXR_is_R2 = (currentTX :== oVector[1, 2])
-		if (cols(oVector) >= 3) TXR_is_R3 = (currentTX :== oVector[1, 3])
-		if (cols(oVector) >= 4) TXR_is_R4 = (currentTX :== oVector[1, 4])
-		
-		nRegimens = cols(oVector)
+	if (Line == 2) { // Also need BCR_SCT
+		BCR_SCT = mBCR[., 10]
+		pBCR_SCT_0 = (BCR_SCT :== 0) // No ASCT patients
+		pBCR_SCT_1 = (BCR_SCT :== 1)
+		pBCR_SCT_2 = (BCR_SCT :== 2)
+		pBCR_SCT_3 = (BCR_SCT :== 3)
+		pBCR_SCT_4 = (BCR_SCT :== 4)
 	}
-	else {
-		nRegimens = 0
+	else if (Line >= 4) { // L3+ 3-category
+		pBCR = mBCR[., Line-1]
+		pBCR_CR = (pBCR :== 1)
+		pBCR_PR = (pBCR :== 3)
+		pBCR_SD = (pBCR :== 5)
 	}
 	
 	// Filter for alive and eligble
@@ -96,17 +73,17 @@ mata {
 			
 		// Add TXR dummies
 		if (Line <= 4) {
-			if (Line == 1) oVector = oL1_TXR
-			if (Line == 2) oVector = oL2_TXR
-			if (Line == 3) oVector = oL3_TXR
-			if (Line == 4) oVector = oL4_TXR
+			if (Line == 1) vTXR = oL1_TXR
+			if (Line == 2) vTXR = oL2_TXR
+			if (Line == 3) vTXR = oL3_TXR
+			if (Line == 4) vTXR = oL4_TXR
 			
-			currentTX = mTXR[., Line]
+			currentTX = mTXR[idx, Line]
 			
-			if (cols(oVector) >= 1) mPat = mPat, (currentTX :== oVector[1, 1])
-			if (cols(oVector) >= 2) mPat = mPat, (currentTX :== oVector[1, 2])
-			if (cols(oVector) >= 3) mPat = mPat, (currentTX :== oVector[1, 3])
-			if (cols(oVector) >= 4) mPat = mPat, (currentTX :== oVector[1, 4])
+			if (cols(vTXR) >= 1) mPat = mPat, (currentTX :== vTXR[1, 1])
+			if (cols(vTXR) >= 2) mPat = mPat, (currentTX :== vTXR[1, 2])
+			if (cols(vTXR) >= 3) mPat = mPat, (currentTX :== vTXR[1, 3])
+			if (cols(vTXR) >= 4) mPat = mPat, (currentTX :== vTXR[1, 4])
 		}
 		
 		nPredictors = cols(mPat)
@@ -121,7 +98,7 @@ mata {
 		vCoef = vCoef_full[1, 1..nPredictors]'
 		cutPointIndices = (cols(vCoef_full) - nCutPoints + 1)..cols(vCoef_full)
 		cutPoints = vCoef_full[1, cutPointIndices]
-		
+				
 		// Calculate XB
 		vXB = mPat * vCoef
 		
@@ -133,16 +110,16 @@ mata {
 		vOC = assignOrdOutcome(vRN, cumProbs, categoryValues)
 	
 		// Update matrix
-		mBCR[idx, LX] = vOC
+		mBCR[idx, Line] = vOC
 	}	
 }
 
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line))
-if "${line}" == "`current_line'" {
-	local override_file "${analysis_path}/outcomes/sim_bcr_override_${int}_l${line}.do"
+if `current_line' == ${line} {
+	local override_file "${analysis_path}/outcomes/sim_bcr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
-		qui do "`override_file'"
+		qui do `override_file'
 	}
 }

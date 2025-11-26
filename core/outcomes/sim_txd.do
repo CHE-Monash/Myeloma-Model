@@ -5,6 +5,7 @@
 * Method: Parametric survival analysis
 * Outcome: Continuous time (months)
 **********
+
 mata {
 	// Filter for alive and eligible
 	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1))
@@ -44,7 +45,7 @@ mata {
 				vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
 		// Add treatment regimen dummies
-		currentTX = mTXR[idx, Line]
+		currentTX = mTXR[idx, Line+1]
 		if (nTXR >= 1) {
 			vTXR1 = (currentTX :== vTXR[1,1])
 			mPat = (mPat, vTXR1)
@@ -88,11 +89,12 @@ mata {
 		// Calculate XB and duration
 		vXB = mPat * vCoef
 		vRN = runiform(rows(idx), 1)
-		vOC[idx] = calcSurvTime(vXB, vRN, dist, aux)
+		vOC = calcSurvTime(vXB, vRN, dist, aux)
 		
-		// Store outcomes
-		mTXD[idx, LX+1] = round(vOC[idx], 0.1)
-		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		// Update matrices
+		mTXD[idx, Line+1] = round(vOC, 0.1)
+		mTNE[idx, OMC] = round(vOC, 0.1)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC-1] :+ mTNE[idx, OMC]
+
 	}
 }

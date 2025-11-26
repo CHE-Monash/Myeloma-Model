@@ -53,20 +53,12 @@ mata {
 			if (mod(OMC-1, 2) == 0) {
 				// Even OMC-1: update TXD
 				lineIdx = floor((OMC-1)/2)  // Ensure integer index
-				
-				// Bounds check: TXD has 9 columns (L1-L9)
-				if (lineIdx >= 1 & lineIdx <= 9) {
-					mTXD[idxExceedsFull, lineIdx] = vTimeMonths
-				}
+				mTXD[idxExceedsFull, lineIdx] = vTimeMonths
 			}
 			else {
 				// Odd OMC-1: update TFI
 				lineIdx = floor((OMC+1)/2)  // Ensure integer index
-				
-				// Bounds check: TFI has 9 columns (DN, L1-L8)
-				if (lineIdx >= 1 & lineIdx <= 9) {
-					mTFI[idxExceedsFull, lineIdx] = vTimeMonths
-				}
+				mTFI[idxExceedsFull, lineIdx] = vTimeMonths
 			}
 			
 			// Set mTSD for current OMC to missing
@@ -75,10 +67,9 @@ mata {
 			// Set mTNE for previous OMC to missing
 			mTNE[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, .)
 		}
-	
-	// Update vAge and vAge2 vectors for current OMC
-	vAge = mAge[., OMC]
-	vAge2 = vAge :^ 2
-	
+					
+		// Update vAge and vAge2 vectors for current OMC
+		vAge = mAge[., OMC]
+		vAge2 = vAge :^ 2
 	}
 }

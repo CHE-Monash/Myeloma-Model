@@ -20,7 +20,7 @@ mata {
 		else if (Line == 3) vTXR = oL3_TXR
 		else if (Line == 4) vTXR = oL4_TXR
 		
-		nRegimens = cols(oVector)
+		nRegimens = cols(vTXR)
 		
 		// Create treatment regimen dummies
 		if (nRegimens >= 2) TXR_is_R2 = (currentTX :== vTXR[1, 2])

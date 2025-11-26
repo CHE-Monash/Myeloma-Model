@@ -1,11 +1,11 @@
-	**********
+**********
 * SIM OS - Vectorised Implementation
 * 
 * Purpose: Calculate Overall Survival for any line of therapy
 * Outcome: Continuous survival time (in days)
 **********
 
-mata {    
+mata {
 	// Determine which column of mBCR to use based on OMC
 	if (OMC == 1 | OMC == 2) {
 		currentBCR = J(nObs, 1, 5)
@@ -28,17 +28,19 @@ mata {
 	vBCR5 = (currentBCR :== 5)
 	vBCR6 = (currentBCR :== 6)
 	
-	// Determine coefficient segments
-	// Segment maps to BCR coefficient position: BCR_start = 10 + segment*6	
-	if (OMC <= 2) { // DN or L1S
+	// Determine coefficient segments based on Line
+	// Segment maps Line×BCR coefficient position: BCR_start = 10 + segment*6
+	if (Line == 0) { 
+		// DN or L1S: No BCR yet
 		segments = 0
 	}
-	else if (OMC == 3) { // L1E 
+	else if (Line == 1) { 
+		// L1E: Split by ASCT status
 		segments = (1, 2)
 	}
 	else {
-		lineNum = floor((OMC - 2) / 2)
-		segments = lineNum + 2
+		// L2+ End phases
+		segments = Line + 1
 		
 		// Cap at segment 7 (L6) - reuse L6 coefficients for L7-L9
 		if (segments > 7) {
@@ -69,25 +71,22 @@ mata {
 			}
 		}
 		else if (segment == 1) { // L1 No ASCT
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& 
-			                  (mState[., 1] :<= OMC + 1) :& 
-			                  (vSCT_DN :== 0))
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1) :& (vSCT_DN :== 0))
 		}
 		else if (segment == 2) { // L1 ASCT
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& 
-			                  (mState[., 1] :<= OMC + 1) :& 
-			                  (vSCT_DN :== 1))
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1) :& (vSCT_DN :== 1))
 		}
 		else {
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC+1))
+			// L2+ segments: all alive patients
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
 		}
         
         // Calculate for this segment if patients exist
         if (rows(idx) > 0) {
-            // Build patient matrix  - reference categories not required as using coefCols
+            // Build patient matrix - reference ECOG/RISS categories NOT required as using coefCols
 			pMat = (vAge[idx], vAge2[idx], vMale[idx], 
-			        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-				    vRISS1[idx], vRISS2[idx], vRISS3[idx],
+			        vECOG1[idx], vECOG2[idx], 
+				    vRISS2[idx], vRISS3[idx],
 			        vBCR1[idx], vBCR2[idx], vBCR3[idx], 
 					vBCR4[idx], vBCR5[idx], vBCR6[idx],
 			        vCons[idx])
@@ -100,7 +99,7 @@ mata {
             vXB = pMat * vCoef
             
             // Calculate probability of survival to current time point
-			if (OMC > 1) {
+			if (OMC >= 2) {
 				vPR = calcSurvProb(vXB, mTSD[idx, OMC], fbOS, aux)
 				vRN = runiform(rows(idx), 1) :* vPR // Conditional on survival to mTSD
 			}
@@ -109,10 +108,10 @@ mata {
 			}
             
             // Calculate survival time
-            vOC[idx] = calcSurvTime(vXB, vRN, fbOS, aux)
+            vOC = calcSurvTime(vXB, vRN, fbOS, aux)
 			
 			// Update matrix
-            mOS[idx, OMC] = round(vOC[idx], 0.1)
+            mOS[idx, OMC] = round(vOC, 0.1)
         }
     }
 }

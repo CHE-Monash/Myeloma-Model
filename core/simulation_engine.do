@@ -1,5 +1,10 @@
 **********
-	*EpiMAP Myeloma - Simulation Engine
+* EpiMAP Myeloma - Simulation Engine
+* 
+* Purpose: Run simulation
+*
+* Author: EpiMAP Research Team
+* Date: November 2025
 **********
 
 capture program drop simulation
@@ -11,7 +16,6 @@ di "Running simulation"
 *Diagnosis (DN)
 	mata: OMC = 1
 	mata: Line = 0
-	mata: LX = 0
 			
 	di "DN - SCT"	
 		quietly do "core/outcomes/sim_asct_dn.do"
@@ -70,7 +74,6 @@ di "Running simulation"
 *Line 1 End (L1E)
 	mata: OMC = 3
 	mata: Line = 1
-	mata: LX = 1
 
 	di "L1E - Age"
 		quietly do "core/outcomes/sim_age.do"
@@ -147,7 +150,6 @@ di "Running simulation"
 *Line 2 End (L2E)	
 	mata: OMC = 5
 	mata: Line = 2
-	mata: LX = 2
 
 	di "L2E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -157,7 +159,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
-
+exit
 	di "L2E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"
 		*mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
@@ -209,7 +211,6 @@ di "Running simulation"
 *Line 3 End (L3E)		
 	mata: OMC = 7
 	mata: Line = 3
-	mata: LX = 3
 	
 	di "L3E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -271,7 +272,6 @@ di "Running simulation"
 *Line 4 End (L4E)
 	mata: OMC = 9
 	mata: Line = 4
-	mata: LX = 4
 		
 	di "L4E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -310,9 +310,6 @@ di "Running simulation"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L5S - Treatment Duration"
-		scalar m = "mL5_TXD"
-		scalar b = "bLX_TXD"
-		scalar c = "cSU_"
 		quietly do "core/outcomes/sim_txd.do"		
 		*mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
@@ -331,7 +328,6 @@ di "Running simulation"
 *Line 5 End (L5E)	
 	mata: OMC = 11
 	mata: Line = 5
-	mata: LX = 5
 		
 	di "L5E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -370,9 +366,6 @@ di "Running simulation"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L6S - Treatment Duration"
-		scalar m = "mL6_TXD"
-		scalar b = "bLX_TXD" 		
-		scalar c = "cSU_"
 		quietly do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
@@ -391,7 +384,6 @@ di "Running simulation"
 *Line 6 End (L6E)
 	mata: OMC = 13
 	mata: Line = 6
-	mata: LX = 6
 		
 	di "L6E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -447,7 +439,7 @@ di "Running simulation"
 **********
 *Line 7 End (L7E)
 	mata: OMC = 15
-	mata: LX = 7
+	mata: Line = 7
 		
 	di "L7E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -503,7 +495,7 @@ di "Running simulation"
 **********
 *Line 8 End (L8E)
 	mata: OMC = 17
-	mata: LX = 8
+	mata: Line = 8
 		
 	di "L8E - Age"
 		quietly do "core/outcomes/sim_age.do"	
@@ -559,7 +551,7 @@ di "Running simulation"
 **********
 *Line 9 End (L9E)
 	mata: OMC = 19
-	mata: LX = 9
+	mata: Line = 9
 		
 	di "L9E - Age"
 		quietly do "core/outcomes/sim_age.do"	

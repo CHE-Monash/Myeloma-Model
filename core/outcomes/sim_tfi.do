@@ -44,21 +44,21 @@ mata {
 		
 		// Add previous BCR
 		if (BCR_cat == 6) {
-			prevBCR = mBCR[idx, Line]
-			vBCR_CR = (prevBCR :== 1)
-			vBCR_VG = (prevBCR :== 2)
-			vBCR_PR = (prevBCR :== 3)
-			vBCR_MR = (prevBCR :== 4)
-			vBCR_SD = (prevBCR :== 5)
-			vBCR_PD = (prevBCR :== 6)
-			mPat = (mPat, vBCR_CR, vBCR_VG, vBCR_PR, vBCR_MR, vBCR_SD, vBCR_PD)
+			pBCR = mBCR[idx, Line]
+			pBCR_CR = (pBCR :== 1)
+			pBCR_VG = (pBCR :== 2)
+			pBCR_PR = (pBCR :== 3)
+			pBCR_MR = (pBCR :== 4)
+			pBCR_SD = (pBCR :== 5)
+			pBCR_PD = (pBCR :== 6)
+			mPat = (mPat, pBCR_CR, pBCR_VG, pBCR_PR, pBCR_MR, pBCR_SD, pBCR_PD)
 		}
 		else if (BCR_cat == 3) {
-			prevBCR = mBCR[idx, Line]
-			vBCR_CR = (prevBCR :== 1)
-			vBCR_PR = (prevBCR :== 3)
-			vBCR_SD = (prevBCR :== 5)
-			mPat = (mPat, vBCR_CR, vBCR_PR, vBCR_SD)
+			pBCR = mBCR[idx, Line]
+			pBCR_CR = (pBCR :== 1)
+			pBCR_PR = (pBCR :== 3)
+			pBCR_SD = (pBCR :== 5)
+			mPat = (mPat, pBCR_CR, pBCR_PR, pBCR_SD)
 		}
 				
 		// Add constant
@@ -74,14 +74,14 @@ mata {
 		
 		// Calculate outcome
 		vRN = runiform(rows(idx), 1)
-		vOC[idx] = calcSurvTime(vXB, vRN, fbCoef, aux)
+		vOC = calcSurvTime(vXB, vRN, fbCoef, aux)
 		
 		// Curtail if beyond maximum observed
-		vOC[idx] = rowmin((vOC[idx], J(rows(idx), 1, maxTFI)))
+		vOC = rowmin((vOC, J(rows(vOC), 1, maxTFI)))
 		
 		// Update matrices
-		mTFI[idx, LX+1] = round(vOC[idx], 0.1)
-		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		mTFI[idx, Line+1] = round(vOC, 0.1)
+		mTNE[idx, OMC] = round(vOC, 0.1)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
 }
