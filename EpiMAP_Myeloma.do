@@ -9,7 +9,7 @@
 	
 **********
 * Validate required globals are set
-foreach req in analysis int line coeffs data min_year max_year min_id max_id boot report {
+foreach req in analysis int line coeffs data min_year max_year min_id max_id boot {
     capture confirm existence $`req'
     if _rc {
         di as error "Error: Global `req' not set"
@@ -83,24 +83,9 @@ foreach req in analysis int line coeffs data min_year max_year min_id max_id boo
 	di "Analysis completed successfully."
 	
 **********
-*Generate report if requested
+*Generate report
 	if ("$report" == "1" & "$boot" == "0") {
-		di as text _n(2) "{hline 78}"
-		di as text "{bf:Generating Baseline Characteristics Report}"
-		di as text "{hline 78}"
-		
-		capture confirm file "generate_report.do"
-		if _rc == 0 {
-			do "generate_report.do"
-		}
-		else {
-			di as error _n "Warning: generate_report.do not found"
-			di as text "  Skipping report generation"
-		}
-	}
-	else if ("$report" == "1" & "$boot" == "1") {
-		di as text _n(2) "{bf:Note:} Report generation skipped for bootstrap runs"
-		di as text "Generate report manually after bootstrap completion"
+		qui do "core/generate_report.do"
 	}
 
 **********
@@ -108,7 +93,7 @@ foreach req in analysis int line coeffs data min_year max_year min_id max_id boo
 	di as result "{bf:EpiMAP Myeloma v2.0 - Execution Complete}"
 	di as text "Simulated data saved to:"
 	if ("$boot" == "0") {
-		di as result "  $simulated_path/${int}_${line}_${data}_${min_ID}_${max_ID}.dta"
+		di as result "  $simulated_path/${int}_${line}_${data}_${max_id}_${max_id}_${scenario}.dta"
 	}
 	else {
 		di as result "  $simulated_path/bootstrap/ (samples ${min_BS} to ${max_BS})"

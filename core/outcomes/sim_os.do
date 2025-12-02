@@ -1,14 +1,18 @@
 **********
-* SIM OS - Vectorised Implementation
+* SIM OS 
 * 
 * Purpose: Calculate Overall Survival for any line of therapy
-* Outcome: Continuous survival time (in days)
+* Method: Parametric survival with BCR interacted with Line
+* Outcome: Continuous time (months)
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Determine which column of mBCR to use based on OMC
 	if (OMC == 1 | OMC == 2) {
-		currentBCR = J(nObs, 1, 5)
+		currentBCR = J(Obs, 1, 5)
 		bcrCol = 0
 	}
 	else if (mod(OMC, 2) == 0) {
@@ -64,21 +68,21 @@ mata {
 		// Determine patients for this segment
 		if (segment == 0) { // DN
 			if (OMC == 1) {
-				idx = selectindex(mState[., 1] :<= OMC + 1)
+				idx = selectindex(mState[., 1] :<= OMC)
 			}
 			else {
-				idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+				idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 			}
 		}
 		else if (segment == 1) { // L1 No ASCT
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1) :& (vSCT_DN :== 0))
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_DN :== 0))
 		}
 		else if (segment == 2) { // L1 ASCT
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1) :& (vSCT_DN :== 1))
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_DN :== 1))
 		}
 		else {
 			// L2+ segments: all alive patients
-			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 		}
         
         // Calculate for this segment if patients exist

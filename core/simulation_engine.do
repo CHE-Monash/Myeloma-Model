@@ -50,10 +50,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		
-		if ("$data" == "population" & $line == 1) {
-			exit
-		}
+		if ("$data" == "population" & $line == 1) exit
 
 	di "L1S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd_l1.do"
@@ -126,10 +123,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		
-		if ("$data" == "population" & $line == 2) {
-			exit
-		}
+		if ("$data" == "population" & $line == 2) exit
 
 	di "L2S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"
@@ -159,7 +153,7 @@ di "Running simulation"
 		quietly do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
-exit
+
 	di "L2E - Treatment-free Interval"
 		quietly do "core/outcomes/sim_tfi.do"
 		*mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
@@ -187,10 +181,7 @@ exit
 		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		
-		if ("$data" == "population" & $line == 3) {
-			exit
-		}
+		if ("$data" == "population" & $line == 3) exit
 				
 	di "L3S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"	
@@ -248,10 +239,7 @@ exit
 		quietly do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		
-		if ("$data" == "population" & $line == 4) {
-			exit
-		}
+		if ("$data" == "population" & $line == 4) exit
 			
 	di "L4S - Treatment Duration"
 		quietly do "core/outcomes/sim_txd.do"

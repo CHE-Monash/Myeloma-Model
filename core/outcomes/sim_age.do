@@ -8,7 +8,7 @@
 
 mata {
 	// Filters
-	vStateValid = (mState[.,1] :<= OMC+1)
+	vStateValid = (mState[.,1] :<= OMC)
 	vWasAlive = (OMC == 1 ? J(rows(mMOR), 1, 0) : (mMOR[.,OMC-1] :== 0))  // No one alive before diagnosis
 	vWasDead = (OMC == 1 ? J(rows(mMOR), 1, 0) : (mMOR[.,OMC-1] :== 1))
 	vEligible = vStateValid :& vWasAlive

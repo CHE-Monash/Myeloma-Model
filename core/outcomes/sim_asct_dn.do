@@ -1,5 +1,5 @@
 **********
-* SIM SCT DN
+* SIM ASCT DN
 * 
 * Purpose: Determine ASCT eligibility at diagnosis
 * Method: Logistic regression
@@ -7,8 +7,11 @@
 **********
 	
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for eligible patients
-	idx = selectindex(mState[., 1] :<= OMC + 1)
+	idx = selectindex(mState[., 1] :<= OMC)
 	if (rows(idx) > 0) {
 	
 		// Assemble patient matrix
@@ -16,7 +19,7 @@ mata {
 				vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
 				vAge70[idx], vAge75[idx], 
-				vCMc0[idx], vCMc1[idx], vCMc2[idx], vCMc3[idx],
+				vCM0[idx], vCM1[idx], vCM2[idx], vCM3[idx],
 				vCons[idx])
 
 		// Extract coefficients
@@ -35,7 +38,7 @@ mata {
 		// Determine outcome 
 		vOC = (vPR :> vRN)
 		
-		// Update matrices 
+		// Update matrix
 		vSCT_DN[idx] = vOC
 	}
 }

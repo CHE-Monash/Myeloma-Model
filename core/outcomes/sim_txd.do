@@ -1,5 +1,5 @@
 **********
-* SIM TXD (L2+)
+* SIM TXD
 *
 * Purpose: Calculate treatment duration for L2 onwards
 * Method: Parametric survival analysis
@@ -7,8 +7,11 @@
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive and eligible
-	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1))
+	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))
 	if (rows(idx) > 0) {
 		
 		// Determine model stage and BCR structure

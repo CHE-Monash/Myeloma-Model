@@ -6,7 +6,7 @@
 **********
 mata {
 	// Filters
-	vStateValid = (mState[.,1] :<= OMC+1)
+	vStateValid = (mState[.,1] :<= OMC)
 	vWasAlive = (OMC == 1 ? J(rows(mMOR), 1, 1) : (mMOR[.,OMC-1] :== 0))
 	vEligible = vStateValid :& vWasAlive
 		

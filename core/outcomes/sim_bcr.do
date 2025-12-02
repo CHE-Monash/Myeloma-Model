@@ -9,6 +9,9 @@
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Determine structure
 	if (Line <= 2) {
 		nCategories = 6
@@ -47,7 +50,7 @@ mata {
 	}
 	
 	// Filter for alive and eligble
-	idx = selectindex((mMOR[., OMC - 1] :== 0) :& (mState[., 1] :<= OMC + 1))
+	idx = selectindex((mMOR[., OMC - 1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 	
 		// Build patient matrix

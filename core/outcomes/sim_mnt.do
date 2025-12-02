@@ -1,14 +1,17 @@
 **********
 * SIM MNT
-
+*
 * Purpose: Determine receipt of Maintenance Therapy
 * Method: Logistic regression
 * Outcome: Binary (1 = MNT / 0 = No MNT)
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive and eligible patients
-	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 		
 		// Extract current treatment regimen

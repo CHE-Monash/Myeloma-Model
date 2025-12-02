@@ -1,14 +1,18 @@
 **********
-* SIM BCR SCT Vector
+* SIM BCR ASCT
 
 * Purpose: Determine BCR to SCT
-* Outcome: Categorical 1 to 5 (1 = CR, 5 = SD), no 6 
+* Mehod: Multinomial logit
+* Outcome: Categorical 1 to 4, no 5/6 
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive, eligible and valid SCT patients
 	idx = selectindex((mMOR[., OMC-1] :== 0) :& 
-	                  (mState[., 1] :<= OMC + 1) :&
+	                  (mState[., 1] :<= OMC) :&
 	                  (vSCT_L1 :== 1))
 	if (rows(idx) > 0) {
 		

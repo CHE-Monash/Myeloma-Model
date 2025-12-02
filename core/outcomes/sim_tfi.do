@@ -7,8 +7,11 @@
 **********
 
 mata {
-    // Filter for alive and eligible
-    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+    // Initialise outcome
+	vOC = J(Obs, 1, .)
+	
+	// Filter for alive and eligible
+    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 
 		// Select coefficient matrix based on Line

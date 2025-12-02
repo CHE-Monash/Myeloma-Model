@@ -1,8 +1,8 @@
 **********
 * EpiMAP Myeloma - DVd L2 Predicted Cohort Generation
 *
-* Purpose: Generate predicted patient cohort for DVd L2 pre-market analysis
-*          Identifies all patients reaching L2 during 2021-2025
+* Purpose: Generate predicted patient cohort for DVd L2 analysis
+*          Identifies all patients reaching L2 during 2020-2025
 *
 * Inputs:  patients/population_1995_2040_[1-10].dta
 * Outputs: analyses/dvd_l2_method/data/patients/predicted_[1-10].dta
@@ -21,16 +21,15 @@ macro drop _all
 **********
 
 // Set working directory
-cd "/Users/adami/Documents/Monash/Research/Blood Disorders/Myeloma/EpiMAP/Simulation"
+cd "~/Documents/Monash/Research/Blood Disorders/EpiMAP/Myeloma/Simulation"
 
 // Parameters
 local n_samples = 10
-local diagnosis_year = 2020
-local l2_start_year = 2021
+local l2_start_year = 2020
 local l2_end_year = 2025
 
 **********
-* STEP 1: Generate predicted patients from each population sample
+* Step 1: Generate predicted patients from each population sample
 **********
 
 forval s = 1/`n_samples' {
@@ -46,8 +45,8 @@ forval s = 1/`n_samples' {
 	global min_id       "1"             	// First patient ID
 	global max_id       "101212"            // Last patient ID (<=101212) 
 	global boot		    "0"             	// Bootstrap flag
-	global min_bs 		"1"             	// First bootstrap
-	global max_bs 		"10"             	// Last bootstrap
+	global min_bs 		""             		// First bootstrap
+	global max_bs 		""             		// Last bootstrap
 	global report       "0"             	// Report flag
 	global scenario		""					// A_trial / B_ccbm / C_mrdr
 
@@ -57,17 +56,13 @@ forval s = 1/`n_samples' {
 		`min_id' `max_id' `boot' `min_bs' `max_bs' `report'
     
     // Filters 
-	keep if MOR_L1E == 0 											// Alive at L2S
+	keep if MOR_L1E == 0 										// Alive at L2S
     keep if YearL2 >= `l2_start_year' & YearL2 <= `l2_end_year'	// L2S between dates
       
     // Clean for simulation 
     replace State = 4
 	replace Age_L2S = .
 	replace TXR_L2 = .
-	gen Age70 = Age_DN >= 70
-	gen Age75 = Age_DN >= 75
-    
-    // Reset ID
     replace ID = _n
     
     // Add sample identifier
@@ -78,7 +73,7 @@ forval s = 1/`n_samples' {
 }
 
 **********
-* STEP 2: Combine all predicted populations
+* Step 2: Combine all predicted populations
 **********
 
 clear
@@ -95,7 +90,7 @@ forval s = 2/`n_samples' {
 }
 
 **********
-* STEP 3: Summary and validation
+* Step 3: Summary and validation
 **********
 
 // Overall summary
@@ -123,7 +118,7 @@ di as text _newline "Time from diagnosis to L2:"
 summarize TSD_L2S, detail
 
 // Previous line response distribution
-di as text _newline "Line 1 best clinical response distribution:"
+di as text _newline "Line 1 BCR distribution:"
 tab BCR_L1, missing
 
 // Save combined cohort

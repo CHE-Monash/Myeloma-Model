@@ -1,5 +1,5 @@
 **********
-*SIM TFI L1
+* SIM TFI L1
 *
 * Purpose: Treatment-free Interval at Line 1 End (time from L1E to L2S)
 * Method: Parametric survival analysis, split by ASCT status
@@ -7,41 +7,30 @@
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive and eligible
-	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1))	
+	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))	
 	if (rows(idx) > 0) {
-		
-		// Generate random numbers
-		vRN = runiform(rows(mMOR), 1)
 
-		// GROUP 1: ASCT Patients
-		idxASCT = idx[selectindex(vSCT_L1[idx, 1] :== 1)]
-		
+		// GROUP 1: ASCT Patients`'
+		idxASCT = idx[selectindex(vSCT_L1[idx] :== 1)]
 		if (rows(idxASCT) > 0) {
-			// Patient vectors
-			vAge_ASCT = mAge[idxASCT, OMC]
-			vAge2_ASCT = vAge_ASCT :^ 2
-			vMale_ASCT = vMale[idxASCT]
-			vECOG0_ASCT = (vECOG[idxASCT] :== 0)
-			vECOG1_ASCT = (vECOG[idxASCT] :== 1)
-			vECOG2_ASCT = (vECOG[idxASCT] :== 2)
-			vRISS1_ASCT = (vRISS[idxASCT] :== 1)
-			vRISS2_ASCT = (vRISS[idxASCT] :== 2)
-			vRISS3_ASCT = (vRISS[idxASCT] :== 3)
-			vMNT_ASCT = vMNT[idxASCT]
-			vBCR1_ASCT = (mBCR[idxASCT, Line] :== 1)
-			vBCR2_ASCT = (mBCR[idxASCT, Line] :== 2)
-			vBCR3_ASCT = (mBCR[idxASCT, Line] :== 3)
-			vBCR4_ASCT = (mBCR[idxASCT, Line] :== 4)
-			vCons_ASCT = vCons[idxASCT]
 			
-			// Patient matrix (ASCT patients cannot have BCR = 5 or 6)
-			mPat_ASCT = (vAge_ASCT, vAge2_ASCT, vMale_ASCT, 
-						 vECOG0_ASCT, vECOG1_ASCT, vECOG2_ASCT, 
-			             vRISS1_ASCT, vRISS2_ASCT, vRISS3_ASCT, 
-						 vMNT_ASCT, 
-			             vBCR1_ASCT, vBCR2_ASCT, vBCR3_ASCT, vBCR4_ASCT, 
-						 vCons_ASCT)
+			//Grab BCR to ASCT
+			vBCR1 = (mBCR[idxASCT, 10] :== 1)
+			vBCR2 = (mBCR[idxASCT, 10] :== 2)
+			vBCR3 = (mBCR[idxASCT, 10] :== 3)
+			vBCR4 = (mBCR[idxASCT, 10] :== 4)	
+			
+			// Assemble patient matrix (ASCT patients cannot have BCR = 5 or 6)
+			mPat_ASCT = (vAge[idxASCT], vAge2[idxASCT], vMale[idxASCT], 
+						 vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
+			             vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT], 
+						 vMNT[idxASCT], 
+			             vBCR1, vBCR2, vBCR3, vBCR4, 
+						 vCons[idxASCT])
 			
 			// Extract coefficients for ASCT
 			nPredictors = cols(mPat_ASCT)
@@ -52,7 +41,7 @@ mata {
 			vXB_ASCT = mPat_ASCT * coef_ASCT
 			
 			// Calculate outcome (survival time)
-			vRN_ASCT = vRN[idxASCT]
+			vRN_ASCT = runiform(rows(idxASCT), 1)
 			vOC[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
 			// Curtail if beyond maximum observed
@@ -60,35 +49,24 @@ mata {
 		}
 		
 		// GROUP 2: NoASCT Patients
-		idxNoASCT = idx[selectindex(vSCT_L1[idx, 1] :== 0)]
-		
+		idxNoASCT = idx[selectindex(vSCT_L1[idx] :== 0)]
 		if (rows(idxNoASCT) > 0) {
-			// Patient vectors
-			vAge_NoASCT = mAge[idxNoASCT, OMC]
-			vAge2_NoASCT = vAge_NoASCT :^ 2
-			vMale_NoASCT = vMale[idxNoASCT]
-			vECOG0_NoASCT = (vECOG[idxNoASCT] :== 0)
-			vECOG1_NoASCT = (vECOG[idxNoASCT] :== 1)
-			vECOG2_NoASCT = (vECOG[idxNoASCT] :== 2)
-			vRISS1_NoASCT = (vRISS[idxNoASCT] :== 1)
-			vRISS2_NoASCT = (vRISS[idxNoASCT] :== 2)
-			vRISS3_NoASCT = (vRISS[idxNoASCT] :== 3)
-			vMNT_NoASCT = vMNT[idxNoASCT]
-			vBCR1_NoASCT = (mBCR[idxNoASCT, Line] :== 1)
-			vBCR2_NoASCT = (mBCR[idxNoASCT, Line] :== 2)
-			vBCR3_NoASCT = (mBCR[idxNoASCT, Line] :== 3)
-			vBCR4_NoASCT = (mBCR[idxNoASCT, Line] :== 4)
-			vBCR5_NoASCT = (mBCR[idxNoASCT, Line] :== 5)
-			vBCR6_NoASCT = (mBCR[idxNoASCT, Line] :== 6)
-			vCons_NoASCT = vCons[idxNoASCT]
-			
-			// Patient matrix (NoASCT includes BCR 5 and 6)
-			mPat_NoASCT = (vAge_NoASCT, vAge2_NoASCT, vMale_NoASCT, 
-						   vECOG0_NoASCT, vECOG1_NoASCT, vECOG2_NoASCT,
-			               vRISS1_NoASCT, vRISS2_NoASCT, vRISS3_NoASCT, 
-						   vMNT_NoASCT,
-			               vBCR1_NoASCT, vBCR2_NoASCT, vBCR3_NoASCT, vBCR4_NoASCT, vBCR5_NoASCT, vBCR6_NoASCT, 
-						   vCons_NoASCT)
+
+			//Grab BCR to L1
+			vBCR1 = (mBCR[idxNoASCT, 1] :== 1)
+			vBCR2 = (mBCR[idxNoASCT, 1] :== 2)
+			vBCR3 = (mBCR[idxNoASCT, 1] :== 3)
+			vBCR4 = (mBCR[idxNoASCT, 1] :== 4)
+			vBCR5 = (mBCR[idxNoASCT, 1] :== 5)	
+			vBCR6 = (mBCR[idxNoASCT, 1] :== 6)	
+		
+			// Assemble patient matrix (NoASCT includes BCR 5 and 6)
+			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
+						   vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT],
+			               vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT], 
+						   vMNT[idxNoASCT],
+			               vBCR1, vBCR2, vBCR3, vBCR4, vBCR5, vBCR6, 
+						   vCons[idxNoASCT])
 			
 			// Extract coefficients for NoASCT
 			nPredictors = cols(mPat_NoASCT)
@@ -99,7 +77,7 @@ mata {
 			vXB_NoASCT = mPat_NoASCT * vCoef_NoASCT
 			
 			// Calculate outcome (survival time)
-			vRN_NoASCT = vRN[idxNoASCT]
+			vRN_NoASCT = runiform(rows(idxNoASCT), 1)
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
 			// Curtail if beyond maximum observed
@@ -108,8 +86,8 @@ mata {
 		}
 		
 		// Update matrices
-		mTFI[idx, 2] = round(vOC, 0.1)
-		mTNE[idx, OMC] = round(vOC, 0.1)
+		mTFI[idx, 2] = round(vOC[idx], 0.1)
+		mTNE[idx, OMC] = round(vOC[idx], 0.1)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
 }

@@ -1,5 +1,5 @@
 **********
-* SIM SCT L1
+* SIM ASCT L1
 * 
 * Purpose: Determine receipt of ASCT at Line 1 End
 * Method: Logistic regression with outcome filters: TXR != 7 AND BCR != 6
@@ -7,8 +7,11 @@
 **********
 	
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive and eligible
-	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 		
 		// Patient vectors
@@ -22,9 +25,9 @@ mata {
 		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 		        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
-				vBCR1[idx], vBCR2[idx], vBCR3[idx], vBCR4[idx], vBCR5[idx],
-				vAge[idx], vAge75[idx], 
-				vCMc0[idx], vCMc1[idx], vCMc2[idx], vCMc3[idx], 
+				vBCR1, vBCR2, vBCR3, vBCR4, vBCR5,
+				vAge70[idx], vAge75[idx], 
+				vCM0[idx], vCM1[idx], vCM2[idx], vCM3[idx], 
 				vCons[idx])
 
 		// Extract coefficients

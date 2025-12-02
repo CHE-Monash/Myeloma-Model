@@ -1,19 +1,19 @@
 **********
-*SIM TXD L1
+* SIM TXD L1
 *
-* Purpose: Chemotherapy Duration for Line 1
+* Purpose: Treatment Duration for Line 1
 * Method: Parametric survival analysis
 * Outcome: Continuous time (months)
 **********
 
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for alive and eligible
-	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC+1)
+	vEligible = (mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC)
 	idx = selectindex(vEligible)
 	if (rows(idx) > 0) {
-		
-		// Generate random numbers
-		vRN = runiform(rows(idx), 1)
 		
 		// Group 1: Fixed + ASCT (with splines)
 		vASCT = (mTXR[.,1] :!= 7) :& (vSCT_DN :== 1) :& vEligible
@@ -49,7 +49,7 @@ mata {
 				vXB_S1 = mPat_ASCT * coef_S1
 				
 				// Calculate survival time
-				vRN_ASCT = vRN[idxASCT]
+				vRN_ASCT = runiform(rows(idxASCT), 1)
 				vDur_S1 = calcSurvTime(vXB_S1, vRN_ASCT, fbL1_TXD_ASCT_S1, aux_S1)
 			
 				// --- SPLINE 2 (for those beyond Cutoff 1) ---
@@ -111,7 +111,7 @@ mata {
 			vOC[idxASCT] = vDur_S1
 		}
 	
-		// Group 2: Fixed + No ASCT
+	// Group 2: Fixed + No ASCT
 		vNoASCT = (mTXR[.,1] :!= 7) :& (vSCT_DN :== 0) :& vEligible
 		idxNoASCT = selectindex(vNoASCT)
 		if (rows(idxNoASCT) > 0) {
@@ -144,7 +144,7 @@ mata {
 			vXB_NoASCT = mPat_NoASCT * coef_NoASCT
 			
 			// Calculate survival time
-			vRN_NoASCT = vRN[idxNoASCT]
+			vRN_NoASCT = runiform(rows(idxNoASCT), 1)
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TXD_NoASCT, aux_NoASCT)
 		}
 				
@@ -171,7 +171,7 @@ mata {
 				vXB_Cont = mPat_Cont * coef_Cont
 					
 				// Calculate survival time
-				vRN_Cont = vRN[idxCont]
+				vRN_Cont = runiform(rows(idxCont), 1)
 				vOC[idxCont] = calcSurvTime(vXB_Cont, vRN_Cont, dist_Cont, aux_Cont)
 					
 				// Curtail if beyond observed maximum

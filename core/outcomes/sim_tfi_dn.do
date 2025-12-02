@@ -7,8 +7,11 @@
 **********
 	
 mata {
+	// Initialise outcome
+	vOC = J(Obs, 1, .)
+	
 	// Filter for eligible
-	idx = selectindex(mState[., 1] :<= OMC + 1)	
+	idx = selectindex(mState[., 1] :<= OMC)	
 	if (rows(idx) > 0) {
 		
 		// Assemble patient matrix

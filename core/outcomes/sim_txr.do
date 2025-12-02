@@ -13,8 +13,11 @@ mata {
 	vCoef = get_txr_coef(Line)
 	vTXR = get_txr_outcome(Line)
 		
+		// Initialise outcome
+		vOC = J(Obs, 1, .)
+		
 		// Filter for alive and eligible
-		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC + 1))
+		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 		if (rows(idx) > 0) {
 		
 			nRegimens = cols(vTXR)
