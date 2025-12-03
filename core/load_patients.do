@@ -1,9 +1,22 @@
 **********
-*EpiMAP Myeloma - Load Patients
+* EpiMAP Myeloma - Load Patients
+* 
+* Purpose: Load and filter patient data file
 **********
 
 capture program drop load_patients
 program define load_patients
+
+	// Handle population-specific requests (e.g., population_1, population_2)
+	if regexm("$data", "population_([0-9]+)") {
+		global pop_number = regexs(1)
+		global data_type = "population"
+		di as text "Using specific population: ${pop_number}"
+	}
+	else {
+		global data_type = "$data" // Predicted
+		global pop_number = 1  // Default population
+	}
 
 	// Determine data source based on $data_type
 	if ("$data_type" == "population") {

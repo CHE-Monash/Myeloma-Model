@@ -166,7 +166,7 @@ if `current_line' == ${line} {
 	local override_file "${analysis_path}/outcomes/sim_txr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
-		quietly do `override_file'
+		qui do `override_file'
 	}
 }
 

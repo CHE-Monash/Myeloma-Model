@@ -16,6 +16,7 @@ mata:
 
 // Helper function: Get TXR coefficients for a given line
 real matrix get_txr_coef(real scalar line) {
+	external bL1_TXR, bL2_TXR, bL3_TXR, bL4_TXR, bL5_TXR, bL6_TXR, bL7_TXR, bL8_TXR, bL9_TXR
     if (line == 0 & rows(bL1_TXR) > 0) return(bL1_TXR)
     if (line == 1 & rows(bL2_TXR) > 0) return(bL2_TXR)
     if (line == 2 & rows(bL3_TXR) > 0) return(bL3_TXR)
@@ -29,7 +30,8 @@ real matrix get_txr_coef(real scalar line) {
 }
 
 // Helper function: Get TXR outcome codes
-real scalar get_txr_outcome(real scalar line) {
+real rowvector get_txr_outcome(real scalar line) {
+	external oL1_TXR, oL2_TXR, oL3_TXR, oL4_TXR, oL5_TXR, oL6_TXR, oL7_TXR, oL8_TXR, oL9_TXR
     if (line == 0) return(oL1_TXR)
     if (line == 1) return(oL2_TXR)
     if (line == 2) return(oL3_TXR)
@@ -39,7 +41,7 @@ real scalar get_txr_outcome(real scalar line) {
     if (line == 6) return(oL7_TXR)
     if (line == 7) return(oL8_TXR)
     if (line == 8) return(oL9_TXR)
-    return(0)
+	return(J(1, 0, .))  // Empty rowvector if not found
 }
 
 // Helper function: Check if TXR model exists

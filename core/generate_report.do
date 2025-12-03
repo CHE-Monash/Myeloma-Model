@@ -1,48 +1,20 @@
 **********
-* Generate Baseline Characteristics Report
+* EpiMAP Myeloma - Generate Report
 * 
-* Purpose: Create PDF report of baseline characteristics using putpdf
+* Purpose: Create PDF report using putpdf
 *          Integrates with EpiMAP v2.0 dispatcher system
 * 
-* Requirements:
-*   - Stata 15+ (putpdf built-in)
-*   - Global variables from dispatcher:
-*       $analysis, $int, $line, $data, $min_id, $max_id, $simulated_path
-* 
-* Output:
-*   - baseline_characteristics_[$analysis]_[$int]_[$data].pdf
-*
-* Author: EpiMAP Research Team
-* Date: October 2025
+* Output: ${int}_${data}_${scenario}.pdf
 **********
 
 
 **********
-* Validated Required Globals
-capture confirm existence $analysis
-if _rc {
-    di as error "Error: Global variables not set"
-    di as error "This script must be called after running EpiMAP_Myeloma_v2.0.do"
-    exit 198
-}
-
 * Create Output Directory
 capture mkdir "$simulated_path/report"
 local report_dir "$simulated_path/report"
 
-
 * Load Data
-local datafile "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta"
-
-capture confirm file "`datafile'"
-if _rc {
-    di as error _n "Error: Simulated data file not found:"
-    di as error "  `datafile'"
-    exit 601
-}
-
-quietly use "`datafile'", clear
-di as result "✓ Data loaded: " as text _N " patients"
+qui use "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", clear
 
 **********
 * Start PDF
@@ -88,30 +60,33 @@ putpdf text ("Patients"), bold font(,16)
 quietly count
 local total_n = string(r(N), "%9.0fc")
 
-// Age
-quietly summarize Age_DN
-local mean_age = string(r(mean), "%4.1f")
-local sd_age = string(r(sd), "%4.1f")
-local min_age = string(r(min), "%4.0f")
-local max_age = string(r(max), "%4.0f")
-
 // Sex
 quietly count if Male == 1
 local male_n = string(r(N), "%9.0fc")
 local male_pct = string(100*r(N)/_N, "%4.1f")
 
 putpdf paragraph
-putpdf text ("Characteristics at Diagnosis"), bold
+putpdf text ("Sample Size: `total_n'"), linebreak
+putpdf text ("Male: `male_n' (`male_pct'%)")
 
-putpdf table patient_tbl = (4, 2), border(all)
-putpdf table patient_tbl(1,1) = ("Statistic"), bold
-putpdf table patient_tbl(1,2) = ("Value"), bold
-putpdf table patient_tbl(2,1) = ("Sample Size")
-putpdf table patient_tbl(2,2) = ("`total_n'")
-putpdf table patient_tbl(3,1) = ("Age")
-putpdf table patient_tbl(3,2) = ("Mean: `mean_age' ± `sd_age', Range: `min_age' - `max_age'")
-putpdf table patient_tbl(4,1) = ("Male")
-putpdf table patient_tbl(4,2) = ("`male_n' (`male_pct'%)")
+// Age
+putpdf paragraph
+putpdf text ("Age at Diagnosis"), bold
+
+quietly summarize Age_DN, detail
+local mean_age = string(r(mean), "%4.1f")
+local sd_age = string(r(sd), "%4.1f")
+local median_age = string(r(p50), "%4.1f")
+local p25_age = string(r(p25), "%4.1f")
+local p75_age = string(r(p75), "%4.1f")
+
+putpdf table age_sum = (3, 2), border(all)
+putpdf table age_sum(1,1) = ("Statistic"), bold
+putpdf table age_sum(1,2) = ("Years"), bold
+putpdf table age_sum(2,1) = ("Mean (SD)")
+putpdf table age_sum(2,2) = ("`mean_age' (`sd_age')")
+putpdf table age_sum(3,1) = ("Median [IQR]")
+putpdf table age_sum(3,2) = ("`median_age' [`p25_age' - `p75_age']")
 
 putpdf paragraph
 
@@ -371,18 +346,18 @@ putpdf text ("Overall Survival Results"), bold font(,16)
 
 // Summary statistics
 quietly summarize OC_TIME, detail
-local mean = string(r(mean), "%6.2f")
-local sd = string(r(sd), "%5.2f")
-local median = string(r(p50), "%6.2f")
-local p25 = string(r(p25), "%6.2f")
-local p75 = string(r(p75), "%6.2f")
+local mean = string(r(mean)/12, "%6.2f")
+local sd = string(r(sd)/12, "%5.2f")
+local median = string(r(p50)/12, "%6.2f")
+local p25 = string(r(p25)/12, "%6.2f")
+local p75 = string(r(p75)/12, "%6.2f")
 
 putpdf paragraph
 putpdf text ("Summary Statistics"), bold
 
 putpdf table os_sum = (3, 2), border(all)
 putpdf table os_sum(1,1) = ("Statistic"), bold
-putpdf table os_sum(1,2) = ("Value (months)"), bold
+putpdf table os_sum(1,2) = ("Years"), bold
 putpdf table os_sum(2,1) = ("Mean (SD)")
 putpdf table os_sum(2,2) = ("`mean' (`sd')")
 putpdf table os_sum(3,1) = ("Median [IQR]")
@@ -408,21 +383,20 @@ foreach year in 1 2 3 5 10 {
 }
 
 // Generate and insert KM curves
-preserve
-capture mkdir "$simulated_path/results"
 capture mkdir "$simulated_path/report/figures"
 
 // Overall KM
+preserve
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
 sts graph, ///
-    xtitle("Months") ytitle("Probability") ///
+    xtitle("Months") ytitle("Probability") title("") ///
     ylabel(0(0.2)1, angle(0) format(%3.1f)) ///
     xlabel(0(24)240) ci risktable legend(off) ///
     graphregion(color(white)) name(os_overall, replace)
 graph export "$simulated_path/report/figures/os_overall.png", replace width(1200)
 
 putpdf paragraph
-putpdf text ("Overall Survival"), bold
+putpdf text ("Overall Survival"), bold linebreak(2)
 putpdf image "$simulated_path/report/figures/os_overall.png", width(6)
 
 // By ASCT
@@ -431,7 +405,7 @@ label define asct_lbl 0 "No ASCT" 1 "ASCT"
 label values asct asct_lbl
     
 sts graph, by(asct) ///
-	xtitle("Months") ytitle("Probability") ///
+	xtitle("Months") ytitle("Probability") title("") ///
 	ylabel(0(0.2)1, angle(0)) xlabel(0(24)240) ///
 	graphregion(color(white)) ///
 	legend(label(1 "No ASCT") label(2 "ASCT")) ///
@@ -456,13 +430,14 @@ replace bcr_group = 6 if BCR_L1 == 6
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
     
 sts graph, by(bcr_group) ///
-	xtitle("Months") ytitle("Probability") ///
+	xtitle("Months") ytitle("Probability") title("") ///
 	ylabel(0(0.2)1, angle(0)) xlabel(0(24)240) ///
 	graphregion(color(white)) ///
 	legend(label(1 "CR") label(2 "VGPR") label(3 "PR") label(4 "MR") label(5 "SD") label(6 "PD") rows(2)) ///
 	name(os_bcr, replace)
 graph export "$simulated_path/report/figures/os_bcr.png", replace width(1200)
-    
+   
+putpdf pagebreak
 putpdf paragraph
 putpdf text ("Overall Survival by BCR LoT 1 / ASCT"), bold
 putpdf image "$simulated_path/report/figures/os_bcr.png", width(6)
@@ -478,7 +453,7 @@ replace age_group = 3 if Age_DN >= 75 & Age_DN < .
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
 
 sts graph, by(age_group) ///
-    xtitle("Months") ytitle("Probability") ///
+    xtitle("Months") ytitle("Probability") title("") ///
     ylabel(0(0.2)1, angle(0)) xlabel(0(24)240) ///
     graphregion(color(white)) ///
     legend(label(1 "<65") label(2 "65-74") label(3 "≥75") rows(1)) ///
@@ -495,13 +470,14 @@ preserve
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
     
 sts graph, by(RISS) ///
-	xtitle("Months") ytitle("Probability") ///
+	xtitle("Months") ytitle("Probability") title("") ///
 	ylabel(0(0.2)1, angle(0)) xlabel(0(24)240) ///
 	graphregion(color(white)) ///
 	legend(label(1 "Stage I") label(2 "Stage II") label(3 "Stage III") rows(1)) ///
 	name(os_riss, replace)
 graph export "$simulated_path/report/figures/os_riss.png", replace width(1200)
-    
+
+putpdf pagebreak
 putpdf paragraph
 putpdf text ("Overall Survival by R-ISS Stage"), bold
 putpdf image "$simulated_path/report/figures/os_riss.png", width(6)
@@ -512,7 +488,7 @@ preserve
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
     
 sts graph, by(ECOGcc) ///
-	xtitle("Months") ytitle("Probability") ///
+	xtitle("Months") ytitle("Probability") title("") ///
 	ylabel(0(0.2)1, angle(0)) xlabel(0(24)240) ///
 	graphregion(color(white)) ///
 	legend(label(1 "ECOG 0") label(2 "ECOG 1") label(3 "ECOG 2+") rows(1)) ///
@@ -524,6 +500,344 @@ putpdf text ("Overall Survival by ECOG Status"), bold
 putpdf image "$simulated_path/report/figures/os_ecog.png", width(6)
 restore
 
+putpdf pagebreak
+
+**********
+* Economic Outcomes
+**********
+
+putpdf paragraph
+putpdf text ("Economic Outcomes"), bold font(,16)
+
+// Get discount rate for display
+local drate_pct = string($drate * 100, "%3.1f")
+
+**********
+* Costs
+**********
+
+putpdf paragraph
+putpdf text ("Costs (Discounted at `drate_pct'%)"), bold font(,14)
+
+// Total Costs Summary
+quietly summarize cTotald, detail
+local n_cost = string(r(N), "%9.0fc")
+local mean_cost = string(r(mean), "%12.0fc")
+local sd_cost = string(r(sd), "%12.0fc")
+local median_cost = string(r(p50), "%12.0fc")
+local p25_cost = string(r(p25), "%12.0fc")
+local p75_cost = string(r(p75), "%12.0fc")
+
+putpdf paragraph
+putpdf text ("Total Costs Summary"), bold
+
+putpdf table cost_sum = (3, 2), border(all)
+putpdf table cost_sum(1,1) = ("Statistic"), bold
+putpdf table cost_sum(1,2) = ("AUD"), bold
+putpdf table cost_sum(2,1) = ("Mean (SD)")
+putpdf table cost_sum(2,2) = ("$`mean_cost' ($`sd_cost')")
+putpdf table cost_sum(3,1) = ("Median [IQR]")
+putpdf table cost_sum(3,2) = ("$`median_cost' [$`p25_cost' - $`p75_cost']")
+
+// Cost Components
+putpdf paragraph
+putpdf text ("Cost Components (Mean)"), bold
+
+quietly summarize cTXd
+local mean_tx = string(r(mean), "%12.0fc")
+quietly summarize cNTd
+local mean_nt = string(r(mean), "%12.0fc")
+
+// ASCT costs (recipients only)
+quietly summarize cTX_ASCTd if SCT_L1 == 1
+if r(N) > 0 {
+	local mean_asct = string(r(mean), "%12.0fc")
+	local n_asct = string(r(N), "%9.0fc")
+}
+else {
+	local mean_asct = "N/A"
+	local n_asct = "0"
+}
+
+// Maintenance costs (recipients only)
+quietly summarize cTX_MNTd if MNT == 1
+if r(N) > 0 {
+	local mean_mnt = string(r(mean), "%12.0fc")
+	local n_mnt = string(r(N), "%9.0fc")
+}
+else {
+	local mean_mnt = "N/A"
+	local n_mnt = "0"
+}
+
+// Non-treatment cost components
+quietly summarize cNT_Hospd
+local mean_hosp = string(r(mean), "%12.0fc")
+quietly summarize cNT_Commd
+local mean_comm = string(r(mean), "%12.0fc")
+quietly summarize cNT_Emerd
+local mean_emer = string(r(mean), "%12.0fc")
+
+putpdf table cost_comp = (8, 2), border(all)
+putpdf table cost_comp(1,1) = ("Component"), bold
+putpdf table cost_comp(1,2) = ("Mean (AUD)"), bold
+putpdf table cost_comp(2,1) = ("Treatment Costs (Total)")
+putpdf table cost_comp(2,2) = ("$`mean_tx'")
+putpdf table cost_comp(3,1) = ("  ASCT (n=`n_asct')")
+putpdf table cost_comp(3,2) = ("$`mean_asct'")
+putpdf table cost_comp(4,1) = ("  Maintenance (n=`n_mnt')")
+putpdf table cost_comp(4,2) = ("$`mean_mnt'")
+putpdf table cost_comp(5,1) = ("Non-Treatment Costs (Total)")
+putpdf table cost_comp(5,2) = ("$`mean_nt'")
+putpdf table cost_comp(6,1) = ("  Hospitalisation")
+putpdf table cost_comp(6,2) = ("$`mean_hosp'")
+putpdf table cost_comp(7,1) = ("  Community Care")
+putpdf table cost_comp(7,2) = ("$`mean_comm'")
+putpdf table cost_comp(8,1) = ("  Emergency")
+putpdf table cost_comp(8,2) = ("$`mean_emer'")
+
+// Treatment Costs by Line of Therapy
+putpdf paragraph
+putpdf text ("Treatment Costs by Line of Therapy"), bold
+
+// Count rows needed (only include lines with patients)
+local n_lines = 0
+forval l = 1/9 {
+	quietly count if cTX_L`l'd != . & cTX_L`l'd > 0
+	if r(N) > 0 local n_lines = `l'
+}
+
+// Create table with header + lines
+local n_rows = `n_lines' + 1
+putpdf table cost_line = (`n_rows', 3), border(all)
+putpdf table cost_line(1,1) = ("Line"), bold
+putpdf table cost_line(1,2) = ("N Treated"), bold
+putpdf table cost_line(1,3) = ("Mean Cost (AUD)"), bold
+
+local row = 2
+forval l = 1/`n_lines' {
+	quietly count if cTX_L`l'd != . & cTX_L`l'd > 0
+	local n_l = string(r(N), "%9.0fc")
+	quietly summarize cTX_L`l'd if cTX_L`l'd > 0
+	if r(N) > 0 {
+		local mean_l = string(r(mean), "%12.0fc")
+	}
+	else {
+		local mean_l = "0"
+	}
+	
+	putpdf table cost_line(`row',1) = ("Line `l'")
+	putpdf table cost_line(`row',2) = ("`n_l'")
+	putpdf table cost_line(`row',3) = ("$`mean_l'")
+	local row = `row' + 1
+}
+
+**********
+* QALYs
+**********
+
+putpdf pagebreak
+putpdf paragraph
+putpdf text ("Quality-Adjusted Life Years (Discounted at `drate_pct'%)"), bold font(,14)
+
+// Total QALYs Summary
+quietly summarize qTotald, detail
+local n_qaly = string(r(N), "%9.0fc")
+local mean_qaly = string(r(mean), "%5.2f")
+local sd_qaly = string(r(sd), "%5.2f")
+local median_qaly = string(r(p50), "%5.2f")
+local p25_qaly = string(r(p25), "%5.2f")
+local p75_qaly = string(r(p75), "%5.2f")
+
+putpdf paragraph
+putpdf text ("Total QALYs Summary"), bold
+
+putpdf table qaly_sum = (3, 2), border(all)
+putpdf table qaly_sum(1,1) = ("Statistic"), bold
+putpdf table qaly_sum(1,2) = ("QALYs"), bold
+putpdf table qaly_sum(2,1) = ("Mean (SD)")
+putpdf table qaly_sum(2,2) = ("`mean_qaly' (`sd_qaly')")
+putpdf table qaly_sum(3,1) = ("Median [IQR]")
+putpdf table qaly_sum(3,2) = ("`median_qaly' [`p25_qaly' - `p75_qaly']")
+
+// QALY Components by Health State
+putpdf paragraph
+putpdf text ("QALYs by Health State (Mean)"), bold
+
+quietly summarize qTFI_DNd
+local q_tfi_dn = string(r(mean), "%5.3f")
+quietly summarize qTXD_L1d
+local q_txd_l1 = string(r(mean), "%5.3f")
+quietly summarize qTFI_L1d
+local q_tfi_l1 = string(r(mean), "%5.3f")
+quietly summarize qTXD_L2d
+local q_txd_l2 = string(r(mean), "%5.3f")
+quietly summarize qPostL2d
+local q_post = string(r(mean), "%5.3f")
+
+putpdf table qaly_comp = (6, 3), border(all)
+putpdf table qaly_comp(1,1) = ("Health State"), bold
+putpdf table qaly_comp(1,2) = ("Utility Weight"), bold
+putpdf table qaly_comp(1,3) = ("Mean QALYs"), bold
+putpdf table qaly_comp(2,1) = ("TFI Pre-L1")
+putpdf table qaly_comp(2,2) = ("0.72")
+putpdf table qaly_comp(2,3) = ("`q_tfi_dn'")
+putpdf table qaly_comp(3,1) = ("L1 Treatment")
+putpdf table qaly_comp(3,2) = ("0.63")
+putpdf table qaly_comp(3,3) = ("`q_txd_l1'")
+putpdf table qaly_comp(4,1) = ("TFI Post-L1")
+putpdf table qaly_comp(4,2) = ("0.72")
+putpdf table qaly_comp(4,3) = ("`q_tfi_l1'")
+putpdf table qaly_comp(5,1) = ("L2 Treatment")
+putpdf table qaly_comp(5,2) = ("0.67")
+putpdf table qaly_comp(5,3) = ("`q_txd_l2'")
+putpdf table qaly_comp(6,1) = ("Post-L2")
+putpdf table qaly_comp(6,2) = ("0.63")
+putpdf table qaly_comp(6,3) = ("`q_post'")
+
+**********
+* Undiscounted vs Discounted Comparison
+**********
+
+putpdf paragraph
+putpdf text ("Discounted vs Undiscounted Comparison"), bold font(,14)
+
+// Get undiscounted values
+quietly summarize cTotal
+local mean_cost_undisc = string(r(mean), "%12.0fc")
+quietly summarize cTotald
+local mean_cost_disc = string(r(mean), "%12.0fc")
+
+quietly summarize qTotal
+local mean_qaly_undisc = string(r(mean), "%5.2f")
+quietly summarize qTotald
+local mean_qaly_disc = string(r(mean), "%5.2f")
+
+putpdf table disc_comp = (3, 3), border(all)
+putpdf table disc_comp(1,1) = ("Outcome"), bold
+putpdf table disc_comp(1,2) = ("Undiscounted"), bold
+putpdf table disc_comp(1,3) = ("Discounted (`drate_pct'%)"), bold
+putpdf table disc_comp(2,1) = ("Mean Total Cost (AUD)")
+putpdf table disc_comp(2,2) = ("$`mean_cost_undisc'")
+putpdf table disc_comp(2,3) = ("$`mean_cost_disc'")
+putpdf table disc_comp(3,1) = ("Mean QALYs")
+putpdf table disc_comp(3,2) = ("`mean_qaly_undisc'")
+putpdf table disc_comp(3,3) = ("`mean_qaly_disc'")
+
+**********
+* Costs and QALYs by Subgroup
+**********
+
+putpdf paragraph
+putpdf text ("Economic Outcomes by Subgroup"), bold font(,14)
+
+// By ASCT Status
+putpdf paragraph
+putpdf text ("By ASCT Status"), bold
+
+quietly summarize cTotald if SCT_L1 == 0
+local cost_noasct = string(r(mean), "%12.0fc")
+quietly summarize qTotald if SCT_L1 == 0
+local qaly_noasct = string(r(mean), "%5.2f")
+quietly count if SCT_L1 == 0
+local n_noasct = string(r(N), "%9.0fc")
+
+quietly summarize cTotald if SCT_L1 == 1
+local cost_asct = string(r(mean), "%12.0fc")
+quietly summarize qTotald if SCT_L1 == 1
+local qaly_asct = string(r(mean), "%5.2f")
+quietly count if SCT_L1 == 1
+local n_asct = string(r(N), "%9.0fc")
+
+putpdf table asct_econ = (3, 4), border(all)
+putpdf table asct_econ(1,1) = ("ASCT Status"), bold
+putpdf table asct_econ(1,2) = ("N"), bold
+putpdf table asct_econ(1,3) = ("Mean Cost (AUD)"), bold
+putpdf table asct_econ(1,4) = ("Mean QALYs"), bold
+putpdf table asct_econ(2,1) = ("No ASCT")
+putpdf table asct_econ(2,2) = ("`n_noasct'")
+putpdf table asct_econ(2,3) = ("$`cost_noasct'")
+putpdf table asct_econ(2,4) = ("`qaly_noasct'")
+putpdf table asct_econ(3,1) = ("ASCT")
+putpdf table asct_econ(3,2) = ("`n_asct'")
+putpdf table asct_econ(3,3) = ("$`cost_asct'")
+putpdf table asct_econ(3,4) = ("`qaly_asct'")
+
+// By Age Group
+putpdf paragraph
+putpdf text ("By Age Group"), bold
+
+forval a = 1/3 {
+	if `a' == 1 {
+		local age_cond "Age_DN < 65"
+		local age_lab "<65"
+	}
+	if `a' == 2 {
+		local age_cond "Age_DN >= 65 & Age_DN < 75"
+		local age_lab "65-74"
+	}
+	if `a' == 3 {
+		local age_cond "Age_DN >= 75 & Age_DN < ."
+		local age_lab "≥75"
+	}
+	
+	quietly count if `age_cond'
+	local n_age`a' = string(r(N), "%9.0fc")
+	quietly summarize cTotald if `age_cond'
+	local cost_age`a' = string(r(mean), "%12.0fc")
+	quietly summarize qTotald if `age_cond'
+	local qaly_age`a' = string(r(mean), "%5.2f")
+}
+
+putpdf table age_econ = (4, 4), border(all)
+putpdf table age_econ(1,1) = ("Age Group"), bold
+putpdf table age_econ(1,2) = ("N"), bold
+putpdf table age_econ(1,3) = ("Mean Cost (AUD)"), bold
+putpdf table age_econ(1,4) = ("Mean QALYs"), bold
+putpdf table age_econ(2,1) = ("<65")
+putpdf table age_econ(2,2) = ("`n_age1'")
+putpdf table age_econ(2,3) = ("$`cost_age1'")
+putpdf table age_econ(2,4) = ("`qaly_age1'")
+putpdf table age_econ(3,1) = ("65-74")
+putpdf table age_econ(3,2) = ("`n_age2'")
+putpdf table age_econ(3,3) = ("$`cost_age2'")
+putpdf table age_econ(3,4) = ("`qaly_age2'")
+putpdf table age_econ(4,1) = ("≥75")
+putpdf table age_econ(4,2) = ("`n_age3'")
+putpdf table age_econ(4,3) = ("$`cost_age3'")
+putpdf table age_econ(4,4) = ("`qaly_age3'")
+
+// By R-ISS Stage
+putpdf paragraph
+putpdf text ("By R-ISS Stage"), bold
+
+forval r = 1/3 {
+	quietly count if RISS == `r'
+	local n_riss`r' = string(r(N), "%9.0fc")
+	quietly summarize cTotald if RISS == `r'
+	local cost_riss`r' = string(r(mean), "%12.0fc")
+	quietly summarize qTotald if RISS == `r'
+	local qaly_riss`r' = string(r(mean), "%5.2f")
+}
+
+putpdf table riss_econ = (4, 4), border(all)
+putpdf table riss_econ(1,1) = ("R-ISS Stage"), bold
+putpdf table riss_econ(1,2) = ("N"), bold
+putpdf table riss_econ(1,3) = ("Mean Cost (AUD)"), bold
+putpdf table riss_econ(1,4) = ("Mean QALYs"), bold
+putpdf table riss_econ(2,1) = ("Stage I")
+putpdf table riss_econ(2,2) = ("`n_riss1'")
+putpdf table riss_econ(2,3) = ("$`cost_riss1'")
+putpdf table riss_econ(2,4) = ("`qaly_riss1'")
+putpdf table riss_econ(3,1) = ("Stage II")
+putpdf table riss_econ(3,2) = ("`n_riss2'")
+putpdf table riss_econ(3,3) = ("$`cost_riss2'")
+putpdf table riss_econ(3,4) = ("`qaly_riss2'")
+putpdf table riss_econ(4,1) = ("Stage III")
+putpdf table riss_econ(4,2) = ("`n_riss3'")
+putpdf table riss_econ(4,3) = ("$`cost_riss3'")
+putpdf table riss_econ(4,4) = ("`qaly_riss3'")
+
 **********
 * Save PDF
 **********
@@ -531,3 +845,5 @@ restore
 set graphics on
 local output_file "`report_dir'/${int}_${data}_${scenario}.pdf"
 putpdf save "`output_file'", replace
+
+di as result _n "✓ Report saved: `output_file'"
