@@ -392,12 +392,12 @@ sts graph, ///
     xtitle("Months") ytitle("Probability") title("") ///
     ylabel(0(0.2)1, angle(0) format(%3.1f)) ///
     xlabel(0(24)240) ci risktable legend(off) ///
-    graphregion(color(white)) name(os_overall, replace)
-graph export "$simulated_path/report/figures/os_overall.png", replace width(1200)
+    graphregion(color(white)) name(os, replace)
+graph export "$simulated_path/report/figures/os.png", replace width(1200)
 
 putpdf paragraph
 putpdf text ("Overall Survival"), bold linebreak(2)
-putpdf image "$simulated_path/report/figures/os_overall.png", width(6)
+putpdf image "$simulated_path/report/figures/os.png", width(7)
 
 // By ASCT
 gen asct = SCT_L1
@@ -417,7 +417,9 @@ putpdf text ("Overall Survival by ASCT Status"), bold
 putpdf image "$simulated_path/report/figures/os_asct.png", width(6)
 restore
 
-// By BCR L1 / ASCT
+// By BCR L1 / ASCT\
+putpdf pagebreak
+
 preserve
 gen bcr_group = .
 replace bcr_group = 1 if SCT_L1 == 0 & BCR_L1 == 1 | SCT_L1 == 1 & BCR_SCT == 1
@@ -437,7 +439,6 @@ sts graph, by(bcr_group) ///
 	name(os_bcr, replace)
 graph export "$simulated_path/report/figures/os_bcr.png", replace width(1200)
    
-putpdf pagebreak
 putpdf paragraph
 putpdf text ("Overall Survival by BCR LoT 1 / ASCT"), bold
 putpdf image "$simulated_path/report/figures/os_bcr.png", width(6)
@@ -466,6 +467,8 @@ putpdf image "$simulated_path/report/figures/os_age.png", width(6)
 restore
 
 // By R-ISS
+putpdf pagebreak
+
 preserve
 stset OC_TIME if OC_TIME < 240, failure(OC_MORT)
     
@@ -477,7 +480,6 @@ sts graph, by(RISS) ///
 	name(os_riss, replace)
 graph export "$simulated_path/report/figures/os_riss.png", replace width(1200)
 
-putpdf pagebreak
 putpdf paragraph
 putpdf text ("Overall Survival by R-ISS Stage"), bold
 putpdf image "$simulated_path/report/figures/os_riss.png", width(6)
@@ -500,12 +502,364 @@ putpdf text ("Overall Survival by ECOG Status"), bold
 putpdf image "$simulated_path/report/figures/os_ecog.png", width(6)
 restore
 
+**********
+* Lines of Therapy
+**********
+
 putpdf pagebreak
+
+putpdf paragraph
+putpdf text ("Lines of Therapy Distribution"), bold font(,16)
+
+// Count patients receiving each line using TXR_L* variables
+// If TXR_L# is not missing, patient received that line
+
+// Calculate N receiving each line
+local n_total = _N
+forvalues l = 1/9 {
+	quietly count if !missing(TXR_L`l')
+	local n_l`l' = r(N)
+	local pct_l`l' = (`n_l`l'' / `n_total') * 100
+}
+
+// Determine max line reached per patient
+gen LOT_MAX = 0
+forvalues l = 1/9 {
+	replace LOT_MAX = `l' if !missing(TXR_L`l')
+}
+
+// Count patients by their maximum line reached
+forvalues l = 1/9 {
+	quietly count if LOT_MAX == `l'
+	local n_max_l`l' = r(N)
+	local pct_max_l`l' = (`n_max_l`l'' / `n_total') * 100
+}
+
+// Display to log
+di _col(5) "Line" _col(15) "Received" _col(30) "%" _col(40) "Max Line" _col(55) "%"
+di "{hline 60}"
+forvalues l = 1/9 {
+	di _col(5) "L`l'" _col(15) %9.0fc `n_l`l'' _col(30) %5.1f `pct_l`l'' _col(40) %9.0fc `n_max_l`l'' _col(55) %5.1f `pct_max_l`l''
+}
+
+// Create PDF table
+putpdf paragraph
+putpdf text ("Patients receiving each line and maximum line reached"), italic
+
+putpdf table lot_tbl = (11, 5), border(all)
+putpdf table lot_tbl(1,1) = ("Line"), bold
+putpdf table lot_tbl(1,2) = ("N Received"), bold
+putpdf table lot_tbl(1,3) = ("% Received"), bold
+putpdf table lot_tbl(1,4) = ("N Max Line"), bold
+putpdf table lot_tbl(1,5) = ("% Max Line"), bold
+
+forvalues l = 1/9 {
+	local row = `l' + 1
+	putpdf table lot_tbl(`row',1) = ("L`l'")
+	putpdf table lot_tbl(`row',2) = ("`=string(`n_l`l'', "%9.0fc")'")
+	putpdf table lot_tbl(`row',3) = ("`=string(`pct_l`l'', "%5.1f")'%")
+	putpdf table lot_tbl(`row',4) = ("`=string(`n_max_l`l'', "%9.0fc")'")
+	putpdf table lot_tbl(`row',5) = ("`=string(`pct_max_l`l'', "%5.1f")'%")
+}
+
+putpdf table lot_tbl(11,1) = ("Total"), bold
+putpdf table lot_tbl(11,2) = ("`=string(`n_total', "%9.0fc")'"), bold
+putpdf table lot_tbl(11,3) = ("—")
+putpdf table lot_tbl(11,4) = ("`=string(`n_total', "%9.0fc")'"), bold
+putpdf table lot_tbl(11,5) = ("100.0%"), bold
+
+// Summary statistics
+quietly summarize LOT_MAX, detail
+local mean_lot = string(r(mean), "%4.2f")
+local median_lot = string(r(p50), "%4.0f")
+
+putpdf paragraph
+putpdf text ("Mean lines received: `mean_lot'; Median: `median_lot'")
+
+// Mortality by maximum line reached
+
+putpdf paragraph
+putpdf text ("Mortality by Maximum Line Reached"), bold
+
+putpdf table mort_lot = (11, 4), border(all)
+putpdf table mort_lot(1,1) = ("Line"), bold
+putpdf table mort_lot(1,2) = ("Deaths"), bold
+putpdf table mort_lot(1,3) = ("Deaths during TXD"), bold
+putpdf table mort_lot(1,4) = ("Deaths during TFI"), bold
+
+// Row for DN (patients who died before L1)
+quietly count if MOR_DN == 1
+local n_died_dn = r(N)
+putpdf table mort_lot(2,1) = ("DN")
+putpdf table mort_lot(2,2) = ("`=string(`n_died_dn', "%9.0fc")'")
+putpdf table mort_lot(2,3) = ("—")
+putpdf table mort_lot(2,4) = ("`=string(`n_died_dn', "%9.0fc")'")
+
+// L1 to L9
+forvalues l = 1/9 {
+	local row = `l' + 2
+	
+	// N with max line = L`l'
+	quietly count if LOT_MAX == `l'
+	local n_lot = r(N)
+	
+	// Deaths on treatment (MOR_L#S)
+	quietly count if LOT_MAX == `l' & MOR_L`l'S == 1
+	local n_died_s = r(N)
+	
+	// Deaths at exit/TFI (MOR_L#E)
+	quietly count if LOT_MAX == `l' & MOR_L`l'E == 1
+	local n_died_e = r(N)
+	
+	putpdf table mort_lot(`row',1) = ("L`l'")
+	putpdf table mort_lot(`row',2) = ("`=string(`n_lot', "%9.0fc")'")
+	putpdf table mort_lot(`row',3) = ("`=string(`n_died_s', "%9.0fc")'")
+	putpdf table mort_lot(`row',4) = ("`=string(`n_died_e', "%9.0fc")'")
+}
+
+**********
+* Treatment Duration
+**********
+
+putpdf pagebreak
+putpdf paragraph
+putpdf text ("Treatment Duration (TXD)"), bold font(,16)
+
+// Summary statistics for TXD by line
+putpdf paragraph
+putpdf text ("TXD Summary Statistics (months)"), bold
+
+// Create summary table for TXD
+local nrows = 10
+putpdf table txd_sum = (`nrows', 6), border(all)
+putpdf table txd_sum(1,1) = ("Line"), bold
+putpdf table txd_sum(1,2) = ("N"), bold
+putpdf table txd_sum(1,3) = ("Mean"), bold
+putpdf table txd_sum(1,4) = ("SD"), bold
+putpdf table txd_sum(1,5) = ("Median"), bold
+putpdf table txd_sum(1,6) = ("IQR"), bold
+
+forvalues l = 1/9 {
+	local row = `l' + 1
+	quietly summarize TXD_L`l' if TXD_L`l' > 0, detail
+	local n = r(N)
+	local mean = string(r(mean), "%5.1f")
+	local sd = string(r(sd), "%5.1f")
+	local median = string(r(p50), "%5.1f")
+	local iqr = "[" + string(r(p25), "%4.1f") + "-" + string(r(p75), "%4.1f") + "]"
+		
+	putpdf table txd_sum(`row',1) = ("L`l'")
+	putpdf table txd_sum(`row',2) = ("`=string(`n', "%9.0fc")'")
+	putpdf table txd_sum(`row',3) = ("`mean'")
+	putpdf table txd_sum(`row',4) = ("`sd'")
+	putpdf table txd_sum(`row',5) = ("`median'")
+	putpdf table txd_sum(`row',6) = ("`iqr'")
+		
+	di "TXD L`l': N=" %9.0fc `n' ", Mean=" %5.1f r(mean) ", Median=" %5.1f r(p50)
+}
+
+// Generate KM curves for TXD (Lines 1-9)
+preserve
+
+gen patient_id = _n
+tempfile base_data
+save `base_data'
+
+// Stack all lines into long format
+clear
+local first = 1
+forvalues l = 1/9 {
+	use `base_data', clear
+	keep patient_id TXD_L`l'
+	rename TXD_L`l' txd_time
+	gen line = `l'
+	keep if !missing(txd_time) & txd_time > 0
+	gen txd_event = 1
+			
+	if `first' {
+		tempfile txd_stacked
+		save `txd_stacked'
+		local first = 0
+	}
+	else {
+		append using `txd_stacked'
+	save `txd_stacked', replace
+	}
+}
+
+label define line_lbl 1 "L1" 2 "L2" 3 "L3" 4 "L4" 5 "L5" 6 "L6" 7 "L7" 8 "L8" 9 "L9"
+label values line line_lbl
+
+stset txd_time, failure(txd_event)
+
+sts graph, by(line) ///
+	ytitle("Proportion on treatment") xtitle("Months") title("") ///
+	ylabel(0(0.2)1, angle(0) format(%3.1f)) ///
+	legend(order(1 "L1" 2 "L2" 3 "L3" 4 "L4" 5 "L5" ///
+           6 "L6" 7 "L7" 8 "L8" 9 "L9") ///
+			rows(2) size(small) pos(6)) ///
+	scheme(s2color) ///
+	graphregion(color(white)) ///
+	name(txd, replace)
+
+graph export "$simulated_path/report/figures/txd.png", replace width(1600)
+
+restore
+
+putpdf paragraph
+putpdf text ("Treatment Duration by Line of Therapy"), bold
+putpdf image "$simulated_path/report/figures/txd.png", width(8)
+
+
+**********
+* Treatment-free Intervals
+**********
+
+putpdf pagebreak
+putpdf paragraph
+putpdf text ("Treatment-Free Interval (TFI)"), bold font(,16)
+
+// Summary statistics for TFI
+putpdf paragraph
+putpdf text ("TFI Summary Statistics (months)"), bold
+
+// Create summary table for TFI (DN→L1 through L8→L9)
+local nrows = 10  // Header + DN + L1-L8
+putpdf table tfi_sum = (`nrows', 7), border(all)
+putpdf table tfi_sum(1,1) = ("Interval"), bold
+putpdf table tfi_sum(1,2) = ("N"), bold
+putpdf table tfi_sum(1,3) = ("Mean"), bold
+putpdf table tfi_sum(1,4) = ("SD"), bold
+putpdf table tfi_sum(1,5) = ("Median"), bold
+putpdf table tfi_sum(1,6) = ("IQR"), bold
+putpdf table tfi_sum(1,7) = ("Zero TFI %"), bold
+
+// Row 2: DN→L1
+capture confirm variable TFI_DN
+if !_rc {
+	quietly summarize TFI_DN if !missing(TFI_DN), detail
+	local n = r(N)
+	local mean = string(r(mean), "%5.1f")
+	local sd = string(r(sd), "%5.1f")
+	local median = string(r(p50), "%5.1f")
+	local iqr = "[" + string(r(p25), "%4.1f") + "-" + string(r(p75), "%4.1f") + "]"
+	
+	quietly count if TFI_DN == 0 & !missing(TFI_DN)
+	local n_zero = r(N)
+	local pct_zero = string((`n_zero' / `n') * 100, "%4.1f")
+	
+	putpdf table tfi_sum(2,1) = ("DN→L1")
+	putpdf table tfi_sum(2,2) = ("`=string(`n', "%9.0fc")'")
+	putpdf table tfi_sum(2,3) = ("`mean'")
+	putpdf table tfi_sum(2,4) = ("`sd'")
+	putpdf table tfi_sum(2,5) = ("`median'")
+	putpdf table tfi_sum(2,6) = ("`iqr'")
+	putpdf table tfi_sum(2,7) = ("`pct_zero'%")
+	
+	di "TFI DN→L1: N=" %9.0fc `n' ", Mean=" `mean' ", Median=" `median' ", Zero TFI=" `pct_zero' "%"
+}
+
+// Rows 3-10: L1→L2 through L8→L9
+forvalues l = 1/8 {
+	local row = `l' + 2
+	local next_line = `l' + 1
+	capture confirm variable TFI_L`l'
+	if !_rc {
+		quietly summarize TFI_L`l' if !missing(TFI_L`l'), detail
+		local n = r(N)
+		local mean = string(r(mean), "%5.1f")
+		local sd = string(r(sd), "%5.1f")
+		local median = string(r(p50), "%5.1f")
+		local iqr = "[" + string(r(p25), "%4.1f") + "-" + string(r(p75), "%4.1f") + "]"
+		
+		quietly count if TFI_L`l' == 0 & !missing(TFI_L`l')
+		local n_zero = r(N)
+		local pct_zero = string((`n_zero' / `n') * 100, "%4.1f")
+		
+		putpdf table tfi_sum(`row',1) = ("L`l'→L`next_line'")
+		putpdf table tfi_sum(`row',2) = ("`=string(`n', "%9.0fc")'")
+		putpdf table tfi_sum(`row',3) = ("`mean'")
+		putpdf table tfi_sum(`row',4) = ("`sd'")
+		putpdf table tfi_sum(`row',5) = ("`median'")
+		putpdf table tfi_sum(`row',6) = ("`iqr'")
+		putpdf table tfi_sum(`row',7) = ("`pct_zero'%")
+		
+		di "TFI L`l'→L`next_line': N=" %9.0fc `n' ", Mean=" `mean' ", Median=" `median' ", Zero TFI=" `pct_zero' "%"
+	}
+}
+	
+// Generate KM curves for TFI (DN→L1 through L8→L9)
+preserve
+
+gen patient_id = _n
+tempfile base_data
+save `base_data'
+
+// Stack all TFI intervals into long format
+clear
+local first = 1
+
+// TFI DN
+use `base_data', clear
+keep patient_id TFI_DN
+rename TFI_DN tfi_time
+gen interval = 0
+keep if !missing(tfi_time)
+gen tfi_event = 1
+			
+tempfile tfi_stacked
+save `tfi_stacked'
+local first = 0
+
+// TFI L1 to L8
+forvalues l = 1/8 {
+use `base_data', clear
+	keep patient_id TFI_L`l'
+	rename TFI_L`l' tfi_time
+	gen interval = `l'
+	keep if !missing(tfi_time)
+	gen tfi_event = 1
+				
+	if `first' {
+		tempfile tfi_stacked
+		save `tfi_stacked'
+		local first = 0
+	}
+	else {
+	append using `tfi_stacked'
+	save `tfi_stacked', replace
+	}
+}
+
+label define int_lbl 0 "DN" 1 "L1" 2 "L2" 3 "L3" 4 "L4" ///
+						 5 "L5" 6 "L6" 7 "L7" 8 "L8"
+label values interval int_lbl
+
+stset tfi_time, failure(tfi_event)
+
+sts graph, by(interval) ///
+	ytitle("Proportion not yet starting next line") xtitle("Months") title("") ///
+	ylabel(0(0.2)1, angle(0) format(%3.1f)) ///
+	legend(order(1 "DN" 2 "L1" 3 "L2" 4 "L3" 5 "L4" ///
+           6 "L5" 7 "L6" 8 "L7" 9 "L8") ///
+			rows(2) size(small) pos(6)) ///
+	scheme(s2color) ///
+	graphregion(color(white)) ///
+	name(tfi, replace)
+
+graph export "$simulated_path/report/figures/tfi.png", replace width(1600)
+
+restore
+	
+putpdf paragraph
+putpdf text ("Treatment-Free Interval by LoT"), bold
+putpdf image "$simulated_path/report/figures/tfi.png", width(8)
 
 **********
 * Economic Outcomes
 **********
 
+putpdf pagebreak
 putpdf paragraph
 putpdf text ("Economic Outcomes"), bold font(,16)
 
@@ -845,5 +1199,3 @@ putpdf table riss_econ(4,4) = ("`qaly_riss3'")
 set graphics on
 local output_file "`report_dir'/${int}_${data}_${scenario}.pdf"
 putpdf save "`output_file'", replace
-
-di as result _n "✓ Report saved: `output_file'"

@@ -36,5 +36,7 @@ analyses/*/data/simulated/results/
 analyses/*/data/simulated/reports/
 analyses/*/data/simulated/bootstrap/
 
+analyses/base_model/data/*
+
 analyses/dvd_l2_method/data/
 analyses/dvd_l2_method/outcomes/

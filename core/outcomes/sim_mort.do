@@ -17,7 +17,6 @@ mata {
 	// Get indices
 	idxEligible = selectindex(vEligible)
 	idxDies = selectindex(vDies)
-	idxLives = selectindex(vLives)
 		
 	// Age limit: cap survival time if age at death exceeds maximum
 	vExceedsLimit = ((mAge[.,1] :+ (mOS[.,OMC] / 12)) :> Limit) :& vDies
@@ -26,7 +25,7 @@ mata {
 	// Update mMOR - only update eligible patients
 	if (rows(idxEligible) > 0) {
 		vDiesElig = vDies[idxEligible]
-		mMOR[idxEligible, OMC] = (rows(idxEligible) == 1 ? vDiesElig : vDiesElig)
+		mMOR[idxEligible, OMC] = vDiesElig
 	}
 		
 	// Update mOC - only for deaths
@@ -63,15 +62,15 @@ mata {
 		vTSDsafe = editmissing(mTSD[idxDies, OMC], 0)
 		vOSdies = mOS[idxDies, OMC]
 
-		vTimeMonths = (vOSdies :- vTSDsafe)
+		vTimeMonths = rowmax((vOSdies :- vTSDsafe, J(rows(idxDies), 1, 0)))		
 		
 		if (mod(OMC, 2) == 0) {
 			// Even OMC: treatment duration (TXD)
-			mTXD[idxDies, OMC/2] = vTimeMonths
+			mTXD[idxDies, OMC/2] = rowmin((mTXD[idxDies, OMC/2], vTimeMonths))
 		}
 		else {
 			// Odd OMC: treatment-free interval (TFI)
-			mTFI[idxDies, (OMC+1)/2] = vTimeMonths
+			mTFI[idxDies, (OMC+1)/2] = rowmin((mTFI[idxDies, (OMC+1)/2], vTimeMonths))
 		}
 	}
 }

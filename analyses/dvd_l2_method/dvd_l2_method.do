@@ -13,14 +13,14 @@ set more off
 **********
 
 // Set working directory
-cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP/Myeloma/Simulation"
+cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/Simulation"
 
 // Analysis settings
-global analysis     "dvd_l2_method"     // Analysis name
-global int          "dvd"               // Intervention
-global line         "2"                 // Line being assessed (1-9)
-global coeffs       "dvd_l2_post"       // Coefficient set (dvd_l2_pre / dvd_l2_post)
-global data         "predicted"         // Patient data (predicted / population)
+global analysis     "base_model"     // Analysis name
+global int          "all"               // Intervention
+global line         "0"                 // Line being assessed (1-9)
+global coeffs       "base_model"       // Coefficient set (dvd_l2_pre / dvd_l2_post)
+global data         "population"         // Patient data (predicted / population)
 global min_year     "2000"              // Patients diagnosed from (>= 1995)
 global max_year     "2025"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
@@ -31,7 +31,7 @@ global max_bs       ""                  // Last bootstrap iteration
 global cost_year	"2025"				// Price year for all costs (AUD)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
 global report       "1"                 // Generate report (0/1)
-global scenario     "3_mrdr"            // Scenario (1_trial / 2_ccbm / 3_mrdr)
+global scenario     ""            // Scenario (1_trial / 2_ccbm / 3_mrdr)
 
 **********
 * Set Paths
@@ -46,7 +46,7 @@ global populations_path     "data/populations"
 // Create output directories if needed
 capture mkdir "$simulated_path"
 capture mkdir "$simulated_path/bootstrap"
-capture mkdir "$simulated_path/reports"
+capture mkdir "$simulated_path/report"
 
 **********
 * Load Programs

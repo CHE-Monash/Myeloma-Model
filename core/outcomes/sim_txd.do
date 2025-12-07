@@ -18,12 +18,14 @@ mata {
 		if (Line == 1) {
 			vCoef = bL2_TXD
 			dist = fbL2_TXD
+			maxTXD = maxL2_TXD
 			vTXR = oL2_TXR
 			BCR_cat = 6 
 		}
 		else if (Line == 2) {
 			vCoef = bL3_TXD
 			dist = fbL3_TXD
+			maxTXD = maxL3_TXD
 			vTXR = oL3_TXR
 			BCR_cat = 6 
 		}
@@ -31,11 +33,13 @@ mata {
 			vCoef = bL4_TXD
 			dist = fbL4_TXD
 			vTXR = oL4_TXR
+			maxTXD = maxL4_TXD			
 			BCR_cat = 3  
 		}
 		else if (Line >= 4) {
 			vCoef = bLX_TXD
 			dist = fbLX_TXD
+			maxTXD = maxLX_TXD			
 			vTXR = J(1, 0, .)
 			BCR_cat = 3  
 		}
@@ -89,15 +93,17 @@ mata {
 		nPredictors = cols(mPat)
 		vCoef = vCoef[1, 1..nPredictors]'
 		
-		// Calculate XB and duration
+		// Calculate XB and OC
 		vXB = mPat * vCoef
 		vRN = runiform(rows(idx), 1)
 		vOC = calcSurvTime(vXB, vRN, dist, aux)
 		
+		// Curtail if beyond maximum observed
+		vOC = rowmin((vOC, J(rows(vOC), 1, maxTXD)))
+
 		// Update matrices
 		mTXD[idx, Line+1] = round(vOC, 0.1)
 		mTNE[idx, OMC] = round(vOC, 0.1)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC-1] :+ mTNE[idx, OMC]
-
 	}
 }

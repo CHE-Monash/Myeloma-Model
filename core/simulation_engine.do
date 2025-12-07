@@ -18,24 +18,24 @@ di "Running simulation"
 	mata: Line = 0
 			
 	di "DN - SCT"	
-		quietly do "core/outcomes/sim_asct_dn.do"
+		qui do "core/outcomes/sim_asct_dn.do"
 		*mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
 		*mata: _matrix_list(vSCT_DN)		
 		
 	di "DN - Treatment-free Interval"		
-		quietly do "core/outcomes/sim_tfi_dn.do"
+		qui do "core/outcomes/sim_tfi_dn.do"
 		*mata: _matrix_list(bDN_TFI, rbDN_TFI, cbDN_TFI)
 		*mata: _matrix_list(mTFI, rmTFI, cmTFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
 	di "DN - Overall Survival" 
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "DN - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -43,28 +43,28 @@ di "Running simulation"
 	mata: OMC = 2
 
 	di "L1S - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L1S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 1) exit
 
 	di "L1S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd_l1.do"
+		qui do "core/outcomes/sim_txd_l1.do"
 		*mata: _matrix_list(bL1_TXD_ASCT_S1, rbL1_TXD_ASCT_S1, cbL1_TXD_ASCT_S1)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L1S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L1S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"	
+		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -73,42 +73,42 @@ di "Running simulation"
 	mata: Line = 1
 
 	di "L1E - Age"
-		quietly do "core/outcomes/sim_age.do"
+		qui do "core/outcomes/sim_age.do"
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 
 	di "L1E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - SCT"
-		quietly do "core/outcomes/sim_asct_l1.do"			
+		qui do "core/outcomes/sim_asct_l1.do"			
 		*mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 		*mata: _matrix_list(vSCT_L1)
 
 	di "L1E - SCT Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr_asct.do"			
+		qui do "core/outcomes/sim_bcr_asct.do"			
 		*mata: _matrix_list(bSCT_BCR, rbSCT_BCR, cbSCT_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - MNT"
-		quietly do "core/outcomes/sim_mnt.do"		
+		qui do "core/outcomes/sim_mnt.do"		
 		*mata: _matrix_list(bMNT, rbMNT, cbMNT)
 		*mata: _matrix_list(vMNT)
 
 	di "L1E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi_l1.do"			
+		qui do "core/outcomes/sim_tfi_l1.do"			
 		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 	
 	di "L1E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L1E - Mortality"
-		quietly do "core/outcomes/sim_mort.do"	
+		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -116,28 +116,28 @@ di "Running simulation"
 	mata: OMC = 4
 		
 	di "L2S - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 		
 	di "L2S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 2) exit
 
 	di "L2S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"
+		qui do "core/outcomes/sim_txd.do"
 		*mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
 	di "L2S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L2S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 	
 **********
@@ -146,27 +146,27 @@ di "Running simulation"
 	mata: Line = 2
 
 	di "L2E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L2E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L2E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"
+		qui do "core/outcomes/sim_tfi.do"
 		*mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
 	di "L2E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
 
 	di "L2E - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -174,28 +174,28 @@ di "Running simulation"
 	mata: OMC = 6
 		
 	di "L3S - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L3S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 3) exit
 				
 	di "L3S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"	
+		qui do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L3S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L3S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -204,27 +204,27 @@ di "Running simulation"
 	mata: Line = 3
 	
 	di "L3E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 	
 	di "L3E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L3E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"		
+		qui do "core/outcomes/sim_tfi.do"		
 		*mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
 	di "L3E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L3E - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -232,28 +232,28 @@ di "Running simulation"
 	mata: OMC = 8
 		
 	di "L4S - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 
 	di "L4S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 4) exit
 			
 	di "L4S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"
+		qui do "core/outcomes/sim_txd.do"
 		*mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L4S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L4S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -262,27 +262,27 @@ di "Running simulation"
 	mata: Line = 4
 		
 	di "L4E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 	
 	di "L4E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L4E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"	
+		qui do "core/outcomes/sim_tfi.do"	
 		*mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
 	di "L4E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L4E - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 			
 **********
@@ -290,26 +290,26 @@ di "Running simulation"
 	mata: OMC = 10
 		
 	di "L5S - Age" 
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L5S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L5S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"		
+		qui do "core/outcomes/sim_txd.do"		
 		*mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L5S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L5S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -318,27 +318,27 @@ di "Running simulation"
 	mata: Line = 5
 		
 	di "L5E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 
 	di "L5E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL5_BCR, rbL5_BCR, cbL5_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 	
 	di "L5E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"				
+		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 
 	di "L5E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L5E - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 		
 **********
@@ -346,26 +346,26 @@ di "Running simulation"
 	mata: OMC = 12
 	
 	di "L6S - Age" 
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L6S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L6S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"	
+		qui do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L6S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L6S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -374,27 +374,27 @@ di "Running simulation"
 	mata: Line = 6
 		
 	di "L6E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 	
 	di "L6E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L6E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"				
+		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
 	di "L6E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L6E - Mortality" 
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 					
 **********
@@ -402,26 +402,26 @@ di "Running simulation"
 	mata: OMC = 14
 		
 	di "L7S - Age" 
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L7S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
-	di "L7S - Chemo Duration"
-		quietly do "core/outcomes/sim_txd.do"	
+	di "L7S - Treatment Duration"
+		qui do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL7_TXD, rbL7_TXD, cbL7_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L7S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 		
 	di "L7S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -430,27 +430,27 @@ di "Running simulation"
 	mata: Line = 7
 		
 	di "L7E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 	
 	di "L7E - Best Clinical Response" 
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL7_BCR, rbL7_BCR, cbL7_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR))
 		
 	di "L7E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"				
+		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL7_TFI, rbL7_TFI, cbL7_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)		
 
 	di "L7E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L7E - Mortality" 
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 		
 **********
@@ -458,26 +458,26 @@ di "Running simulation"
 	mata: OMC = 16
 		
 	di "L8S - Age" 
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L8S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L8S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"	
+		qui do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL8_TXD, rbL8_TXD, cbL8_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L8S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L8S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -486,27 +486,27 @@ di "Running simulation"
 	mata: Line = 8
 		
 	di "L8E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 	
 	di "L8E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL8_BCR, rbL8_BCR, cbL8_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L8E - Treatment-free Interval"
-		quietly do "core/outcomes/sim_tfi.do"				
+		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL8_TFI, rbL8_TFI, cbL8_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
 	di "L8E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
 	di "L8E - Mortality" 
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -514,26 +514,26 @@ di "Running simulation"
 	mata: OMC = 18
 		
 	di "L9S - Age" 
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 		
 	di "L9S - Treatment Regimen"
-		quietly do "core/outcomes/sim_txr.do"
+		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 
 	di "L9S - Treatment Duration"
-		quietly do "core/outcomes/sim_txd.do"	
+		qui do "core/outcomes/sim_txd.do"	
 		*mata: _matrix_list(bL9_TXD, rbL9_TXD, cbL9_TXD)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)
 		
 	di "L9S - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 	
 	di "L9S - Mortality"
-		quietly do "core/outcomes/sim_mort.do"
+		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
 
 **********
@@ -542,16 +542,16 @@ di "Running simulation"
 	mata: Line = 9
 		
 	di "L9E - Age"
-		quietly do "core/outcomes/sim_age.do"	
+		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
 	
 	di "L9E - Best Clinical Response"
-		quietly do "core/outcomes/sim_bcr.do"
+		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL9_BCR, rbL9_BCR, cbL9_BCR)
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L9E - Overall Survival"
-		quietly do "core/outcomes/sim_os.do"
+		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 

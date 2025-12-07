@@ -17,25 +17,25 @@ mata {
 		// Select coefficient matrix based on Line
 		if (Line == 2) {
 			vCoef = bL2_TFI
-			fbCoef = fbL2_TFI
+			dist = fbL2_TFI
 			maxTFI = maxL2_TFI
 			BCR_cat = 6 
 		}
 		else if (Line == 3) {
 			vCoef = bL3_TFI
-			fbCoef = fbL3_TFI
+			dist = fbL3_TFI
 			maxTFI = maxL3_TFI
 			BCR_cat = 3 
 		}
 		else if (Line == 4) {
 			vCoef = bL4_TFI
-			fbCoef = fbL4_TFI
+			dist = fbL4_TFI
 			maxTFI = maxL4_TFI
 			BCR_cat = 3
 		}
 		else if (Line >= 5) {
 			vCoef = bLX_TFI
-			fbCoef = fbLX_TFI
+			dist = fbLX_TFI
 			maxTFI = maxLX_TFI
 			BCR_cat = 3 			
 		}
@@ -72,12 +72,10 @@ mata {
 		nPredictors = cols(mPat)
 		vCoef = vCoef[1, 1..nPredictors]'
 		
-		// Calculate XB
+		// Calculate XB and OC
 		vXB = mPat * vCoef
-		
-		// Calculate outcome
 		vRN = runiform(rows(idx), 1)
-		vOC = calcSurvTime(vXB, vRN, fbCoef, aux)
+		vOC = calcSurvTime(vXB, vRN, dist, aux)
 		
 		// Curtail if beyond maximum observed
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTFI)))

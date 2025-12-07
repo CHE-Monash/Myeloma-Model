@@ -15,7 +15,6 @@ mata {
 	
 	// Get indices
 	idxEligible = selectindex(vEligible)
-	idxDead = selectindex(vStateValid :& vWasDead)
 	
 	// Update age for alive patients
 	if (rows(idxEligible) > 0 & OMC > 1) {
@@ -48,17 +47,17 @@ mata {
 			// Calculate time for TXD/TFI in months
 			vPrevTSD = mTSD[idxExceedsFull, OMC-1]
 			vOCTime = mOC[idxExceedsFull, 1]
-			vTimeMonths = vOCTime :- vPrevTSD 
+			vTimeMonths = rowmax((vOCTime :- vPrevTSD, J(rows(idxExceedsFull), 1, 0)))
 			
 			if (mod(OMC-1, 2) == 0) {
 				// Even OMC-1: update TXD
 				lineIdx = floor((OMC-1)/2)  // Ensure integer index
-				mTXD[idxExceedsFull, lineIdx] = vTimeMonths
+				mTXD[idxExceedsFull, lineIdx] = rowmin((mTXD[idxExceedsFull, lineIdx], vTimeMonths))
 			}
 			else {
 				// Odd OMC-1: update TFI
 				lineIdx = floor((OMC+1)/2)  // Ensure integer index
-				mTFI[idxExceedsFull, lineIdx] = vTimeMonths
+				mTFI[idxExceedsFull, lineIdx] = rowmin((mTFI[idxExceedsFull, lineIdx], vTimeMonths))
 			}
 			
 			// Set mTSD for current OMC to missing

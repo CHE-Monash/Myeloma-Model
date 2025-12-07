@@ -4,13 +4,9 @@
 * Architecture:
 *   - Vectors: Patient characteristics that don't change (Age, Male, ECOG, RISS)
 *   - Matrices: Line-varying outcomes preserved in columns (mBCR, mCD, mOS, etc.)
-*
-* Version: 2.1.0
-* Date: October 2025
-* Author: Adam Irving + Claude
 **********
 
-capture program drop mata_setup
+cap program drop mata_setup
 program define mata_setup
 	
 	di "Setting up matrices"
@@ -256,17 +252,17 @@ program define mata_setup
 	di "Setting up vectors"
 	
 	*Generate categorical dummy variables 
-		capture gen ECOGcc0 = (ECOGcc == 0)
-		capture gen ECOGcc1 = (ECOGcc == 1)
-		capture gen ECOGcc2 = (ECOGcc == 2)
-		capture gen RISS1 = (RISS == 1)
-		capture gen RISS2 = (RISS == 2)
-		capture gen RISS3 = (RISS == 3)
-		capture gen CMc0 = (CMc == 0)
-		capture gen CMc1 = (CMc == 1)
-		capture gen CMc2 = (CMc == 2)
-		capture gen CMc3 = (CMc == 3)
-		capture gen Cons = 1
+		cap gen ECOGcc0 = (ECOGcc == 0)
+		cap gen ECOGcc1 = (ECOGcc == 1)
+		cap gen ECOGcc2 = (ECOGcc == 2)
+		cap gen RISS1 = (RISS == 1)
+		cap gen RISS2 = (RISS == 2)
+		cap gen RISS3 = (RISS == 3)
+		cap gen CMc0 = (CMc == 0)
+		cap gen CMc1 = (CMc == 1)
+		cap gen CMc2 = (CMc == 2)
+		cap gen CMc3 = (CMc == 3)
+		cap gen Cons = 1
 	
 	*Vectors
 	mata {
