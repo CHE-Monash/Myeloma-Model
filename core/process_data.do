@@ -46,28 +46,27 @@ di as text "Processing Simulated Data"
 	label values State State_lbl
 	
 *Generate Dates & Years
-	local days_per_month = 30.4375
 	qui {
-		gen DateL1S = DateDN + (TNE_DN * `days_per_month')
-		gen DateL1E = DateL1S + (TNE_L1S * `days_per_month')
-		gen DateL2S = DateL1E + (TNE_L1E * `days_per_month')
-		gen DateL2E = DateL2S + (TNE_L2S * `days_per_month')
-		gen DateL3S = DateL2E + (TNE_L2E * `days_per_month')
-		gen DateL3E = DateL3S + (TNE_L3S * `days_per_month')
-		gen DateL4S = DateL3E + (TNE_L3E * `days_per_month')
-		gen DateL4E = DateL4S + (TNE_L4S * `days_per_month')
-		gen DateL5S = DateL4E + (TNE_L4E * `days_per_month')
-		gen DateL5E = DateL5S + (TNE_L5S * `days_per_month')
-		gen DateL6S = DateL5E + (TNE_L5E * `days_per_month')
-		gen DateL6E = DateL6S + (TNE_L6S * `days_per_month')
-		gen DateL7S = DateL6E + (TNE_L6E * `days_per_month')
-		gen DateL7E = DateL7S + (TNE_L7S * `days_per_month')
-		gen DateL8S = DateL7E + (TNE_L7E * `days_per_month')
-		gen DateL8E = DateL8S + (TNE_L8S * `days_per_month')
-		gen DateL9S = DateL8E + (TNE_L8E * `days_per_month')
-		gen DateL9E = DateL9S + (TNE_L9S * `days_per_month')
+		gen DateL1S = DateDN + (TNE_DN * 30.4375)
+		gen DateL1E = DateL1S + (TNE_L1S * 30.4375)
+		gen DateL2S = DateL1E + (TNE_L1E * 30.4375)
+		gen DateL2E = DateL2S + (TNE_L2S * 30.4375)
+		gen DateL3S = DateL2E + (TNE_L2E * 30.4375)
+		gen DateL3E = DateL3S + (TNE_L3S * 30.4375)
+		gen DateL4S = DateL3E + (TNE_L3E * 30.4375)
+		gen DateL4E = DateL4S + (TNE_L4S * 30.4375)
+		gen DateL5S = DateL4E + (TNE_L4E * 30.4375)
+		gen DateL5E = DateL5S + (TNE_L5S * 30.4375)
+		gen DateL6S = DateL5E + (TNE_L5E * 30.4375)
+		gen DateL6E = DateL6S + (TNE_L6S * 30.4375)
+		gen DateL7S = DateL6E + (TNE_L6E * 30.4375)
+		gen DateL7E = DateL7S + (TNE_L7S * 30.4375)
+		gen DateL8S = DateL7E + (TNE_L7E * 30.4375)
+		gen DateL8E = DateL8S + (TNE_L8S * 30.4375)
+		gen DateL9S = DateL8E + (TNE_L8E * 30.4375)
+		gen DateL9E = DateL9S + (TNE_L9S * 30.4375)
 		gen DateSCT = DateL1E + 1 if(SCT_L1 == 1) // Fix DateSCT 1 day after DateL1E
-		gen DateMOR = DateDN + (OC_TIME * `days_per_month')
+		gen DateMOR = DateDN + (OC_TIME * 30.4375)
 		format Date* %td
 
 		gen YearDN = yofd(DateDN)
@@ -87,62 +86,58 @@ di as text "Processing Simulated Data"
 * Costs
 
 	* Define costs (AUD)
-	scalar define cVCd = 902 	// VCd: 4 21-day cycles maximum
-	scalar define cVRd = 1776 	// VRd: 5 21-day cycles maximum
-	scalar define cRd = 1608 	// Rd: 28-day cycles until progression
-	scalar define cKd = 15025 	// Kd: 28-day cycles until progression
-	scalar define cDVd = 12110 	// DVd: 28-day cycles until progression
-	scalar define cPd = 2291 	// Pd: 28-day cycles until progression
-	scalar define cOther = 4016 // Other: 28-day cycles until progression
-	scalar define cASCT = 41723 // One-time cost for stem cell transplant
-	scalar define cMNT = 1329 	// Rd / Td: 28-day cycles until progression
-	scalar define cHosp = 38743 // Hospitalisation costs per year
-	scalar define cComm = 10928 // Community care costs per year
-	scalar define cEmer = 2476 	// Emergency admission costs per year
-	
-	* Cycle lengths in days
-	local cycle_21 = 21
-	local cycle_28 = 28
+	local cVCd = 902 	// VCd: 4 21-day cycles maximum
+	local cVRd = 1776 	// VRd: 5 21-day cycles maximum
+	local cRd = 1608 	// Rd: 28-day cycles until progression
+	local cKd = 15025 	// Kd: 28-day cycles until progression
+	local cDVd = 12110 	// DVd: 28-day cycles until progression
+	local cPd = 2291 	// Pd: 28-day cycles until progression
+	local cOther = 4016 // Other: 28-day cycles until progression
+	local cASCT = 41723 // One-time cost for stem cell transplant
+	local cMNT = 1329 	// Rd / Td: 28-day cycles until progression
+	local cHosp = 38743 // Hospitalisation costs per year
+	local cComm = 10928 // Community care costs per year
+	local cEmer = 2476 	// Emergency admission costs per year
 	
 	*Treatment costs
 
 		* L1
 		qui gen cTX_L1 = 0
-		qui replace cTX_L1 = `=cVCd' * min(4, TXD_L1 * `days_per_month' / `cycle_21') if TXR_L1 == 4 // VCd (TXR = 4): Fixed-duration, max 4 × 21-day cycles
-		qui replace cTX_L1 = `=cVRd' * min(5, TXD_L1 * `days_per_month' / `cycle_21') if TXR_L1 == 31 // VRd (TXR = 31): Fixed-duration, max 5 × 21-day cycles
-		qui replace cTX_L1 = `=cRd' * (TXD_L1 * `days_per_month' / `cycle_28') if TXR_L1 == 7 // Rd (CR = 7): Continuous until progression, 28-day cycles
-		qui replace cTX_L1 = `=cOther' * (TXD_L1 * `days_per_month' / `cycle_28') if TXR_L1 == 0 // Other (TXR = 0): Continuous until progression, 28-day cycles
+		qui replace cTX_L1 = `cVCd' * min(4, TXD_L1 * 30.4375 / 21) if TXR_L1 == 4 // VCd (TXR = 4): Fixed-duration, max 4 × 21-day cycles
+		qui replace cTX_L1 = `cVRd' * min(5, TXD_L1 * 30.4375 / 21) if TXR_L1 == 31 // VRd (TXR = 31): Fixed-duration, max 5 × 21-day cycles
+		qui replace cTX_L1 = `cRd' * (TXD_L1 * 30.4375 / 28) if TXR_L1 == 7 // Rd (CR = 7): Continuous until progression, 28-day cycles
+		qui replace cTX_L1 = `cOther' * (TXD_L1 * 30.4375 / 28) if TXR_L1 == 0 // Other (TXR = 0): Continuous until progression, 28-day cycles
 		
 		* ASCT
 		qui gen cTX_ASCT = 0
-		qui replace cTX_ASCT = `=cASCT' if SCT_L1 == 1 
+		qui replace cTX_ASCT = `cASCT' if SCT_L1 == 1 
 
 		* MNT
 		qui gen cTX_MNT = 0
-		qui replace cTX_MNT = `=cMNT' * (TFI_L1 * `days_per_month' / `cycle_28') if MNT == 1
+		qui replace cTX_MNT = `cMNT' * (TFI_L1 * 30.4375 / 28) if MNT == 1`'
 
 		* L2
 		qui gen cTX_L2 = 0
-		qui replace cTX_L2 = `=cDVd' * (TXD_L2 * `days_per_month' / `cycle_28') if TXR_L2 == 80 // DVd (TXR = 80): Continuous until progression
-		qui replace cTX_L2 = `=cRd' * (TXD_L2 * `days_per_month' / `cycle_28') if TXR_L2 == 7 // Rd (TXR = 7): Continuous until progression
-		qui replace cTX_L2 = `=cOther' * (TXD_L2 * `days_per_month' / `cycle_28') if TXR_L2 == 0 // Other (TXR = 0): Continuous until progression
+		qui replace cTX_L2 = `cDVd' * (TXD_L2 * 30.4375 / 28) if TXR_L2 == 80 // DVd (TXR = 80): Continuous until progression
+		qui replace cTX_L2 = `cRd' * (TXD_L2 * 30.4375 / 28) if TXR_L2 == 7 // Rd (TXR = 7): Continuous until progression
+		qui replace cTX_L2 = `cOther' * (TXD_L2 * 30.4375 / 28) if TXR_L2 == 0 // Other (TXR = 0): Continuous until progression
 
 		* L3
 		qui gen cTX_L3 = 0
-		qui replace cTX_L3 = `=cKd' * (TXD_L3 * `days_per_month' / `cycle_28') if TXR_L3 == 49 // Kd (TXR = 49): Continuous until progression
-		qui replace cTX_L3 = `=cRd' * (TXD_L3 * `days_per_month' / `cycle_28') if TXR_L3 == 7 // Rd (TXR = 7): Continuous until progression
-		qui replace cTX_L3 = `=cOther' * (TXD_L3 * `days_per_month' / `cycle_28') if TXR_L3 == 0 //Other (TXR = 0): Continuous until progression
+		qui replace cTX_L3 = `cKd' * (TXD_L3 * 30.4375 / 28) if TXR_L3 == 49 // Kd (TXR = 49): Continuous until progression
+		qui replace cTX_L3 = `cRd' * (TXD_L3 * 30.4375 / 28) if TXR_L3 == 7 // Rd (TXR = 7): Continuous until progression
+		qui replace cTX_L3 = `cOther' * (TXD_L3 * 30.4375 / 28) if TXR_L3 == 0 //Other (TXR = 0): Continuous until progression
 
 		* L4
 		qui gen cTX_L4 = 0
-		qui replace cTX_L4 = `=cKd' * (TXD_L4 * `days_per_month' / `cycle_28') if TXR_L4 == 49 // Kd (TXR = 49): Continuous until progression
-		qui replace cTX_L4 = `=cPd' * (TXD_L4 * `days_per_month' / `cycle_28') if TXR_L4 == 56 // Pd (TXR = 56): Continuous until progression
-		qui replace cTX_L4 = `=cOther' * (TXD_L4 * `days_per_month' / `cycle_28') if TXR_L4 == 0 // Other (TXR = 0): Continuous until progression
+		qui replace cTX_L4 = `cKd' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 49 // Kd (TXR = 49): Continuous until progression
+		qui replace cTX_L4 = `cPd' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 56 // Pd (TXR = 56): Continuous until progression
+		qui replace cTX_L4 = `cOther' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 0 // Other (TXR = 0): Continuous until progression
 
 		* L5 - L9
 		forval l = 5/9 {
 			qui gen cTX_L`l' = 0
-			qui replace cTX_L`l' = `=cOther' * (TXD_L`l' * `days_per_month' / `cycle_28') ///
+			qui replace cTX_L`l' = `cOther' * (TXD_L`l' * 30.4375 / 28) ///
 				if TXD_L`l' != .
 		}
 
@@ -150,9 +145,9 @@ di as text "Processing Simulated Data"
 		qui gen cTX = cTX_L1 + cTX_ASCT + cTX_MNT + cTX_L2 + cTX_L3 + cTX_L4 + cTX_L5 + cTX_L6 + cTX_L7 + cTX_L8 + cTX_L9
 	
 	* Non-treatment costs (Hospital, Community and Emergency)
-	qui gen cNT_Hosp = `=cHosp' * (OC_TIME / 12)
-	qui gen cNT_Comm = `=cComm' * (OC_TIME / 12)
-	qui gen cNT_Emer = `=cEmer' * (OC_TIME / 12)
+	qui gen cNT_Hosp = `cHosp' * (OC_TIME / 12)
+	qui gen cNT_Comm = `cComm' * (OC_TIME / 12)
+	qui gen cNT_Emer = `cEmer' * (OC_TIME / 12)
 	qui gen cNT = cNT_Hosp + cNT_Comm + cNT_Emer
 	
 	*Total undiscounted cost
@@ -183,9 +178,9 @@ di as text "Processing Simulated Data"
 			qui replace cTXd = cTXd + cTX_MNTd if cTX_MNTd != .
 		
 		* Non-treatment costs
-		qui gen cNT_Hospd = `=cHosp' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
-		qui gen cNT_Commd = `=cComm' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
-		qui gen cNT_Emerd = `=cEmer' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
+		qui gen cNT_Hospd = `cHosp' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
+		qui gen cNT_Commd = `cComm' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
+		qui gen cNT_Emerd = `cEmer' * (1 - (1 + $drate)^(-OC_TIME/12)) / `ln_r'
 		qui gen cNTd = cNT_Hospd + cNT_Commd + cNT_Emerd
 	
 	* Total discounted costs

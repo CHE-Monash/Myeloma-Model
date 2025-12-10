@@ -7,7 +7,41 @@
 * Date: November 2025
 **********
 
-capture program drop simulation
+cap program drop sim_debug
+program define sim_debug
+
+mata {						
+	printf("=== OS Diagnostics at Line=%g, OMC=%g, Segment=%g ===\n", Line, OMC, segment)
+	printf("BCR distribution: CR=%g, VGPR=%g, PR=%g, MR=%g, SD=%g, PD=%g\n",
+		sum(vBCR1[idx]), sum(vBCR2[idx]), sum(vBCR3[idx]), 
+		sum(vBCR4[idx]), sum(vBCR5[idx]), sum(vBCR6[idx]))
+
+	// Check XB distribution
+	printf("XB: mean=%9.4f, sd=%9.4f, min=%9.4f, max=%9.4f\n", 
+		mean(vXB), sqrt(variance(vXB)), min(vXB), max(vXB))
+			
+	// Check predicted survival times
+	sorted_vOC = sort(vOC, 1)
+	median_idx = ceil(rows(sorted_vOC) / 2)
+	printf("Surv: mean=%9.2f, median=%9.2f, min=%9.2f, max=%9.2f\n", 
+		mean(vOC), sorted_vOC[median_idx], min(vOC), max(vOC))
+				
+	// Check the random numbers
+	printf("vRN: mean=%9.4f, min=%9.4f, max=%9.4f, nmiss=%g\n", 
+	   mean(vRN), min(vRN), max(vRN), missing(vRN))
+
+	// If OMC >= 2, also check the survival probability and TSD
+	if (OMC >= 2) {
+	printf("vPR: mean=%9.4f, min=%9.4f, max=%9.4f, nmiss=%g\n", 
+	   mean(vPR), min(vPR), max(vPR), missing(vPR))
+	printf("TSD: mean=%9.4f, min=%9.4f, max=%9.4f, nmiss=%g\n", 
+	   mean(mTSD[idx, OMC]), min(mTSD[idx, OMC]), max(mTSD[idx, OMC]), missing(mTSD[idx, OMC]))
+	}
+}
+end
+
+
+cap program drop simulation
 program define simulation
 
 di "Running simulation"
@@ -33,7 +67,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-
+		
+		sim_debug
+		
 	di "DN - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -62,7 +98,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-	
+		
+		sim_debug
+		
 	di "L1S - Mortality"
 		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -106,7 +144,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-	
+		
+		sim_debug
+		
 	di "L1E - Mortality"
 		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -135,6 +175,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 	
 	di "L2S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -164,7 +206,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
-
+		
+		sim_debug
+		
 	di "L2E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -193,7 +237,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-	
+		
+		sim_debug
+		
 	di "L3S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -222,7 +268,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-
+		
+		sim_debug
+		
 	di "L3E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -251,7 +299,9 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-	
+		
+		sim_debug
+		
 	di "L4S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -280,6 +330,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 
 	di "L4E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -307,6 +359,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 	
 	di "L5S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -337,6 +391,8 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
+		sim_debug
+		
 	di "L5E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -363,6 +419,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 	
 	di "L6S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -392,6 +450,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 
 	di "L6E - Mortality" 
 		qui do "core/outcomes/sim_mort.do"
@@ -419,6 +479,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 		
 	di "L7S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -448,6 +510,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 
 	di "L7E - Mortality" 
 		qui do "core/outcomes/sim_mort.do"
@@ -475,6 +539,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 	
 	di "L8S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -504,6 +570,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 
 	di "L8E - Mortality" 
 		qui do "core/outcomes/sim_mort.do"
@@ -531,6 +599,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 	
 	di "L9S - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -554,6 +624,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
+		
+		sim_debug		
 
 	di "L9E - Mortality" 
 		*Everyone still alive dies at predicted OS or Limit

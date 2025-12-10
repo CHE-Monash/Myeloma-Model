@@ -26,34 +26,34 @@ mata {
 	
 	// Extract previous BCR
 	if (Line == 2 | Line == 3) { // L1, L2 6-category
-		pBCR = mBCR[., Line-1]
-		pBCR_CR = (pBCR :== 1)
-		pBCR_VG = (pBCR :== 2)
-		pBCR_PR = (pBCR :== 3)
-		pBCR_MR = (pBCR :== 4)
-		pBCR_SD = (pBCR :== 5)
-		pBCR_PD = (pBCR :== 6)
+		vBCR = mBCR[., Line-1]
+		vBCR1 = (vBCR :== 1)
+		vBCR2 = (vBCR :== 2)
+		vBCR3 = (vBCR :== 3)
+		vBCR4 = (vBCR :== 4)
+		vBCR5 = (vBCR :== 5)
+		vBCR6 = (vBCR :== 6)
 	}
 	if (Line == 2) { // Also need BCR_SCT
 		BCR_SCT = mBCR[., 10]
-		pBCR_SCT_0 = (BCR_SCT :== 0) // No ASCT patients
-		pBCR_SCT_1 = (BCR_SCT :== 1)
-		pBCR_SCT_2 = (BCR_SCT :== 2)
-		pBCR_SCT_3 = (BCR_SCT :== 3)
-		pBCR_SCT_4 = (BCR_SCT :== 4)
+		vBCRSCT0 = (BCR_SCT :== 0) // No ASCT patients
+		vBCRSCT1 = (BCR_SCT :== 1)
+		vBCRSCT2 = (BCR_SCT :== 2)
+		vBCRSCT3 = (BCR_SCT :== 3)
+		vBCRSCT4 = (BCR_SCT :== 4)
 	}
 	else if (Line >= 4) { // L3+ 3-category
-		pBCR = mBCR[., Line-1]
-		pBCR_CR = (pBCR :== 1)
-		pBCR_PR = (pBCR :== 3)
-		pBCR_SD = (pBCR :== 5)
+		vBCR = mBCR[., Line-1]
+		vBCR1 = (vBCR :== 1)
+		vBCR3 = (vBCR :== 3)
+		vBCR5 = (vBCR :== 5)
 	}
 	
 	// Filter for alive and eligble
 	idx = selectindex((mMOR[., OMC - 1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 	
-		// Build patient matrix
+		// Assemble patient matrix
 		mPat = (vAge[idx], vAge2[idx], vMale[idx],
 				vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 				vRISS1[idx], vRISS2[idx], vRISS3[idx])
@@ -63,15 +63,15 @@ mata {
 		
 		// Add previous BCR
 		if (Line == 2 | Line == 3) {
-			mPat = mPat, (pBCR_CR[idx], pBCR_VG[idx], pBCR_PR[idx], 
-						  pBCR_MR[idx], pBCR_SD[idx], pBCR_PD[idx])
+			mPat = mPat, (vBCR1[idx], vBCR2[idx], vBCR3[idx], 
+						  vBCR4[idx], vBCR5[idx], vBCR6[idx])
 		}	
 		if (Line == 2) {
-			mPat = mPat, (pBCR_SCT_0[idx], pBCR_SCT_1[idx], pBCR_SCT_2[idx], 
-						  pBCR_SCT_3[idx], pBCR_SCT_4[idx])
+			mPat = mPat, (vBCRSCT0[idx], vBCRSCT1[idx], vBCRSCT2[idx], 
+						  vBCRSCT3[idx], vBCRSCT4[idx])
 		}
 		else if (Line >= 4) {
-			mPat = mPat, (pBCR_CR[idx], pBCR_PR[idx], pBCR_SD[idx])
+			mPat = mPat, (vBCR1[idx], vBCR3[idx], vBCR5[idx])
 		}
 			
 		// Add TXR dummies

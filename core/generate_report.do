@@ -156,186 +156,397 @@ putpdf pagebreak
 putpdf paragraph
 putpdf text ("Treatments"), bold font(,16)
 
-// Line 1
+// Line 1 Regimen × BCR Cross-tabulation
 quietly count if TXR_L1 < .
 local l1_total = r(N)
+
+// Get regimen codes from Mata
+mata: st_matrix("regimen_codes", oL1_TXR)
+mata: st_numscalar("n_regimens", cols(oL1_TXR))
+local n_regimens = n_regimens 
+
+// Extract codes from matrix to locals and build name mapping
+forval i = 1/`n_regimens' {
+    local code_`i' = regimen_codes[1,`i']
+    local code = `code_`i''
     
-	// Get regimen codes from Mata
-	mata: st_matrix("regimen_codes", oL1_TXR)
-	mata: st_numscalar("n_regimens", cols(oL1_TXR))
-	local n_regimens = n_regimens 
-
-	// Extract codes from matrix to locals
-	forval i = 1/`n_regimens' {
-		local code_`i' = regimen_codes[1,`i']
-	}
-
-	// Count each specific regimen and store its name
-	forval i = 1/`n_regimens' {
-		local code =`code_`i''
-		quietly count if TXR_L1 == `code'
-		local reg_`i'_n = string(r(N), "%9.0fc")
-		local reg_`i'_pct = string(100*r(N)/`l1_total', "%4.1f")
-	  
-		// Assign name based on code
-		if `code' == 0  local reg_`i'_name "Other"
-		if `code' == 2  local reg_`i'_name "TCd"
-		if `code' == 4  local reg_`i'_name "VCd"
-		if `code' == 7  local reg_`i'_name "Rd"
-		if `code' == 9  local reg_`i'_name "VTd"
-		if `code' == 31 local reg_`i'_name "VRd"
-		if `code' == 49 local reg_`i'_name "Kd"
-		if `code' == 56 local reg_`i'_name "Pd"
-		if `code' == 80 local reg_`i'_name "DVd"
-	}
-
-	// Create table (n_regimens + 1 for header)
-	local n_rows = `n_regimens' + 1
-	putpdf table txr_l1_tbl = (`n_rows', 3), border(all)
-	putpdf table txr_l1_tbl(1,1) = ("Line 1 Regimen"), bold
-	putpdf table txr_l1_tbl(1,2) = ("N"), bold
-	putpdf table txr_l1_tbl(1,3) = ("%"), bold
-
-	// Fill in all regimens
-	forval i = 1/`n_regimens' {
-		local row = `i' + 1
-		putpdf table txr_l1_tbl(`row',1) = ("`reg_`i'_name'")
-		putpdf table txr_l1_tbl(`row',2) = ("`reg_`i'_n'")
-		putpdf table txr_l1_tbl(`row',3) = ("`reg_`i'_pct'")
-	}
-
-// Autologous Stem Cell Transplant
-qui count if SCT_L1 < .
-local sct_total = r(N)
-
-qui count if SCT_L1 == 1
-local sct_n = string(r(N), "%9.0fc")
-local sct_pct = string(100*r(N)/`sct_total', "%4.1f")
-qui count if SCT_L1 == 0
-local nosct_n = string(r(N), "%9.0fc")
-local nosct_pct = string(100*r(N)/`sct_total', "%4.1f")
+    // Assign name based on code
+    if `code' == 0  local reg_`i'_name "Other"
+    if `code' == 2  local reg_`i'_name "TCd"
+    if `code' == 4  local reg_`i'_name "VCd"
+    if `code' == 7  local reg_`i'_name "Rd"
+    if `code' == 9  local reg_`i'_name "VTd"
+    if `code' == 31 local reg_`i'_name "VRd"
+    if `code' == 49 local reg_`i'_name "Kd"
+    if `code' == 56 local reg_`i'_name "Pd"
+    if `code' == 80 local reg_`i'_name "DVd"
     
-putpdf table sct_tbl = (3, 3), border(all)
-putpdf table sct_tbl(1,1) = ("Received ASCT"), bold
-putpdf table sct_tbl(1,2) = ("N"), bold
-putpdf table sct_tbl(1,3) = ("%"), bold
-putpdf table sct_tbl(2,1) = ("No")
-putpdf table sct_tbl(2,2) = ("`nosct_n'")
-putpdf table sct_tbl(2,3) = ("`nosct_pct'")
-putpdf table sct_tbl(3,1) = ("Yes")
-putpdf table sct_tbl(3,2) = ("`sct_n'")
-putpdf table sct_tbl(3,3) = ("`sct_pct'")
+    // Count N for this regimen
+    quietly count if TXR_L1 == `code'
+    local reg_`i'_n = r(N)
+    local reg_`i'_n_fmt = string(r(N), "%9.0fc")
+    local reg_`i'_pct = string(100*r(N)/`l1_total', "%4.1f")
+    
+    // Count BCR within this regimen (BCR 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD)
+    forval b = 1/6 {
+        quietly count if TXR_L1 == `code' & BCR_L1 == `b'
+        if `reg_`i'_n' > 0 {
+            local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
+        }
+        else {
+            local reg_`i'_bcr`b' = "—"
+        }
+    }
+}
 
-// Line 2    
+// Create table: 8 rows (header + N + 6 BCR) × (1 + n_regimens) columns
+local n_cols = `n_regimens' + 1
+putpdf table txr_bcr_l1 = (8, `n_cols'), border(all)
+
+// Header row
+putpdf table txr_bcr_l1(1,1) = ("Line 1"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l1(1,`col') = ("`reg_`i'_name'"), bold
+}
+
+// N row
+putpdf table txr_bcr_l1(2,1) = ("N"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l1(2,`col') = ("`reg_`i'_n_fmt' (`reg_`i'_pct'%)")
+}
+
+// BCR rows
+local bcr_names `" "CR" "VGPR" "PR" "MR" "SD" "PD" "'
+forval b = 1/6 {
+    local row = `b' + 2
+    local bcr_label : word `b' of `bcr_names'
+    putpdf table txr_bcr_l1(`row',1) = ("`bcr_label'")
+    
+    forval i = 1/`n_regimens' {
+        local col = `i' + 1
+        putpdf table txr_bcr_l1(`row',`col') = ("`reg_`i'_bcr`b''%")
+    }
+}
+
+// ASCT BCR Table with Patient Characteristics
+quietly count if TXR_L1 < .
+local l1_total = r(N)
+
+quietly count if SCT_L1 == 1
+local sct_n = r(N)
+local sct_n_fmt = string(r(N), "%9.0fc")
+local sct_pct = string(100*r(N)/`l1_total', "%4.1f")
+
+quietly count if SCT_L1 == 0
+local nosct_n = r(N)
+local nosct_n_fmt = string(r(N), "%9.0fc")
+local nosct_pct = string(100*r(N)/`l1_total', "%4.1f")
+
+// BCR within ASCT patients (BCR_SCT: 1=CR, 2=VGPR, 3=PR, 4=MR)
+forval b = 1/4 {
+    quietly count if SCT_L1 == 1 & BCR_SCT == `b'
+    if `sct_n' > 0 {
+        local sct_bcr`b' = string(100*r(N)/`sct_n', "%4.1f")
+    }
+    else {
+        local sct_bcr`b' = "—"
+    }
+}
+
+// Age breakdown for ASCT patients
+quietly count if SCT_L1 == 1 & Age_L1S < 65
+local sct_age1 = string(100*r(N)/`sct_n', "%4.1f")
+quietly count if SCT_L1 == 1 & Age_L1S >= 65 & Age_L1S < 70
+local sct_age2 = string(100*r(N)/`sct_n', "%4.1f")
+quietly count if SCT_L1 == 1 & Age_L1S >= 70 & Age_L1S < 75
+local sct_age3 = string(100*r(N)/`sct_n', "%4.1f")
+quietly count if SCT_L1 == 1 & Age_L1S >= 75
+local sct_age4 = string(100*r(N)/`sct_n', "%4.1f")
+
+// Age breakdown for No ASCT patients
+quietly count if SCT_L1 == 0 & Age_L1S < 65
+local nosct_age1 = string(100*r(N)/`nosct_n', "%4.1f")
+quietly count if SCT_L1 == 0 & Age_L1S >= 65 & Age_L1S < 70
+local nosct_age2 = string(100*r(N)/`nosct_n', "%4.1f")
+quietly count if SCT_L1 == 0 & Age_L1S >= 70 & Age_L1S < 75
+local nosct_age3 = string(100*r(N)/`nosct_n', "%4.1f")
+quietly count if SCT_L1 == 0 & Age_L1S >= 75
+local nosct_age4 = string(100*r(N)/`nosct_n', "%4.1f")
+
+// BCR L1 CR/VGPR for ASCT vs No ASCT
+quietly count if SCT_L1 == 1 & (BCR_L1 == 1 | BCR_L1 == 2)
+local sct_crvgpr = string(100*r(N)/`sct_n', "%4.1f")
+quietly count if SCT_L1 == 0 & (BCR_L1 == 1 | BCR_L1 == 2)
+local nosct_crvgpr = string(100*r(N)/`nosct_n', "%4.1f")
+
+// Create table: 6 rows × 5 columns
+putpdf table txr_bcr_sct = (6, 5), border(all)
+
+// Header row
+putpdf table txr_bcr_sct(1,1) = ("ASCT"), bold
+putpdf table txr_bcr_sct(1,2) = (""), bold
+putpdf table txr_bcr_sct(1,3) = (""), bold
+putpdf table txr_bcr_sct(1,4) = ("ASCT"), bold
+putpdf table txr_bcr_sct(1,5) = ("No ASCT"), bold
+
+// Row 2: N / Age < 65
+putpdf table txr_bcr_sct(2,1) = ("N"), bold
+putpdf table txr_bcr_sct(2,2) = ("`sct_n_fmt' (`sct_pct'%)")
+putpdf table txr_bcr_sct(2,3) = ("Age < 65")
+putpdf table txr_bcr_sct(2,4) = ("`sct_age1'%")
+putpdf table txr_bcr_sct(2,5) = ("`nosct_age1'%")
+
+// Row 3: CR / Age 65-69
+putpdf table txr_bcr_sct(3,1) = ("CR")
+putpdf table txr_bcr_sct(3,2) = ("`sct_bcr1'%")
+putpdf table txr_bcr_sct(3,3) = ("Age >= 65 & < 70")
+putpdf table txr_bcr_sct(3,4) = ("`sct_age2'%")
+putpdf table txr_bcr_sct(3,5) = ("`nosct_age2'%")
+
+// Row 4: VGPR / Age 70-74
+putpdf table txr_bcr_sct(4,1) = ("VGPR")
+putpdf table txr_bcr_sct(4,2) = ("`sct_bcr2'%")
+putpdf table txr_bcr_sct(4,3) = ("Age >= 70 & < 75")
+putpdf table txr_bcr_sct(4,4) = ("`sct_age3'%")
+putpdf table txr_bcr_sct(4,5) = ("`nosct_age3'%")
+
+// Row 5: PR / Age 75+
+putpdf table txr_bcr_sct(5,1) = ("PR")
+putpdf table txr_bcr_sct(5,2) = ("`sct_bcr3'%")
+putpdf table txr_bcr_sct(5,3) = ("Age >= 75")
+putpdf table txr_bcr_sct(5,4) = ("`sct_age4'%")
+putpdf table txr_bcr_sct(5,5) = ("`nosct_age4'%")
+
+// Row 6: MR / BCR L1 CR/VGPR
+putpdf table txr_bcr_sct(6,1) = ("MR")
+putpdf table txr_bcr_sct(6,2) = ("`sct_bcr4'%")
+putpdf table txr_bcr_sct(6,3) = ("BCR L1 CR/VGPR")
+putpdf table txr_bcr_sct(6,4) = ("`sct_crvgpr'%")
+putpdf table txr_bcr_sct(6,5) = ("`nosct_crvgpr'%")
+
+// Line 2 Regimen × BCR Cross-tabulation
 quietly count if TXR_L2 < .
 local l2_total = r(N)
+
+// Get regimen codes from Mata
+mata: st_matrix("regimen_codes", oL2_TXR)
+mata: st_numscalar("n_regimens", cols(oL2_TXR))
+local n_regimens = n_regimens 
+
+// Extract codes from matrix to locals and build name mapping
+forval i = 1/`n_regimens' {
+    local code_`i' = regimen_codes[1,`i']
+    local code = `code_`i''
     
-	// Get regimen codes from Mata
-	mata: st_matrix("regimen_codes", oL2_TXR)
-	mata: st_numscalar("n_regimens", cols(oL2_TXR))
-	local n_regimens = n_regimens 
-
-	// Extract codes from matrix to locals
-	forval i = 1/`n_regimens' {
-		local code_`i' = regimen_codes[1,`i']
-	}
-
-	// Count each specific regimen and store its name
-	forval i = 1/`n_regimens' {
-		local code =`code_`i''
-		quietly count if TXR_L2 == `code'
-		local reg_`i'_n = string(r(N), "%9.0fc")
-		local reg_`i'_pct = string(100*r(N)/`l2_total', "%4.1f")
-	  
-		// Assign name based on code
-		if `code' == 0  local reg_`i'_name "Other"
-		if `code' == 2  local reg_`i'_name "TCd"
-		if `code' == 4  local reg_`i'_name "VCd"
-		if `code' == 5  local reg_`i'_name "Vd"
-		if `code' == 7  local reg_`i'_name "Rd"
-		if `code' == 9  local reg_`i'_name "VTd"
-		if `code' == 31 local reg_`i'_name "VRd"
-		if `code' == 49 local reg_`i'_name "Kd"
-		if `code' == 56 local reg_`i'_name "Pd"
-		if `code' == 80 local reg_`i'_name "DVd"
-	}
-
-	// Create table (n_regimens + 1 for header)
-	local n_rows = `n_regimens' + 1
-	putpdf table txr_l2_tbl = (`n_rows', 3), border(all)
-	putpdf table txr_l2_tbl(1,1) = ("Line 2 Regimen"), bold
-	putpdf table txr_l2_tbl(1,2) = ("N"), bold
-	putpdf table txr_l2_tbl(1,3) = ("%"), bold
-
-	// Fill in all regimens
-	forval i = 1/`n_regimens' {
-		local row = `i' + 1
-		putpdf table txr_l2_tbl(`row',1) = ("`reg_`i'_name'")
-		putpdf table txr_l2_tbl(`row',2) = ("`reg_`i'_n'")
-		putpdf table txr_l2_tbl(`row',3) = ("`reg_`i'_pct'")
-	}
-
-// Best Clinical Response 
-putpdf paragraph
-putpdf text ("Best Clinical Response"), bold
-
-	// Line 1
-	forval b = 1/6 {
-		qui count if BCR_L1 == `b'
-		local `b'_n_l1 = string(r(N), "%9.0fc")
-		local `b'_pct_l1 = string(100*r(N)/`l1_total', "%4.1f")
-	}
-  
-	// ASCT
-	qui count if SCT_L1 == 1
-	local sct_total = r(N)
-    forval b = 1/4 {
-		qui count if BCR_SCT == `b'
-		local `b'_n_asct = string(r(N), "%9.0fc")
-		local `b'_pct_asct = string(100*r(N)/`sct_total', "%4.1f")
-	}
-
-    // Line 1
-	forval b = 1/6 {
-		qui count if BCR_L2 == `b'
-		local `b'_n_l2 = string(r(N), "%9.0fc")
-		local `b'_pct_l2 = string(100*r(N)/`l2_total', "%4.1f")
-	}
-
-    putpdf table bcr_tbl = (7, 4), border(all)
+    // Assign name based on code
+    if `code' == 0  local reg_`i'_name "Other"
+    if `code' == 2  local reg_`i'_name "TCd"
+    if `code' == 4  local reg_`i'_name "VCd"
+    if `code' == 7  local reg_`i'_name "Rd"
+    if `code' == 9  local reg_`i'_name "VTd"
+    if `code' == 31 local reg_`i'_name "VRd"
+    if `code' == 49 local reg_`i'_name "Kd"
+    if `code' == 56 local reg_`i'_name "Pd"
+    if `code' == 80 local reg_`i'_name "DVd"
     
-	putpdf table bcr_tbl(1,1) = ("Response"), bold
-    putpdf table bcr_tbl(1,2) = ("Line 1"), bold
-    putpdf table bcr_tbl(1,3) = ("ASCT"), bold
-	putpdf table bcr_tbl(1,4) = ("Line 2"), bold
-	
-    putpdf table bcr_tbl(2,1) = ("Complete Response")
-    putpdf table bcr_tbl(2,2) = ("`1_pct_l1'%")
-	putpdf table bcr_tbl(2,3) = ("`1_pct_asct'%")
-	putpdf table bcr_tbl(2,4) = ("`1_pct_l2'%")
-	
-    putpdf table bcr_tbl(3,1) = ("V.Good Partial Response")
-    putpdf table bcr_tbl(3,2) = ("`2_pct_l1'%")
-	putpdf table bcr_tbl(3,3) = ("`2_pct_asct'%")
-	putpdf table bcr_tbl(3,4) = ("`2_pct_l2'%")
-	
-    putpdf table bcr_tbl(4,1) = ("Partial Response")
-    putpdf table bcr_tbl(4,2) = ("`3_pct_l1'%")
-	putpdf table bcr_tbl(4,3) = ("`3_pct_asct'%")
-	putpdf table bcr_tbl(4,4) = ("`3_pct_l2'%")
-	
-    putpdf table bcr_tbl(5,1) = ("Minimal Response")
-    putpdf table bcr_tbl(5,2) = ("`4_pct_l1'%")
-	putpdf table bcr_tbl(5,3) = ("`4_pct_asct'%")
-	putpdf table bcr_tbl(5,4) = ("`4_pct_l2'%")
-	
-    putpdf table bcr_tbl(6,1) = ("Stable Disease")
-    putpdf table bcr_tbl(6,2) = ("`5_pct_l1'%")
-	putpdf table bcr_tbl(6,4) = ("`5_pct_l2'%")
-	
-    putpdf table bcr_tbl(7,1) = ("Progressive Disease")
-    putpdf table bcr_tbl(7,2) = ("`6_pct_l1'%")
-	putpdf table bcr_tbl(7,4) = ("`6_pct_l2'%")
+    // Count N for this regimen
+    quietly count if TXR_L2 == `code'
+    local reg_`i'_n = r(N)
+    local reg_`i'_n_fmt = string(r(N), "%9.0fc")
+    local reg_`i'_pct = string(100*r(N)/`l2_total', "%4.1f")
+    
+    // Count BCR within this regimen (BCR 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD)
+    forval b = 1/6 {
+        quietly count if TXR_L2 == `code' & BCR_L2 == `b'
+        if `reg_`i'_n' > 0 {
+            local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
+        }
+        else {
+            local reg_`i'_bcr`b' = "—"
+        }
+    }
+}
+
+// Create table: 8 rows (header + N + 6 BCR) × (1 + n_regimens) columns
+local n_cols = `n_regimens' + 1
+putpdf table txr_bcr_l2 = (8, `n_cols'), border(all)
+
+// Header row
+putpdf table txr_bcr_l2(1,1) = ("Line 2"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l2(1,`col') = ("`reg_`i'_name'"), bold
+}
+
+// N row
+putpdf table txr_bcr_l2(2,1) = ("N"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l2(2,`col') = ("`reg_`i'_n_fmt' (`reg_`i'_pct'%)")
+}
+
+// BCR rows
+local bcr_names `" "CR" "VGPR" "PR" "MR" "SD" "PD" "'
+forval b = 1/6 {
+    local row = `b' + 2
+    local bcr_label : word `b' of `bcr_names'
+    putpdf table txr_bcr_l2(`row',1) = ("`bcr_label'")
+    
+    forval i = 1/`n_regimens' {
+        local col = `i' + 1
+        putpdf table txr_bcr_l2(`row',`col') = ("`reg_`i'_bcr`b''%")
+    }
+}
+
+// Line 3 Regimen × BCR Cross-tabulation
+quietly count if TXR_L3 < .
+local l3_total = r(N)
+
+// Get regimen codes from Mata
+mata: st_matrix("regimen_codes", oL3_TXR)
+mata: st_numscalar("n_regimens", cols(oL3_TXR))
+local n_regimens = n_regimens 
+
+// Extract codes from matrix to locals and build name mapping
+forval i = 1/`n_regimens' {
+    local code_`i' = regimen_codes[1,`i']
+    local code = `code_`i''
+    
+    // Assign name based on code
+    if `code' == 0  local reg_`i'_name "Other"
+    if `code' == 2  local reg_`i'_name "TCd"
+    if `code' == 4  local reg_`i'_name "VCd"
+    if `code' == 7  local reg_`i'_name "Rd"
+    if `code' == 9  local reg_`i'_name "VTd"
+    if `code' == 31 local reg_`i'_name "VRd"
+    if `code' == 49 local reg_`i'_name "Kd"
+    if `code' == 56 local reg_`i'_name "Pd"
+    if `code' == 80 local reg_`i'_name "DVd"
+    
+    // Count N for this regimen
+    quietly count if TXR_L3 == `code'
+    local reg_`i'_n = r(N)
+    local reg_`i'_n_fmt = string(r(N), "%9.0fc")
+    local reg_`i'_pct = string(100*r(N)/`l3_total', "%4.1f")
+    
+    // Count BCR within this regimen (BCR 1=CR/VGPR, 3=PR/MR, 5=SD/PD)
+    forval b = 1(2)5 {
+        quietly count if TXR_L3 == `code' & BCR_L3 == `b'
+        if `reg_`i'_n' > 0 {
+            local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
+        }
+        else {
+            local reg_`i'_bcr`b' = "—"
+        }
+    }
+}
+
+// Create table: 5 rows (header + N + 3 BCR) × (1 + n_regimens) columns
+local n_cols = `n_regimens' + 1
+putpdf table txr_bcr_l3 = (5, `n_cols'), border(all)
+
+// Header row
+putpdf table txr_bcr_l3(1,1) = ("Line 3"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l3(1,`col') = ("`reg_`i'_name'"), bold
+}
+
+// N row
+putpdf table txr_bcr_l3(2,1) = ("N"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l3(2,`col') = ("`reg_`i'_n_fmt' (`reg_`i'_pct'%)")
+}
+
+// BCR rows
+local bcr_names `" "CR/VGPR" "PR/MR" "SD/PD"'
+forval b = 1/3 {
+    local row = `b' + 2
+    local bcr_label : word `b' of `bcr_names'
+    putpdf table txr_bcr_l3(`row',1) = ("`bcr_label'")
+    
+    forval i = 1/`n_regimens' {
+        local col = `i' + 1
+        putpdf table txr_bcr_l3(`row',`col') = ("`reg_`i'_bcr`b''%")
+    }
+}
+
+// Line 4 Regimen × BCR Cross-tabulation
+quietly count if TXR_L4 < .
+local l4_total = r(N)
+
+// Get regimen codes from Mata
+mata: st_matrix("regimen_codes", oL4_TXR)
+mata: st_numscalar("n_regimens", cols(oL4_TXR))
+local n_regimens = n_regimens 
+
+// Extract codes from matrix to locals and build name mapping
+forval i = 1/`n_regimens' {
+    local code_`i' = regimen_codes[1,`i']
+    local code = `code_`i''
+    
+    // Assign name based on code
+    if `code' == 0  local reg_`i'_name "Other"
+    if `code' == 2  local reg_`i'_name "TCd"
+    if `code' == 4  local reg_`i'_name "VCd"
+    if `code' == 7  local reg_`i'_name "Rd"
+    if `code' == 9  local reg_`i'_name "VTd"
+    if `code' == 31 local reg_`i'_name "VRd"
+    if `code' == 49 local reg_`i'_name "Kd"
+    if `code' == 56 local reg_`i'_name "Pd"
+    if `code' == 80 local reg_`i'_name "DVd"
+    
+    // Count N for this regimen
+    quietly count if TXR_L4 == `code'
+    local reg_`i'_n = r(N)
+    local reg_`i'_n_fmt = string(r(N), "%9.0fc")
+    local reg_`i'_pct = string(100*r(N)/`l4_total', "%4.1f")
+    
+    // Count BCR within this regimen (BCR 1=CR/VGPR, 3=PR/MR, 5=SD/PD)
+    forval b = 1(2)5 {
+        quietly count if TXR_L4 == `code' & BCR_L4 == `b'
+        if `reg_`i'_n' > 0 {
+            local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
+        }
+        else {
+            local reg_`i'_bcr`b' = "—"
+        }
+    }
+}
+
+// Create table: 5 rows (header + N + 3 BCR) × (1 + n_regimens) columns
+local n_cols = `n_regimens' + 1
+putpdf table txr_bcr_l4 = (5, `n_cols'), border(all)
+
+// Header row
+putpdf table txr_bcr_l4(1,1) = ("Line 4"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l4(1,`col') = ("`reg_`i'_name'"), bold
+}
+
+// N row
+putpdf table txr_bcr_l4(2,1) = ("N"), bold
+forval i = 1/`n_regimens' {
+    local col = `i' + 1
+    putpdf table txr_bcr_l4(2,`col') = ("`reg_`i'_n_fmt' (`reg_`i'_pct'%)")
+}
+
+// BCR rows
+local bcr_names `" "CR/VGPR" "PR/MR" "SD/PD"'
+forval b = 1/3 {
+    local row = `b' + 2
+    local bcr_label : word `b' of `bcr_names'
+    putpdf table txr_bcr_l4(`row',1) = ("`bcr_label'")
+    
+    forval i = 1/`n_regimens' {
+        local col = `i' + 1
+        putpdf table txr_bcr_l4(`row',`col') = ("`reg_`i'_bcr`b''%")
+    }
+}
 
 **********
 * Overall Survival
@@ -417,7 +628,7 @@ putpdf text ("Overall Survival by ASCT Status"), bold
 putpdf image "$simulated_path/report/figures/os_asct.png", width(6)
 restore
 
-// By BCR L1 / ASCT\
+// By BCR L1 / ASCT
 putpdf pagebreak
 
 preserve
@@ -544,7 +755,6 @@ forvalues l = 1/9 {
 
 // Create PDF table
 putpdf paragraph
-putpdf text ("Patients receiving each line and maximum line reached"), italic
 
 putpdf table lot_tbl = (11, 5), border(all)
 putpdf table lot_tbl(1,1) = ("Line"), bold

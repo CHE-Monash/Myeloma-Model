@@ -60,7 +60,6 @@ mata {
 	// Update mTFI or mTXD - only if there are deaths
 	if (rows(idxDies) > 0) {
 		vTSDsafe = editmissing(mTSD[idxDies, OMC], 0)
-		vOSdies = mOS[idxDies, OMC]
 
 		vTimeMonths = rowmax((vOSdies :- vTSDsafe, J(rows(idxDies), 1, 0)))		
 		

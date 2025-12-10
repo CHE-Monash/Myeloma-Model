@@ -16,11 +16,11 @@ set more off
 cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/Simulation"
 
 // Analysis settings
-global analysis     "base_model"     // Analysis name
+global analysis     "base_model"     	// Analysis name
 global int          "all"               // Intervention
 global line         "0"                 // Line being assessed (1-9)
-global coeffs       "base_model"       // Coefficient set (dvd_l2_pre / dvd_l2_post)
-global data         "population"         // Patient data (predicted / population)
+global coeffs       "base_model"       	// Coefficient set (dvd_l2_pre / dvd_l2_post)
+global data         "population"        // Patient data (predicted / population)
 global min_year     "2000"              // Patients diagnosed from (>= 1995)
 global max_year     "2025"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
@@ -28,10 +28,10 @@ global max_id       "100000"            // Last patient ID
 global boot         "0"                 // Bootstrap flag (0/1)
 global min_bs       ""                  // First bootstrap iteration
 global max_bs       ""                  // Last bootstrap iteration
-global cost_year	"2025"				// Price year for all costs (AUD)
+global cost_year	"2025"				// Cost year
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
 global report       "1"                 // Generate report (0/1)
-global scenario     ""            // Scenario (1_trial / 2_ccbm / 3_mrdr)
+global scenario     ""            		// Scenario (1_trial / 2_ccbm / 3_mrdr)
 
 **********
 * Set Paths
@@ -61,10 +61,9 @@ qui do "core/process_data.do"
 * Execute Simulation
 **********
 
-if ("$boot" == "0") {
-	
 // No Bootstrapping
-    
+if ("$boot" == "0") {
+	    
     // Load coefficients
     qui mata: mata matuse "$coefficients_path/coefficients_$coeffs"
     
@@ -84,10 +83,11 @@ if ("$boot" == "0") {
 	if ("$report" == "1") qui do "core/generate_report.do"
 
 }
+// Bootstrapping
 else {
 	
-	// Bootstrapping
-	forvalues b = $min_bs/$max_bs {
+	// Iteration
+	forvalues b = $min_bs / $max_bs {
 	global BSIteration "`b'"
 	mata: mata clear 
       
