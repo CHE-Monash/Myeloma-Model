@@ -11,7 +11,7 @@ mata {
 	vOC = J(Obs, 1, .)
 	
 	// Filter for alive and eligible
-    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
+    idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))
 	if (rows(idx) > 0) {
 
 		// Select coefficient matrix based on Line
@@ -47,21 +47,21 @@ mata {
 		
 		// Add previous BCR
 		if (BCR_cat == 6) {
-			pBCR = mBCR[idx, Line]
-			pBCR_CR = (pBCR :== 1)
-			pBCR_VG = (pBCR :== 2)
-			pBCR_PR = (pBCR :== 3)
-			pBCR_MR = (pBCR :== 4)
-			pBCR_SD = (pBCR :== 5)
-			pBCR_PD = (pBCR :== 6)
-			mPat = (mPat, pBCR_CR, pBCR_VG, pBCR_PR, pBCR_MR, pBCR_SD, pBCR_PD)
+			vBCR = mBCR[idx, Line]
+			vBCR1 = (vBCR :== 1)
+			vBCR2 = (vBCR :== 2)
+			vBCR3 = (vBCR :== 3)
+			vBCR4 = (vBCR :== 4)
+			vBCR5 = (vBCR :== 5)
+			vBCR6 = (vBCR :== 6)
+			mPat = (mPat, vBCR1, vBCR2, vBCR3, vBCR4, vBCR5, vBCR6)
 		}
 		else if (BCR_cat == 3) {
-			pBCR = mBCR[idx, Line]
-			pBCR_CR = (pBCR :== 1)
-			pBCR_PR = (pBCR :== 3)
-			pBCR_SD = (pBCR :== 5)
-			mPat = (mPat, pBCR_CR, pBCR_PR, pBCR_SD)
+			vBCR = mBCR[idx, Line]
+			vBCR1 = (vBCR :== 1)
+			vBCR3 = (vBCR :== 3)
+			vBCR5 = (vBCR :== 5)
+			mPat = (mPat, vBCR1, vBCR3, vBCR5)
 		}
 				
 		// Add constant

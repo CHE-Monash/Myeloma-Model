@@ -82,12 +82,11 @@ mata {
 			
 			// Curtail if beyond maximum observed
 			vOC[idxNoASCT] = rowmin((vOC[idxNoASCT], J(rows(idxNoASCT), 1, maxL1_TFI_NoASCT)))
-
 		}
 		
 		// Update matrices
 		mTFI[idx, 2] = round(vOC[idx], 0.1)
 		mTNE[idx, OMC] = round(vOC[idx], 0.1)
-		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]
 	}
 }

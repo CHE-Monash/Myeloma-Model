@@ -21,8 +21,8 @@ global int          "all"               // Intervention
 global line         "0"                 // Line being assessed (1-9)
 global coeffs       "base_model"       	// Coefficient set (dvd_l2_pre / dvd_l2_post)
 global data         "population"        // Patient data (predicted / population)
-global min_year     "2000"              // Patients diagnosed from (>= 1995)
-global max_year     "2025"              // Patients diagnosed until (<= 2040)
+global min_year     "1995"              // Patients diagnosed from (>= 1995)
+global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
 global max_id       "100000"            // Last patient ID
 global boot         "0"                 // Bootstrap flag (0/1)

@@ -20,7 +20,7 @@ mata {
 	}
 	else {
 		// OMC 5,6 → segment 3; OMC 7,8 → segment 4; OMC 9,10 → segment 5; etc.
-		segments = floor((OMC - 1) / 2)
+		segments = floor((OMC + 1) / 2)
 		if (segments > 7) segments = 7
 	}
 

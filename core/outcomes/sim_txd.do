@@ -104,6 +104,6 @@ mata {
 		// Update matrices
 		mTXD[idx, Line+1] = round(vOC, 0.1)
 		mTNE[idx, OMC] = round(vOC, 0.1)
-		mTSD[idx, OMC+1] = mTSD[idx, OMC-1] :+ mTNE[idx, OMC]
+		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]
 	}
 }
