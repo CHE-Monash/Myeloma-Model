@@ -11,15 +11,13 @@ mata {
 	vOC = J(Obs, 1, .)
 	
 	// Determine coefficient segments based on OMC
-	if (OMC <= 2) { 
+	if (OMC <= 2) {  // DN/L1S
 		segments = 0
 	}
-	else if (OMC == 3 | OMC == 4) {
-		// L1E/L2S: need to loop through both ASCT and non-ASCT
+	else if (OMC == 3 | OMC == 4) { // L1E/L2S: both ASCT and non-ASCT
 		segments = (1, 2)
 	}
-	else {
-		// OMC 5,6 → segment 3; OMC 7,8 → segment 4; OMC 9,10 → segment 5; etc.
+	else { // OMC 5,6 → segment 3; OMC 7,8 → segment 4; OMC 9,10 → segment 5; etc.
 		segments = floor((OMC + 1) / 2)
 		if (segments > 7) segments = 7
 	}
@@ -29,8 +27,8 @@ mata {
 		segment = segments[s]
     
 		// Determine BCR column based on segment
-		if (segment == 0) {
-			vBCR = J(Obs, 1, 5)  // No BCR yet, use SD as placeholder
+		if (segment == 0) { // DN/L1S
+			vBCR = J(Obs, 1, 5)  // BCR = SD as placeholder
 		}
 		else if (segment == 1) {  // L1E/L2S Non-ASCT
 			vBCR = mBCR[., 1]
@@ -54,13 +52,13 @@ mata {
 		bcrStart = 10 + segment * 6
 		
 		// Build coefficient column vector
-		coefCols = (1, 2, 3, 5, 6, 8, 9,                           // Base effects
-					bcrStart, bcrStart+1, bcrStart+2,              // BCR 1-3
-					bcrStart+3, bcrStart+4, bcrStart+5,            // BCR 4-6
-					58)                                            // Constant
+		coefCols = (1, 2, 3, 5, 6, 8, 9,				// Base effects
+					bcrStart, bcrStart+1, bcrStart+2,	// BCR 1-3
+					bcrStart+3, bcrStart+4, bcrStart+5,	// BCR 4-6
+					58)                                 // Constant
 		
 		// Determine patients for this segment
-		if (segment == 0) { // DN or L1S
+		if (segment == 0) { // DN/L1S
 			if (OMC == 1) { // DN
 				idx = selectindex(mState[., 1] :<= OMC)
 			}
@@ -68,14 +66,13 @@ mata {
 				idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 			}
 		}
-		else if (segment == 1) { // L1E / L2S No ASCT
+		else if (segment == 1) { // L1E/L2S No ASCT
 			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_L1 :== 0))
 		}
-		else if (segment == 2) { // L1E / L2S ASCT
+		else if (segment == 2) { // L1E/L2S ASCT
 			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_L1 :== 1))
 		}
-		else {
-			// L2E+
+		else { // L2E+
 			idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 		}
 			

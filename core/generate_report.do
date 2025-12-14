@@ -1409,3 +1409,4 @@ putpdf table riss_econ(4,4) = ("`qaly_riss3'")
 set graphics on
 local output_file "`report_dir'/${int}_${data}_${scenario}.pdf"
 putpdf save "`output_file'", replace
+n di as result _n "Report saved at $simulated_path/report/${int}_${data}_${scenario}.pdf."

@@ -59,12 +59,6 @@ mata {
 				lineIdx = floor((OMC+1)/2)  // Ensure integer index
 				mTFI[idxExceedsFull, lineIdx] = rowmin((mTFI[idxExceedsFull, lineIdx], vTimeMonths))
 			}
-			
-			// Set mTSD for current OMC to missing
-			mTSD[idxExceedsFull, OMC] = J(rows(idxExceedsFull), 1, .)
-			
-			// Set mTNE for previous OMC to missing
-			mTNE[idxExceedsFull, OMC-1] = J(rows(idxExceedsFull), 1, .)
 		}
 					
 		// Update vAge and vAge2 vectors for current OMC

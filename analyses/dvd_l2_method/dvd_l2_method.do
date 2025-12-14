@@ -8,6 +8,8 @@ clear all
 macro drop _all
 set more off
 
+set seed 12345
+
 **********
 * Configuration
 **********
@@ -21,10 +23,10 @@ global int          "all"               // Intervention
 global line         "0"                 // Line being assessed (1-9)
 global coeffs       "base_model"       	// Coefficient set (dvd_l2_pre / dvd_l2_post)
 global data         "population"        // Patient data (predicted / population)
-global min_year     "1995"              // Patients diagnosed from (>= 1995)
+global min_year     "2025"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
-global max_id       "100000"            // Last patient ID
+global max_id       "50000"             // Last patient ID
 global boot         "0"                 // Bootstrap flag (0/1)
 global min_bs       ""                  // First bootstrap iteration
 global max_bs       ""                  // Last bootstrap iteration
@@ -52,10 +54,10 @@ capture mkdir "$simulated_path/report"
 * Load Programs
 **********
 
-qui do "core/load_patients.do"
-qui do "core/mata_setup.do"
-qui do "core/simulation_engine.do"
-qui do "core/process_data.do"
+run "core/load_patients.do"
+run "core/mata_setup.do"
+run "core/simulation_engine.do"
+run "core/process_data.do"
 
 **********
 * Execute Simulation
@@ -68,7 +70,7 @@ if ("$boot" == "0") {
     qui mata: mata matuse "$coefficients_path/coefficients_$coeffs"
     
     // Load utility functions
-    qui do "core/mata_functions.do"
+    run "core/mata_functions.do"
     
     // Execute simulation pipeline
     load_patients
@@ -78,13 +80,15 @@ if ("$boot" == "0") {
     
     // Save results
     save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", replace
+		
+	// Validate results
+	run "core/validation.do"
 	
 	// Generate report
-	if ("$report" == "1") qui do "core/generate_report.do"
-
+	if ("$report" == "1") run "core/generate_report.do"
 }
 // Bootstrapping
-else {
+qui else {
 	
 	// Iteration
 	forvalues b = $min_bs / $max_bs {
@@ -95,7 +99,7 @@ else {
 		qui mata: mata matuse "$coefficients_path/bootstrap/coefficients_$coeffs_B`b'"
 			
 		// Load utility functions
-		qui do "core/mata_functions.do"
+		run "core/mata_functions.do"
 			
 		// Execute simulation pipeline
 		load_patients

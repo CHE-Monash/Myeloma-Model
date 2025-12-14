@@ -47,24 +47,24 @@ di as text "Processing Simulated Data"
 	
 *Generate Dates & Years
 	qui {
-		gen DateL1S = DateDN + (TNE_DN * 30.4375)
-		gen DateL1E = DateL1S + (TNE_L1S * 30.4375)
-		gen DateL2S = DateL1E + (TNE_L1E * 30.4375)
-		gen DateL2E = DateL2S + (TNE_L2S * 30.4375)
-		gen DateL3S = DateL2E + (TNE_L2E * 30.4375)
-		gen DateL3E = DateL3S + (TNE_L3S * 30.4375)
-		gen DateL4S = DateL3E + (TNE_L3E * 30.4375)
-		gen DateL4E = DateL4S + (TNE_L4S * 30.4375)
-		gen DateL5S = DateL4E + (TNE_L4E * 30.4375)
-		gen DateL5E = DateL5S + (TNE_L5S * 30.4375)
-		gen DateL6S = DateL5E + (TNE_L5E * 30.4375)
-		gen DateL6E = DateL6S + (TNE_L6S * 30.4375)
-		gen DateL7S = DateL6E + (TNE_L6E * 30.4375)
-		gen DateL7E = DateL7S + (TNE_L7S * 30.4375)
-		gen DateL8S = DateL7E + (TNE_L7E * 30.4375)
-		gen DateL8E = DateL8S + (TNE_L8S * 30.4375)
-		gen DateL9S = DateL8E + (TNE_L8E * 30.4375)
-		gen DateL9E = DateL9S + (TNE_L9S * 30.4375)
+		gen DateL1S = DateDN + (TFI_DN * 30.4375)
+		gen DateL1E = DateL1S + (TXD_L1 * 30.4375)
+		gen DateL2S = DateL1E + (TFI_L1 * 30.4375)
+		gen DateL2E = DateL2S + (TXD_L2 * 30.4375)
+		gen DateL3S = DateL2E + (TFI_L2 * 30.4375)
+		gen DateL3E = DateL3S + (TXD_L3 * 30.4375)
+		gen DateL4S = DateL3E + (TFI_L3 * 30.4375)
+		gen DateL4E = DateL4S + (TXD_L4 * 30.4375)
+		gen DateL5S = DateL4E + (TFI_L4 * 30.4375)
+		gen DateL5E = DateL5S + (TXD_L5 * 30.4375)
+		gen DateL6S = DateL5E + (TFI_L5 * 30.4375)
+		gen DateL6E = DateL6S + (TXD_L6 * 30.4375)
+		gen DateL7S = DateL6E + (TFI_L6 * 30.4375)
+		gen DateL7E = DateL7S + (TXD_L7 * 30.4375)
+		gen DateL8S = DateL7E + (TFI_L7 * 30.4375)
+		gen DateL8E = DateL8S + (TXD_L8 * 30.4375)
+		gen DateL9S = DateL8E + (TFI_L8 * 30.4375)
+		gen DateL9E = DateL9S + (TXD_L9 * 30.4375)
 		gen DateSCT = DateL1E + 1 if(SCT_L1 == 1) // Fix DateSCT 1 day after DateL1E
 		gen DateMOR = DateDN + (OC_TIME * 30.4375)
 		format Date* %td
@@ -154,6 +154,9 @@ di as text "Processing Simulated Data"
 	qui gen cTotal = cTX + cNT
 	
 	* Discounting
+	
+		* Reference date
+		local refdate = mdy(1,1,$cost_year)
 
 		* Pre-calculate ln(1+r) for efficiency
 		local ln_r = ln(1 + $drate)
@@ -163,18 +166,20 @@ di as text "Processing Simulated Data"
 	
 			* L1 to L9
 			forval l = 1/9 {
-				* Apply continuous discounting for uniform accrual
-				qui gen cTX_L`l'd = cTX_L`l' * ((1 + $drate)^(-TSD_L`l'S/12) - (1 + $drate)^(-TSD_L`l'E/12)) / (`ln_r' * (TSD_L`l'E - TSD_L`l'S) / 12) if cTX_L`l' != . & cTX_L`l' > 0
+				* Apply continuous discounting for uniform accrual			
+				qui gen cTX_L`l'd = cTX_L`l' * ((1 + $drate)^(-(DateL`l'S - `refdate')/365.25) - (1 + $drate)^(-(DateL`l'E - `refdate')/365.25)) / (`ln_r' * TXD_L`l' / 12) if cTX_L`l' != . & cTX_L`l' > 0
+				
 				* Accumulate discounted costs
 				qui replace cTXd = cTXd + cTX_L`l'd if cTX_L`l'd != .
 			}
 			
 			* ASCT
-			qui gen cTX_ASCTd = cTX_ASCT/(1+$drate)^((DateSCT - DateDN)/365.25) if SCT_L1 == 1
+			qui gen cTX_ASCTd = cTX_ASCT/(1+$drate)^((DateSCT - `refdate')/365.25) if SCT_L1 == 1
 			qui replace cTXd = cTXd + cTX_ASCTd if cTX_ASCTd != .
 			
-			* MNT
-			qui gen cTX_MNTd = cTX_MNT * ((1 + $drate)^(-TSD_L1E/12) - (1 + $drate)^(-TSD_L2S/12)) / (`ln_r' * (TSD_L2S - TSD_L1E) / 12) if cTX_MNT != . & cTX_MNT > 0
+			* MNT						
+			qui gen cTX_MNTd = cTX_MNT * ((1 + $drate)^(-(DateL1E - `refdate')/365.25) - (1 + $drate)^(-(DateL2S - `refdate')/365.25)) / (`ln_r' * TFI_L1 / 12) if cTX_MNT != . & cTX_MNT > 0
+
 			qui replace cTXd = cTXd + cTX_MNTd if cTX_MNTd != .
 		
 		* Non-treatment costs
@@ -227,22 +232,24 @@ di as text "Processing Simulated Data"
 
 	* Discounting
 
-		* TFI_DN
-		qui gen qTFI_DNd = qTFI_DN * (1 - (1 + $drate)^(-TSD_L1S/12)) / (`ln_r' * TSD_L1S / 12) if qTFI_DN != .
+		* TFI_DN		
+		qui gen qTFI_DNd = qTFI_DN * (1 - (1 + $drate)^(-(DateL1S - `refdate')/365.25)) / (`ln_r' * TFI_DN/12) if qTFI_DN != .
 
 		* TXD_L1
-		qui gen qTXD_L1d = qTXD_L1 * ((1 + $drate)^(-TSD_L1S/12) - (1 + $drate)^(-TSD_L1E/12)) / (`ln_r' * (TSD_L1E - TSD_L1S) / 12) if qTXD_L1 != .
+		qui gen qTXD_L1d = qTXD_L1 * ((1 + $drate)^(-(DateL1S - `refdate')/365.25) - (1 + $drate)^(-(DateL1E - `refdate')/365.25)) / (`ln_r' * TXD_L1/12) if qTXD_L1 != .
 			
 		* TFI_L1
-		qui gen qTFI_L1d = qTFI_L1 * ((1 + $drate)^(-TSD_L1E/12) - (1 + $drate)^(-TSD_L2S/12)) / (`ln_r' * (TSD_L2S - TSD_L1E) / 12) if qTFI_L1 != .
+		qui gen qTFI_L1d = qTFI_L1 * ((1 + $drate)^(-(DateL1E - `refdate')/365.25) - (1 + $drate)^(-(DateL2S - `refdate')/365.25)) / (`ln_r' * TFI_L1/12) if qTFI_L1 != .
 
 		* TXD_L2
-		qui gen qTXD_L2d = qTXD_L2 * ((1 + $drate)^(-TSD_L2S/12) - (1 + $drate)^(-TSD_L2E/12)) / (`ln_r' * (TSD_L2E - TSD_L2S) / 12) if qTXD_L2 != .
+		qui gen qTXD_L2d = qTXD_L2 * ((1 + $drate)^(-(DateL2S - `refdate')/365.25) - (1 + $drate)^(-(DateL2E - `refdate')/365.25)) / (`ln_r' * TXD_L2/12) if qTXD_L2 != .
 			
 		* PostL2
-		qui gen qPostL2d = qPostL2 * ((1 + $drate)^(-TSD_L2E/12) - (1 + $drate)^(-OC_TIME/12)) / (`ln_r' * (OC_TIME - TSD_L2E) / 12) if qPostL2 != .
+		qui gen qPostL2d = qPostL2 * ((1 + $drate)^(-(DateL2E - `refdate')/365.25) - (1 + $drate)^(-(DateMOR - `refdate')/365.25)) / (`ln_r' * (DateMOR - DateL2E)/12) if qPostL2 != .
 
 		* Calculate total discounted QALYs
 		qui gen qTotald = qTFI_DNd + qTXD_L1d + qTFI_L1d + qTXD_L2d + qPostL2d
 		
 end
+
+
