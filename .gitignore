@@ -1,3 +1,12 @@
+# Simulated output data
+analyses/*/simulated/*.dta
+analyses/*/simulated/report/
+analyses/*/simulated/bootstrap/
+
+analyses/dvd_l2_method/*
+analyses/td_l4_pre/*
+
+
 #File types to ignore
 .DS_Store
 **/.DS_Store
@@ -30,13 +39,3 @@ ehthumbs.db
 
 # Keep .gitkeep files (they won't be ignored by the above patterns)
 
-# Simulated output data
-analyses/*/data/simulated/*.dta
-analyses/*/data/simulated/results/
-analyses/*/data/simulated/reports/
-analyses/*/data/simulated/bootstrap/
-
-analyses/base_model/data/*
-
-analyses/dvd_l2_method/data/
-analyses/dvd_l2_method/outcomes/

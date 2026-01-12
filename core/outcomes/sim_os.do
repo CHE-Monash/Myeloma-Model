@@ -41,12 +41,12 @@ mata {
 		}
 		
 		// Create BCR dummy variables
-		vBCR1 = (vBCR :== 1)
-		vBCR2 = (vBCR :== 2)
-		vBCR3 = (vBCR :== 3)
-		vBCR4 = (vBCR :== 4)
-		vBCR5 = (vBCR :== 5)
-		vBCR6 = (vBCR :== 6)
+		vBCR_1 = (vBCR :== 1)
+		vBCR_2 = (vBCR :== 2)
+		vBCR_3 = (vBCR :== 3)
+		vBCR_4 = (vBCR :== 4)
+		vBCR_5 = (vBCR :== 5)
+		vBCR_6 = (vBCR :== 6)
 		
 		// Calculate BCR coefficient start position
 		bcrStart = 10 + segment * 6
@@ -83,8 +83,8 @@ mata {
 			pMat = (vAge[idx], vAge2[idx], vMale[idx], 
 					vECOG1[idx], vECOG2[idx], 
 					vRISS2[idx], vRISS3[idx],
-					vBCR1[idx], vBCR2[idx], vBCR3[idx], 
-					vBCR4[idx], vBCR5[idx], vBCR6[idx],
+					vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
+					vBCR_4[idx], vBCR_5[idx], vBCR_6[idx],
 					vCons[idx])
 				
 			// Extract coefficients
@@ -107,7 +107,7 @@ mata {
 			vOC = calcSurvTime(vXB, vRN, fbOS, aux)
 				
 			// Update matrix
-			mOS[idx, OMC] = round(vOC, 0.1)
+			mOS[idx, OMC] = round(vOC, 0.01)
 		}
 	}
 }

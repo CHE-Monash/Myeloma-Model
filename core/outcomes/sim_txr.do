@@ -52,15 +52,15 @@ mata {
 				}
 			}
 			
-			// Build patient matrix (L2 or L3)
-			else if (Line == 1 | Line == 2) {
-				prevBCR = mBCR[idx, Line]
-				vBCR_1 = (prevBCR :== 1)
-				vBCR_2 = (prevBCR :== 2)
-				vBCR_3 = (prevBCR :== 3)
-				vBCR_4 = (prevBCR :== 4)
-				vBCR_5 = (prevBCR :== 5)
-				vBCR_6 = (prevBCR :== 6)
+			// Build patient matrix (L2+)
+			else if (Line >= 1) {
+				vBCR = mBCR[idx, Line]
+				vBCR_1 = (vBCR :== 1)
+				vBCR_2 = (vBCR :== 2)
+				vBCR_3 = (vBCR :== 3)
+				vBCR_4 = (vBCR :== 4)
+				vBCR_5 = (vBCR :== 5)
+				vBCR_6 = (vBCR :== 6)
 				
 				mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 						vECOG0[idx], vECOG1[idx], vECOG2[idx], 
@@ -80,36 +80,6 @@ mata {
 					vXB3 = exp(mPat * coef_XB3)
 				}
 
-				if (nRegimens >= 4) {
-					coef_XB4 = vCoef[1, (3*nPredictors+1)..(4*nPredictors)]'
-					vXB4 = exp(mPat * coef_XB4)
-				}
-			}
-			// Build patient matrix (L4+)
-			else {
-				prevBCR = mBCR[idx, Line]
-				vBCR_1 = (prevBCR :== 1)
-				vBCR_3 = (prevBCR :== 3)
-				vBCR_5 = (prevBCR :== 5)
-				
-				mPat = (vAge[idx], vAge2[idx], vMale[idx], 
-						vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-						vRISS1[idx], vRISS2[idx], vRISS3[idx],  
-						vBCR_1, vBCR_3, vBCR_5, 
-						vCons[idx])
-						
-				nPredictors = cols(mPat)		
-				
-				if (nRegimens >= 2) {
-					coef_XB2 = vCoef[1, (nPredictors+1)..(2*nPredictors)]'
-					vXB2 = exp(mPat * coef_XB2)
-				}
-				
-				if (nRegimens >= 3) {
-					coef_XB3 = vCoef[1, (2*nPredictors+1)..(3*nPredictors)]'
-					vXB3 = exp(mPat * coef_XB3)
-				}
-				
 				if (nRegimens >= 4) {
 					coef_XB4 = vCoef[1, (3*nPredictors+1)..(4*nPredictors)]'
 					vXB4 = exp(mPat * coef_XB4)
@@ -163,7 +133,7 @@ mata {
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line+1))
 if `current_line' == ${line} {
-	local override_file "${analysis_path}/outcomes/sim_txr_override.do"
+	local override_file "${outcomes_path}/sim_txr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
 		qui do `override_file'

@@ -93,6 +93,7 @@ di as text "Processing Simulated Data"
 	local cDVd = 12110 	// DVd: 28-day cycles until progression
 	local cPd = 2291 	// Pd: 28-day cycles until progression
 	local cOther = 4016 // Other: 28-day cycles until progression
+	
 	local cASCT = 41723 // One-time cost for stem cell transplant
 	local cMNT = 1329 	// Rd / Td: 28-day cycles until progression
 	local cHosp = 38743 // Hospitalisation costs per year
@@ -114,7 +115,7 @@ di as text "Processing Simulated Data"
 
 		* MNT
 		qui gen cTX_MNT = 0
-		qui replace cTX_MNT = `cMNT' * (TFI_L1 * 30.4375 / 28) if MNT == 1`'
+		qui replace cTX_MNT = `cMNT' * (TFI_L1 * 30.4375 / 28) if MNT == 1
 
 		* L2
 		qui gen cTX_L2 = 0
@@ -130,6 +131,7 @@ di as text "Processing Simulated Data"
 
 		* L4
 		qui gen cTX_L4 = 0
+		qui replace cTX_L4 = `cRd' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 7 // Rd (TXR = 7): Continuous until progression
 		qui replace cTX_L4 = `cKd' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 49 // Kd (TXR = 49): Continuous until progression
 		qui replace cTX_L4 = `cPd' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 56 // Pd (TXR = 56): Continuous until progression
 		qui replace cTX_L4 = `cOther' * (TXD_L4 * 30.4375 / 28) if TXR_L4 == 0 // Other (TXR = 0): Continuous until progression
@@ -157,7 +159,6 @@ di as text "Processing Simulated Data"
 	
 		* Reference date
 		local refdate = mdy(1,1,$cost_year)
-
 		* Pre-calculate ln(1+r) for efficiency
 		local ln_r = ln(1 + $drate)
 
@@ -232,20 +233,25 @@ di as text "Processing Simulated Data"
 
 	* Discounting
 
-		* TFI_DN		
-		qui gen qTFI_DNd = qTFI_DN * (1 - (1 + $drate)^(-(DateL1S - `refdate')/365.25)) / (`ln_r' * TFI_DN/12) if qTFI_DN != .
+		* TFI_DN
+		qui gen qTFI_DNd = 0
+		qui replace qTFI_DNd = qTFI_DN * (1 - (1 + $drate)^(-(DateL1S - `refdate')/365.25)) / (`ln_r' * TFI_DN/12) if TFI_DN > 0 & TFI_DN != .
 
 		* TXD_L1
-		qui gen qTXD_L1d = qTXD_L1 * ((1 + $drate)^(-(DateL1S - `refdate')/365.25) - (1 + $drate)^(-(DateL1E - `refdate')/365.25)) / (`ln_r' * TXD_L1/12) if qTXD_L1 != .
+		qui gen qTXD_L1d = 0
+		qui replace qTXD_L1d = qTXD_L1 * ((1 + $drate)^(-(DateL1S - `refdate')/365.25) - (1 + $drate)^(-(DateL1E - `refdate')/365.25)) / (`ln_r' * TXD_L1/12) if TXD_L1 > 0 & qTXD_L1 != .
 			
 		* TFI_L1
-		qui gen qTFI_L1d = qTFI_L1 * ((1 + $drate)^(-(DateL1E - `refdate')/365.25) - (1 + $drate)^(-(DateL2S - `refdate')/365.25)) / (`ln_r' * TFI_L1/12) if qTFI_L1 != .
+		qui gen qTFI_L1d = 0
+		qui replace qTFI_L1d = qTFI_L1 * ((1 + $drate)^(-(DateL1E - `refdate')/365.25) - (1 + $drate)^(-(DateL2S - `refdate')/365.25)) / (`ln_r' * TFI_L1/12) if TFI_L1 > 0 & qTFI_L1 != .
 
 		* TXD_L2
-		qui gen qTXD_L2d = qTXD_L2 * ((1 + $drate)^(-(DateL2S - `refdate')/365.25) - (1 + $drate)^(-(DateL2E - `refdate')/365.25)) / (`ln_r' * TXD_L2/12) if qTXD_L2 != .
+		qui gen qTXD_L2d = 0
+		qui replace qTXD_L2d = qTXD_L2 * ((1 + $drate)^(-(DateL2S - `refdate')/365.25) - (1 + $drate)^(-(DateL2E - `refdate')/365.25)) / (`ln_r' * TXD_L2/12) if TXD_L2 > 0 & qTXD_L2 != .
 			
 		* PostL2
-		qui gen qPostL2d = qPostL2 * ((1 + $drate)^(-(DateL2E - `refdate')/365.25) - (1 + $drate)^(-(DateMOR - `refdate')/365.25)) / (`ln_r' * (DateMOR - DateL2E)/12) if qPostL2 != .
+		qui gen qPostL2d = 0
+		qui replace qPostL2d = qPostL2 * ((1 + $drate)^(-(DateL2E - `refdate')/365.25) - (1 + $drate)^(-(DateMOR - `refdate')/365.25)) / (`ln_r' * (DateMOR - DateL2E)/365.25) if qPostL2 != .
 
 		* Calculate total discounted QALYs
 		qui gen qTotald = qTFI_DNd + qTXD_L1d + qTFI_L1d + qTXD_L2d + qPostL2d

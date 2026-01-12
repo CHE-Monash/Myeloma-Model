@@ -15,17 +15,17 @@ mata {
 	if (rows(idx) > 0) {
 		
 		// Patient vectors
-		vBCR1 = (mBCR[idx, Line] :== 1)
-		vBCR2 = (mBCR[idx, Line] :== 2)
-		vBCR3 = (mBCR[idx, Line] :== 3)
-		vBCR4 = (mBCR[idx, Line] :== 4)
-		vBCR5 = (mBCR[idx, Line] :== 5)
+		vBCR_1 = (mBCR[idx, 1] :== 1)
+		vBCR_2 = (mBCR[idx, 1] :== 2)
+		vBCR_3 = (mBCR[idx, 1] :== 3)
+		vBCR_4 = (mBCR[idx, 1] :== 4)
+		vBCR_5 = (mBCR[idx, 1] :== 5)
 		
 		// Assemble patient matrix - no BCR == 6
 		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 		        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
-				vBCR1, vBCR2, vBCR3, vBCR4, vBCR5,
+				vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5,
 				vAge70[idx], vAge75[idx], 
 				vCM0[idx], vCM1[idx], vCM2[idx], vCM3[idx], 
 				vCons[idx])

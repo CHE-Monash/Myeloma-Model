@@ -3,9 +3,7 @@
 *
 * Purpose: Determine Best Clinical Response (BCR)
 * Method: Ordered logit
-* Outcome:
-* 6-category (L1,L2): 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
-* 3-category (L3+): 1=CR/VGPR, 3=PR/MR, 5=SD/PD
+* Outcome: 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
 **********
 
 mata {
@@ -13,40 +11,27 @@ mata {
 	vOC = J(Obs, 1, .)
 	
 	// Determine structure
-	if (Line <= 2) {
-		nCategories = 6
-		categoryValues = (1, 2, 3, 4, 5, 6)
-		nCutPoints = 5
-	}
-	else {
-		nCategories = 3
-		categoryValues = (1, 3, 5)
-		nCutPoints = 2
-	}
+	nCategories = 6
+	categoryValues = (1, 2, 3, 4, 5, 6)
+	nCutPoints = 5
 	
 	// Extract previous BCR
-	if (Line == 2 | Line == 3) { // L1, L2 6-category
+	if (Line >= 2) {
 		vBCR = mBCR[., Line-1]
-		vBCR1 = (vBCR :== 1)
-		vBCR2 = (vBCR :== 2)
-		vBCR3 = (vBCR :== 3)
-		vBCR4 = (vBCR :== 4)
-		vBCR5 = (vBCR :== 5)
-		vBCR6 = (vBCR :== 6)
+		vBCR_1 = (vBCR :== 1)
+		vBCR_2 = (vBCR :== 2)
+		vBCR_3 = (vBCR :== 3)
+		vBCR_4 = (vBCR :== 4)
+		vBCR_5 = (vBCR :== 5)
+		vBCR_6 = (vBCR :== 6)
 	}
 	if (Line == 2) { // Also need BCR_SCT
-		BCR_SCT = mBCR[., 10]
-		vBCRSCT0 = (BCR_SCT :== 0) // No ASCT patients
-		vBCRSCT1 = (BCR_SCT :== 1)
-		vBCRSCT2 = (BCR_SCT :== 2)
-		vBCRSCT3 = (BCR_SCT :== 3)
-		vBCRSCT4 = (BCR_SCT :== 4)
-	}
-	else if (Line >= 4) { // L3+ 3-category
-		vBCR = mBCR[., Line-1]
-		vBCR1 = (vBCR :== 1)
-		vBCR3 = (vBCR :== 3)
-		vBCR5 = (vBCR :== 5)
+		vBCR_SCT = mBCR[., 10]
+		vBCR_SCT_0 = (vBCR_SCT :== 0) // No ASCT patients
+		vBCR_SCT_1 = (vBCR_SCT :== 1)
+		vBCR_SCT_2 = (vBCR_SCT :== 2)
+		vBCR_SCT_3 = (vBCR_SCT :== 3)
+		vBCR_SCT_4 = (vBCR_SCT :== 4)
 	}
 	
 	// Filter for alive and eligble
@@ -62,18 +47,15 @@ mata {
 		if (Line == 1) mPat = mPat, vSCT_DN[idx]
 		
 		// Add previous BCR
-		if (Line == 2 | Line == 3) {
-			mPat = mPat, (vBCR1[idx], vBCR2[idx], vBCR3[idx], 
-						  vBCR4[idx], vBCR5[idx], vBCR6[idx])
-		}	
+		if (Line >= 2 ) {`	'
+			mPat = mPat, (vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
+						  vBCR_4[idx], vBCR_5[idx], vBCR_6[idx])
+		}
 		if (Line == 2) {
-			mPat = mPat, (vBCRSCT0[idx], vBCRSCT1[idx], vBCRSCT2[idx], 
-						  vBCRSCT3[idx], vBCRSCT4[idx])
+			mPat = mPat, (vBCR_SCT_0[idx], vBCR_SCT_1[idx], vBCR_SCT_2[idx], 
+						  vBCR_SCT_3[idx], vBCR_SCT_4[idx])
 		}
-		else if (Line >= 4) {
-			mPat = mPat, (vBCR1[idx], vBCR3[idx], vBCR5[idx])
-		}
-			
+		
 		// Add TXR dummies
 		if (Line <= 4) {
 			if (Line == 1) vTXR = oL1_TXR
@@ -84,7 +66,7 @@ mata {
 			currentTX = mTXR[idx, Line]
 			
 			if (cols(vTXR) >= 1) mPat = mPat, (currentTX :== vTXR[1, 1])
-			if (cols(vTXR) >= 2) mPat = mPat, (currentTX :== vTXR[1, 2])
+			if (cols(vTXR) >= 2) mPat = mPat, (currentTX :== vTXR[1, 2])`'
 			if (cols(vTXR) >= 3) mPat = mPat, (currentTX :== vTXR[1, 3])
 			if (cols(vTXR) >= 4) mPat = mPat, (currentTX :== vTXR[1, 4])
 		}
@@ -96,7 +78,10 @@ mata {
 		if (Line == 2) vCoef_full = bL2_BCR
 		if (Line == 3) vCoef_full = bL3_BCR
 		if (Line == 4) vCoef_full = bL4_BCR
-		if (Line >= 5) vCoef_full = bLX_BCR
+		if (Line == 5) vCoef_full = bL5_BCR
+		if (Line == 6) vCoef_full = bL6_BCR
+		if (Line == 7) vCoef_full = bL7_BCR
+		if (Line >= 8) vCoef_full = bLX_BCR
 		
 		vCoef = vCoef_full[1, 1..nPredictors]'
 		cutPointIndices = (cols(vCoef_full) - nCutPoints + 1)..cols(vCoef_full)
@@ -120,9 +105,9 @@ mata {
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line))
 if `current_line' == ${line} {
-	local override_file "${analysis_path}/outcomes/sim_bcr_override.do"
+	local override_file "${outcomes_path}/sim_bcr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
-		qui do `override_file'
+		do `override_file'
 	}
 }

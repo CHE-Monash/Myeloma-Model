@@ -14,22 +14,22 @@ mata {
 	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))	
 	if (rows(idx) > 0) {
 
-		// GROUP 1: ASCT Patients`'
+		// GROUP 1: ASCT Patients
 		idxASCT = idx[selectindex(vSCT_L1[idx] :== 1)]
 		if (rows(idxASCT) > 0) {
 			
-			//Grab BCR to ASCT
-			vBCR1 = (mBCR[idxASCT, 10] :== 1)
-			vBCR2 = (mBCR[idxASCT, 10] :== 2)
-			vBCR3 = (mBCR[idxASCT, 10] :== 3)
-			vBCR4 = (mBCR[idxASCT, 10] :== 4)	
+			// Grab BCR to ASCT
+			vBCR_1 = (mBCR[idxASCT, 10] :== 1)
+			vBCR_2 = (mBCR[idxASCT, 10] :== 2)
+			vBCR_3 = (mBCR[idxASCT, 10] :== 3)
+			vBCR_4 = (mBCR[idxASCT, 10] :== 4)	
 			
 			// Assemble patient matrix (ASCT patients cannot have BCR = 5 or 6)
 			mPat_ASCT = (vAge[idxASCT], vAge2[idxASCT], vMale[idxASCT], 
 						 vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
 			             vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT], 
 						 vMNT[idxASCT], 
-			             vBCR1, vBCR2, vBCR3, vBCR4, 
+			             vBCR_1, vBCR_2, vBCR_3, vBCR_4, 
 						 vCons[idxASCT])
 			
 			// Extract coefficients for ASCT
@@ -53,19 +53,19 @@ mata {
 		if (rows(idxNoASCT) > 0) {
 
 			//Grab BCR to L1
-			vBCR1 = (mBCR[idxNoASCT, 1] :== 1)
-			vBCR2 = (mBCR[idxNoASCT, 1] :== 2)
-			vBCR3 = (mBCR[idxNoASCT, 1] :== 3)
-			vBCR4 = (mBCR[idxNoASCT, 1] :== 4)
-			vBCR5 = (mBCR[idxNoASCT, 1] :== 5)	
-			vBCR6 = (mBCR[idxNoASCT, 1] :== 6)	
+			vBCR_1 = (mBCR[idxNoASCT, 1] :== 1)
+			vBCR_2 = (mBCR[idxNoASCT, 1] :== 2)
+			vBCR_3 = (mBCR[idxNoASCT, 1] :== 3)
+			vBCR_4 = (mBCR[idxNoASCT, 1] :== 4)
+			vBCR_5 = (mBCR[idxNoASCT, 1] :== 5)	
+			vBCR_6 = (mBCR[idxNoASCT, 1] :== 6)	
 		
 			// Assemble patient matrix (NoASCT includes BCR 5 and 6)
 			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
 						   vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT],
 			               vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT], 
 						   vMNT[idxNoASCT],
-			               vBCR1, vBCR2, vBCR3, vBCR4, vBCR5, vBCR6, 
+			               vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6, 
 						   vCons[idxNoASCT])
 			
 			// Extract coefficients for NoASCT
@@ -85,8 +85,8 @@ mata {
 		}
 		
 		// Update matrices
-		mTFI[idx, 2] = round(vOC[idx], 0.1)
-		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		mTFI[idx, 2] = round(vOC[idx], 0.01)
+		mTNE[idx, OMC] = round(vOC[idx], 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]
 	}
 }

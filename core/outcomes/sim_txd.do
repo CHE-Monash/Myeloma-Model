@@ -18,30 +18,44 @@ mata {
 		if (Line == 1) {
 			vCoef = bL2_TXD
 			dist = fbL2_TXD
-			maxTXD = maxL2_TXD
 			vTXR = oL2_TXR
-			BCR_cat = 6 
+			maxTXD = maxL2_TXD
 		}
 		else if (Line == 2) {
 			vCoef = bL3_TXD
 			dist = fbL3_TXD
-			maxTXD = maxL3_TXD
 			vTXR = oL3_TXR
-			BCR_cat = 6 
+			maxTXD = maxL3_TXD			
 		}
 		else if (Line == 3) {
 			vCoef = bL4_TXD
 			dist = fbL4_TXD
 			vTXR = oL4_TXR
 			maxTXD = maxL4_TXD			
-			BCR_cat = 3  
 		}
-		else if (Line >= 4) {
+		else if (Line == 4) {
+			vCoef = bL5_TXD
+			dist = fbL4_TXD
+			vTXR = J(1, 0, .)
+			maxTXD = maxL5_TXD			
+		}
+		else if (Line == 5) {
+			vCoef = bL6_TXD
+			dist = fbL6_TXD
+			vTXR = J(1, 0, .)
+			maxTXD = maxL6_TXD			
+		}
+		else if (Line == 6) {
+			vCoef = bL7_TXD
+			dist = fbL7_TXD
+			vTXR = J(1, 0, .)
+			maxTXD = maxL7_TXD			
+		}
+		else if (Line >= 7) {
 			vCoef = bLX_TXD
 			dist = fbLX_TXD
-			maxTXD = maxLX_TXD			
 			vTXR = J(1, 0, .)
-			BCR_cat = 3  
+			maxTXD = maxLX_TXD			
 		}
 		
 		nTXR = cols(vTXR)
@@ -66,24 +80,15 @@ mata {
 			mPat = (mPat, vTXR3)
 		}
 		
-		// Add previous BCR
-		if (BCR_cat == 6) {
-			prevBCR = mBCR[idx, Line]
-			vBCR_CR = (prevBCR :== 1)
-			vBCR_VG = (prevBCR :== 2)
-			vBCR_PR = (prevBCR :== 3)
-			vBCR_MR = (prevBCR :== 4)
-			vBCR_SD = (prevBCR :== 5)
-			vBCR_PD = (prevBCR :== 6)
-			mPat = (mPat, vBCR_CR, vBCR_VG, vBCR_PR, vBCR_MR, vBCR_SD, vBCR_PD)
-		}
-		else if (BCR_cat == 3) {
-			prevBCR = mBCR[idx, Line]
-			vBCR_CR = (prevBCR :== 1)
-			vBCR_PR = (prevBCR :== 3)
-			vBCR_SD = (prevBCR :== 5)
-			mPat = (mPat, vBCR_CR, vBCR_PR, vBCR_SD)
-		}
+		// Add BCR
+		vBCR = mBCR[idx, Line]
+		vBCR_1 = (vBCR :== 1)
+		vBCR_2 = (vBCR :== 2)
+		vBCR_3 = (vBCR :== 3)
+		vBCR_4 = (vBCR :== 4)
+		vBCR_5 = (vBCR :== 5)
+		vBCR_6 = (vBCR :== 6)
+		mPat = (mPat, vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6)
 		
 		// Add constant
 		mPat = (mPat, vCons[idx])
@@ -102,8 +107,8 @@ mata {
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTXD)))
 
 		// Update matrices
-		mTXD[idx, Line+1] = round(vOC, 0.1)
-		mTNE[idx, OMC] = round(vOC, 0.1)
+		mTXD[idx, Line+1] = round(vOC, 0.01)
+		mTNE[idx, OMC] = round(vOC, 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]
 	}
 }

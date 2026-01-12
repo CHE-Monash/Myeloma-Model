@@ -233,7 +233,7 @@ program define mata_setup
 		
 	*mTFI - Treatment-free Interval 
 	mata {
-		mTFI = st_data(., "TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 TFI_L9")		
+		mTFI = st_data(., "TFI_DN TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8")		
 		rmTFI = J(Obs, 2, "")
 		rmTFI[., 2] = strofreal(1::Obs)
 		cmTFI = J(9, 2, "")

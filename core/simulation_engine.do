@@ -10,7 +10,7 @@
 cap program drop simulation
 program define simulation
 
-di "Running simulation"5
+di "Running simulation"
 
 **********
 *Diagnosis (DN)

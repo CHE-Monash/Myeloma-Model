@@ -9,73 +9,118 @@
 mata {
 	// Initialise outcome
 	vOC = J(Obs, 1, .)
+					
+	// Extract L1 treatment regimen
+	L1_TXR = mTXR[., 1]
+	
+	// Determine number of treatment regimen dummies
+	nRegimens = cols(oL1_TXR)
 	
 	// Filter for alive and eligible patients
 	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
-		
-		// Extract current treatment regimen
-		currentTX = mTXR[., Line]
-		
-		// Determine number of treatment regimen dummies
-		if (Line == 1) vTXR = oL1_TXR
-		else if (Line == 2) vTXR = oL2_TXR
-		else if (Line == 3) vTXR = oL3_TXR
-		else if (Line == 4) vTXR = oL4_TXR
-		
-		nRegimens = cols(vTXR)
-		
+
 		// Create treatment regimen dummies
-		if (nRegimens >= 2) TXR_is_R2 = (currentTX :== vTXR[1, 2])
-		if (nRegimens >= 3) TXR_is_R3 = (currentTX :== vTXR[1, 3])
-		if (nRegimens >= 4) TXR_is_R4 = (currentTX :== vTXR[1, 4])
+		if (nRegimens >= 2) TXR_is_R2 = (L1_TXR :== oL1_TXR[1, 2])
+		if (nRegimens >= 3) TXR_is_R3 = (L1_TXR :== oL1_TXR[1, 3])
+		if (nRegimens >= 4) TXR_is_R4 = (L1_TXR :== oL1_TXR[1, 4])
 		
-		// Extract L1 BCR
-		vBCR_L1 = mBCR[., 1]
-		
-		// Create BCR dummy variables (reference = 1)
-		pBCR_1 = (vBCR_L1 :== 1)
-		pBCR_2 = (vBCR_L1 :== 2)
-		pBCR_3 = (vBCR_L1 :== 3)
-		pBCR_4 = (vBCR_L1 :== 4)
-		pBCR_5 = (vBCR_L1 :== 5)
-		pBCR_6 = (vBCR_L1 :== 6)
-		
-		// Assemble patient matrix
-		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
-		        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-		        vRISS1[idx], vRISS2[idx], vRISS3[idx])
-		
-		// Add treatment regimen dummies
-		if (nRegimens >= 2) mPat = mPat, TXR_is_R2[idx]
-		if (nRegimens >= 3) mPat = mPat, TXR_is_R3[idx]
-		if (nRegimens >= 4) mPat = mPat, TXR_is_R4[idx]
-		
-		// Add SCT
-		mPat = mPat, vSCT_L1[idx]
-		
-		// Add BCR dummies
-		mPat = mPat, (pBCR_1[idx], pBCR_2[idx], pBCR_3[idx], 
-		              pBCR_4[idx], pBCR_5[idx], pBCR_6[idx])
-		
-		// Add constant
-		mPat = mPat, vCons[idx]
-		
-		// Extract coefficients
-		nPredictors = cols(mPat)
-		vCoef = bMNT[1, 1..nPredictors]'
-		
-		// Calculate XB
-		vXB = mPat * vCoef
-		
-		// Calculate probability
-		vPR = 1 :/ (1 :+ exp(-vXB))
-				
-		// Determine outcome
-		vRN = runiform(rows(idx), 1)
-		vOC = (vPR :> vRN) :* 1
-		
-		// Update vector
-		vMNT[idx] = vOC
+		// ASCT Group
+		idxASCT = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_L1 :== 1))
+		if (rows(idxASCT) > 0) {
+			
+			// Extract ASCT BCR
+			vBCR_ASCT = mBCR[idxASCT, 10]
+			
+			// Create BCR dummy variables 
+			vBCR_ASCT_1 = (vBCR_ASCT :== 1)
+			vBCR_ASCT_2 = (vBCR_ASCT :== 2)
+			vBCR_ASCT_3 = (vBCR_ASCT :== 3)
+			vBCR_ASCT_4 = (vBCR_ASCT :== 4)		
+			
+			// Assemble patient matrix
+			mPat = (vAge[idxASCT], vAge2[idxASCT], vMale[idxASCT], 
+					vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
+					vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT])
+			
+			// Add treatment regimen dummies
+			if (nRegimens >= 2) mPat = mPat, TXR_is_R2[idxASCT]
+			if (nRegimens >= 3) mPat = mPat, TXR_is_R3[idxASCT]
+			if (nRegimens >= 4) mPat = mPat, TXR_is_R4[idxASCT]
+			
+			// Add BCR dummies
+			mPat = mPat, (vBCR_ASCT_1, vBCR_ASCT_2, 
+						  vBCR_ASCT_3, vBCR_ASCT_4)
+			
+			// Add constant
+			mPat = mPat, vCons[idxASCT]
+			
+			// Extract coefficients for ASCT group
+			nPredictors = cols(mPat)
+			vCoef = bMNT_ASCT[1, 1..nPredictors]'
+			
+			// Calculate XB
+			vXB = mPat * vCoef
+			
+			// Calculate probability
+			vPR = 1 :/ (1 :+ exp(-vXB))
+					
+			// Determine outcome
+			vRN = runiform(rows(idxASCT), 1)
+			vOC = (vPR :> vRN) :* 1
+			
+			// Update vector
+			vMNT[idxASCT] = vOC
+		}
+
+		// No ASCT Group
+		idxNoASCT = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_L1 :== 0))
+		if (rows(idxNoASCT) > 0) {
+			
+			// Extract L1 BCR
+			vBCR_L1 = mBCR[idxNoASCT, 1]
+			
+			// Create BCR dummy variables 
+			vBCR_L1_1 = (vBCR_L1 :== 1)
+			vBCR_L1_2 = (vBCR_L1 :== 2)
+			vBCR_L1_3 = (vBCR_L1 :== 3)
+			vBCR_L1_4 = (vBCR_L1 :== 4)
+			vBCR_L1_5 = (vBCR_L1 :== 5)
+			vBCR_L1_6 = (vBCR_L1 :== 6)
+			
+			// Assemble patient matrix
+			mPat = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
+					vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT], 
+					vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT])
+			
+			// Add treatment regimen dummies
+			if (nRegimens >= 2) mPat = mPat, TXR_is_R2[idxNoASCT]
+			if (nRegimens >= 3) mPat = mPat, TXR_is_R3[idxNoASCT]
+			if (nRegimens >= 4) mPat = mPat, TXR_is_R4[idxNoASCT]
+			
+			// Add BCR dummies
+			mPat = mPat, (vBCR_L1_1, vBCR_L1_2, vBCR_L1_3, 
+						  vBCR_L1_4, vBCR_L1_5, vBCR_L1_6)
+			
+			// Add constant
+			mPat = mPat, vCons[idxNoASCT]
+			
+			// Extract coefficients for No ASCT group
+			nPredictors = cols(mPat)
+			vCoef = bMNT_NoASCT[1, 1..nPredictors]'
+			
+			// Calculate XB
+			vXB = mPat * vCoef
+			
+			// Calculate probability
+			vPR = 1 :/ (1 :+ exp(-vXB))
+					
+			// Determine outcome
+			vRN = runiform(rows(idxNoASCT), 1)
+			vOC = (vPR :> vRN) :* 1
+			
+			// Update vector
+			vMNT[idxNoASCT] = vOC
+		}
 	}
 }

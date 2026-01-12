@@ -19,25 +19,36 @@ mata {
 			vCoef = bL2_TFI
 			dist = fbL2_TFI
 			maxTFI = maxL2_TFI
-			BCR_cat = 6 
 		}
 		else if (Line == 3) {
 			vCoef = bL3_TFI
 			dist = fbL3_TFI
 			maxTFI = maxL3_TFI
-			BCR_cat = 3 
 		}
 		else if (Line == 4) {
 			vCoef = bL4_TFI
 			dist = fbL4_TFI
 			maxTFI = maxL4_TFI
-			BCR_cat = 3
 		}
-		else if (Line >= 5) {
+		else if (Line == 5) {
+			vCoef = bL5_TFI
+			dist = fbL5_TFI
+			maxTFI = maxL5_TFI
+		}
+		else if (Line == 6) {
+			vCoef = bL6_TFI
+			dist = fbL6_TFI
+			maxTFI = maxL6_TFI
+		}
+		else if (Line == 7) {
+			vCoef = bL7_TFI
+			dist = fbL7_TFI
+			maxTFI = maxL7_TFI
+		}
+		else if (Line >= 8) {
 			vCoef = bLX_TFI
 			dist = fbLX_TFI
 			maxTFI = maxLX_TFI
-			BCR_cat = 3 			
 		}
 		
 		// Assemble patient matrix
@@ -46,24 +57,15 @@ mata {
 		        vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
 		// Add previous BCR
-		if (BCR_cat == 6) {
-			vBCR = mBCR[idx, Line]
-			vBCR1 = (vBCR :== 1)
-			vBCR2 = (vBCR :== 2)
-			vBCR3 = (vBCR :== 3)
-			vBCR4 = (vBCR :== 4)
-			vBCR5 = (vBCR :== 5)
-			vBCR6 = (vBCR :== 6)
-			mPat = (mPat, vBCR1, vBCR2, vBCR3, vBCR4, vBCR5, vBCR6)
-		}
-		else if (BCR_cat == 3) {
-			vBCR = mBCR[idx, Line]
-			vBCR1 = (vBCR :== 1)
-			vBCR3 = (vBCR :== 3)
-			vBCR5 = (vBCR :== 5)
-			mPat = (mPat, vBCR1, vBCR3, vBCR5)
-		}
-				
+		vBCR = mBCR[idx, Line]
+		vBCR_1 = (vBCR :== 1)
+		vBCR_2 = (vBCR :== 2)
+		vBCR_3 = (vBCR :== 3)
+		vBCR_4 = (vBCR :== 4)
+		vBCR_5 = (vBCR :== 5)
+		vBCR_6 = (vBCR :== 6)
+		mPat = (mPat, vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6)
+	
 		// Add constant
 		mPat = mPat, vCons[idx]
 		
@@ -81,8 +83,8 @@ mata {
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTFI)))
 		
 		// Update matrices
-		mTFI[idx, Line+1] = round(vOC, 0.1)
-		mTNE[idx, OMC] = round(vOC, 0.1)
+		mTFI[idx, Line+1] = round(vOC, 0.01)
+		mTNE[idx, OMC] = round(vOC, 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
 }

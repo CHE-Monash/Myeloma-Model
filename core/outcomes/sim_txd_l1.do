@@ -180,8 +180,8 @@ mata {
 		}
 		
 		// Update outcome matrices
-		mTXD[idx, 1] = round(vOC[idx], 0.1)
-		mTNE[idx, OMC] = round(vOC[idx], 0.1)
+		mTXD[idx, 1] = round(vOC[idx], 0.01)
+		mTNE[idx, OMC] = round(vOC[idx], 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]	
 	}
 }

@@ -5,7 +5,6 @@
 **********
 
 clear all
-macro drop _all
 set more off
 
 **********
@@ -13,7 +12,7 @@ set more off
 **********
 
 // Set working directory
-cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP/Myeloma/Simulation"
+cap cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/Simulation"
 
 // Analysis settings
 global analysis     "base_model"    	// Analysis name
@@ -37,25 +36,20 @@ global scenario     ""           		// Scenario
 * Set Paths
 **********
 
-global analysis_path        "analyses/$analysis"
-global coefficients_path    "$analysis_path/data/coefficients"
-global patients_path        "$analysis_path/data/patients"
-global simulated_path       "$analysis_path/data/simulated"
-global populations_path     "data/populations"
-
-// Create output directories if needed
-capture mkdir "$simulated_path"
-capture mkdir "$simulated_path/bootstrap"
-capture mkdir "$simulated_path/reports"
+global coefficients_path    "analyses/$analysis/coefficients"
+global outcomes_path		"analyses/$analysis/outcomes"
+global patients_path        "analyses/$analysis/patients"
+global simulated_path       "analyses/$analysis/simulated"
+global transport_path		"analyses/$analysis/transport"
 
 **********
 * Load Programs
 **********
 
-qui do "core/load_patients.do"
-qui do "core/mata_setup.do"
-qui do "core/simulation_engine.do"
-qui do "core/process_data.do"
+run "core/load_patients.do"
+run "core/mata_setup.do"
+run "core/simulation_engine.do"
+run "core/process_data.do"
 
 **********
 * Execute Simulation
@@ -69,7 +63,7 @@ if ("$boot" == "0") {
     qui mata: mata matuse "$coefficients_path/coefficients_$coeffs"
     
     // Load utility functions
-    qui do "core/mata_functions.do"
+    run "core/mata_functions.do"
     
     // Execute simulation pipeline
     load_patients
@@ -79,6 +73,9 @@ if ("$boot" == "0") {
     
     // Save results
     save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", replace
+	
+	// Validate results
+	run "core/validation.do"
 	
 	// Generate report
 	if ("$report" == "1") qui do "core/generate_report.do"
@@ -95,7 +92,7 @@ else {
 		qui mata: mata matuse "$coefficients_path/bootstrap/coefficients_$coeffs_B`b'"
 			
 		// Load utility functions
-		qui do "core/mata_functions.do"
+		run "core/mata_functions.do"
 			
 		// Execute simulation pipeline
 		load_patients

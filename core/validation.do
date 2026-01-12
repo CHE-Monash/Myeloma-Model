@@ -340,78 +340,61 @@ qui {
 		n di as text "PASS: All ASCT BCR values in valid range 1-4"
 	}
 
-	// 4.3: L2 BCR (valid range: 1-6)
+	// 4.3: L2+ BCR (valid range: 1-6)
 	mata {
-		vBCR_L2 = mBCR[., 2]
-		vL2_invalid = (vBCR_L2 :< 1) :| (vBCR_L2 :> 6)
-		vL2_invalid = vL2_invalid :& (vBCR_L2 :< .)
-		st_numscalar("bcr_l2_invalid", sum(vL2_invalid))
-	}
-
-	if (bcr_l2_invalid > 0) {
-		n di as error "  FAIL: `=bcr_l2_invalid' L2 BCR values outside valid range 1-6"
-		scalar validation_errors = validation_errors + 1
-	}
-	else {
-		n di as text "PASS: All L2 BCR values in valid range 1-6"
-	}
-
-	// 4.4: L3+ BCR (valid values: 1, 3, 5 only - collapsed categories)
-	mata {
-		nL3plus_invalid = 0
+		nL2plus_invalid = 0
 		
-		for (col = 3; col <= 9; col++) {
+		for (col = 2; col <= 9; col++) {
 			vBCR_Ln = mBCR[., col]
 			
-			// Invalid if not in {1, 3, 5, .}
-			vInvalid = (vBCR_Ln :!= 1) :& (vBCR_Ln :!= 3) :& (vBCR_Ln :!= 5) :& (vBCR_Ln :< .)
-			
+			vInvalid = (vBCR_Ln :< 1) :| (vBCR_Ln :> 6)
+			vInvalid = vInvalid :& (vBCR_Ln :< .)
+					
 			if (sum(vInvalid) > 0) {
 				line_num = col + 1
-				printf("  FAIL: %f invalid values in L%f BCR (valid: 1, 3, 5 only)\n", 
+				printf("  FAIL: %f invalid values in L%f BCR outside valid range 1-6\n", 
 					   sum(vInvalid), line_num)
-				nL3plus_invalid = nL3plus_invalid + sum(vInvalid)
+				nL2plus_invalid = nL2plus_invalid + sum(vInvalid)
 			}
 		}
 		
-		st_numscalar("bcr_l3plus_invalid", nL3plus_invalid)
+		st_numscalar("bcr_l2plus_invalid", nL2plus_invalid)
 	}
 
-	if (bcr_l3plus_invalid > 0) {
-		n di as error "  FAIL: Total `=bcr_l3plus_invalid' L3+ BCR values outside collapsed range {1, 3, 5}"
+	if (bcr_l2plus_invalid > 0) {
+		n di as error "  FAIL: Total `=bcr_l2plus_invalid' L2+ BCR values outside valid range 1-6"
 		scalar validation_errors = validation_errors + 1
 	}
 	else {
-		n di as text "PASS: All L3+ BCR values in valid collapsed range {1, 3, 5}"
+		n di as text "PASS: All L2+ BCR values in valid range 1-6"
 	}
 
 	// 5 BCR Distribution
 	n di as text _n "--- 5. BCR Distribution ---"
 
-	// Lines 1-2
-	forvalues line = 1/2 {
-		capture mata: st_numscalar("n_bcr", sum(mBCR[., `line'] :< .))
-		if _rc == 0 & n_bcr > 0 {
-			mata {
-				bcr_col = mBCR[., `line']
-				n = sum(bcr_col :< .)
-				st_numscalar("n_bcr", n)
-				st_numscalar("pct1", 100 * sum(bcr_col :== 1) / n)
-				st_numscalar("pct2", 100 * sum(bcr_col :== 2) / n)
-				st_numscalar("pct3", 100 * sum(bcr_col :== 3) / n)
-				st_numscalar("pct4", 100 * sum(bcr_col :== 4) / n)
-				st_numscalar("pct5", 100 * sum(bcr_col :== 5) / n)
-				st_numscalar("pct6", 100 * sum(bcr_col :== 6) / n)
-			}
-			n di as text "Line `line' (n=" %7.0fc n_bcr "): " ///
-				"CR=" %4.1f pct1 "% " ///
-				"VGPR=" %4.1f pct2 "% " ///
-				"PR=" %4.1f pct3 "% " ///
-				"MR=" %4.1f pct4 "% " ///
-				"SD=" %4.1f pct5 "% " ///
-				"PD=" %4.1f pct6 "%"
+	// Line 1
+	capture mata: st_numscalar("n_bcr", sum(mBCR[., 1] :< .))
+	if _rc == 0 & n_bcr > 0 {
+		mata {
+			bcr_col = mBCR[., 1]
+			n = sum(bcr_col :< .)
+			st_numscalar("n_bcr", n)
+			st_numscalar("pct1", 100 * sum(bcr_col :== 1) / n)
+			st_numscalar("pct2", 100 * sum(bcr_col :== 2) / n)
+			st_numscalar("pct3", 100 * sum(bcr_col :== 3) / n)
+			st_numscalar("pct4", 100 * sum(bcr_col :== 4) / n)
+			st_numscalar("pct5", 100 * sum(bcr_col :== 5) / n)
+			st_numscalar("pct6", 100 * sum(bcr_col :== 6) / n)
 		}
+		n di as text "Line 1 (n=" %7.0fc n_bcr "): " ///
+			"CR=" %4.1f pct1 "% " ///
+			"VG=" %4.1f pct2 "% " ///
+			"PR=" %4.1f pct3 "% " ///
+			"MR=" %4.1f pct4 "% " ///
+			"SD=" %4.1f pct5 "% " ///
+			"PD=" %4.1f pct6 "%"
 	}
+
 
 	// ASCT (column 10, categories 1-4)
 	capture mata: st_numscalar("n_bcr", sum(mBCR[., 10] :< .))
@@ -427,13 +410,13 @@ qui {
 		}
 		n di as text "ASCT   (n=" %7.0fc n_bcr "): " ///
 			"CR=" %4.1f pct1 "% " ///
-			"VGPR=" %4.1f pct2 "% " ///
+			"VG=" %4.1f pct2 "% " ///
 			"PR=" %4.1f pct3 "% " ///
 			"MR=" %4.1f pct4 "%" 
 	}
 	
-	// Lines 3-9
-	forvalues line = 3/9 {
+	// Lines 2-9
+	forvalues line = 2/9 {
 		capture mata: st_numscalar("n_bcr", sum(mBCR[., `line'] :< .))
 		if _rc == 0 & n_bcr > 0 {
 			mata {
@@ -441,13 +424,19 @@ qui {
 				n = sum(bcr_col :< .)
 				st_numscalar("n_bcr", n)
 				st_numscalar("pct1", 100 * sum(bcr_col :== 1) / n)
+				st_numscalar("pct2", 100 * sum(bcr_col :== 2) / n)
 				st_numscalar("pct3", 100 * sum(bcr_col :== 3) / n)
+				st_numscalar("pct4", 100 * sum(bcr_col :== 4) / n)
 				st_numscalar("pct5", 100 * sum(bcr_col :== 5) / n)
+				st_numscalar("pct6", 100 * sum(bcr_col :== 6) / n)
 			}
 			n di as text "Line `line' (n=" %7.0fc n_bcr "): " ///
-				"CR/VGPR=" %4.1f pct1 "% " ///
-				"PR/MR=" %4.1f pct3 "% " ///
-				"SD/PD=" %4.1f pct5 "%"
+				"CR=" %4.1f pct1 "% " ///
+				"VG=" %4.1f pct2 "% " ///
+				"PR=" %4.1f pct3 "% " ///
+				"MR=" %4.1f pct4 "% " ///
+				"SD=" %4.1f pct5 "% " ///
+				"PD=" %4.1f pct6 "%"
 		}
 	}
 
