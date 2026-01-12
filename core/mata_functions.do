@@ -17,30 +17,30 @@ mata:
 // Helper function: Get TXR coefficients for a given line
 real matrix get_txr_coef(real scalar line) {
 	external bL1_TXR, bL2_TXR, bL3_TXR, bL4_TXR, bL5_TXR, bL6_TXR, bL7_TXR, bL8_TXR, bL9_TXR
-    if (line == 0 & rows(bL1_TXR) > 0) return(bL1_TXR)
-    if (line == 1 & rows(bL2_TXR) > 0) return(bL2_TXR)
-    if (line == 2 & rows(bL3_TXR) > 0) return(bL3_TXR)
-    if (line == 3 & rows(bL4_TXR) > 0) return(bL4_TXR)
-    if (line == 4 & rows(bL5_TXR) > 0) return(bL5_TXR)
-    if (line == 5 & rows(bL6_TXR) > 0) return(bL6_TXR)
-    if (line == 6 & rows(bL7_TXR) > 0) return(bL7_TXR)
-    if (line == 7 & rows(bL8_TXR) > 0) return(bL8_TXR)
-    if (line == 8 & rows(bL9_TXR) > 0) return(bL9_TXR)
+    if (line == 1 & rows(bL1_TXR) > 0) return(bL1_TXR)
+    if (line == 2 & rows(bL2_TXR) > 0) return(bL2_TXR)
+    if (line == 3 & rows(bL3_TXR) > 0) return(bL3_TXR)
+    if (line == 4 & rows(bL4_TXR) > 0) return(bL4_TXR)
+    if (line == 5 & rows(bL5_TXR) > 0) return(bL5_TXR)
+    if (line == 6 & rows(bL6_TXR) > 0) return(bL6_TXR)
+    if (line == 7 & rows(bL7_TXR) > 0) return(bL7_TXR)
+    if (line == 8 & rows(bL8_TXR) > 0) return(bL8_TXR)
+    if (line == 9 & rows(bL9_TXR) > 0) return(bL9_TXR)
     return(J(0, 0, .))  // Empty matrix if doesn't exist
 }
 
 // Helper function: Get TXR outcome codes
 real rowvector get_txr_outcome(real scalar line) {
 	external oL1_TXR, oL2_TXR, oL3_TXR, oL4_TXR, oL5_TXR, oL6_TXR, oL7_TXR, oL8_TXR, oL9_TXR
-    if (line == 0) return(oL1_TXR)
-    if (line == 1) return(oL2_TXR)
-    if (line == 2) return(oL3_TXR)
-    if (line == 3) return(oL4_TXR)
-    if (line == 4) return(oL5_TXR)
-    if (line == 5) return(oL6_TXR)
-    if (line == 6) return(oL7_TXR)
-    if (line == 7) return(oL8_TXR)
-    if (line == 8) return(oL9_TXR)
+    if (line == 1) return(oL1_TXR)
+    if (line == 2) return(oL2_TXR)
+    if (line == 3) return(oL3_TXR)
+    if (line == 4) return(oL4_TXR)
+    if (line == 5) return(oL5_TXR)
+    if (line == 6) return(oL6_TXR)
+    if (line == 7) return(oL7_TXR)
+    if (line == 8) return(oL8_TXR)
+    if (line == 9) return(oL9_TXR)
 	return(J(1, 0, .))  // Empty rowvector if not found
 }
 

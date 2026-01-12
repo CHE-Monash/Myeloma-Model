@@ -11,26 +11,22 @@ mata {
 	vOC = J(Obs, 1, .)
 	
 	// Filter for alive, eligible and valid SCT patients
-	idx = selectindex((mMOR[., OMC-1] :== 0) :& 
-	                  (mState[., 1] :<= OMC) :&
-	                  (vSCT_L1 :== 1))
+	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vSCT_L1 :== 1))
 	if (rows(idx) > 0) {
 		
 		// Extract L1 BCR
 		vBCR_L1 = mBCR[., 1]
-		
-		// Create BCR dummy variables
-		pBCR_1 = (vBCR_L1 :== 1)
-		pBCR_2 = (vBCR_L1 :== 2)
-		pBCR_3 = (vBCR_L1 :== 3)
-		pBCR_4 = (vBCR_L1 :== 4)
-		pBCR_5 = (vBCR_L1 :== 5)
+		vBCR_1 = (vBCR_L1 :== 1)
+		vBCR_2 = (vBCR_L1 :== 2)
+		vBCR_3 = (vBCR_L1 :== 3)
+		vBCR_4 = (vBCR_L1 :== 4)
+		vBCR_5 = (vBCR_L1 :== 5)
 		
 		// Assemble patient matrix - no BCR = 6
 		mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 		        vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 		        vRISS1[idx], vRISS2[idx], vRISS3[idx],
-		        pBCR_1[idx], pBCR_2[idx], pBCR_3[idx], pBCR_4[idx], pBCR_5[idx])
+		        vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], vBCR_4[idx], vBCR_5[idx])
 		
 		// Extract coefficients
 		nPredictors = cols(mPat)

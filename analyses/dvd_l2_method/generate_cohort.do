@@ -21,7 +21,7 @@ macro drop _all
 **********
 
 // Set working directory
-cd "~/Documents/Monash/Research/Blood Disorders/EpiMAP/Myeloma/Simulation"
+cd "~/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/Simulation"
 
 // Parameters
 local n_samples = 10
@@ -33,6 +33,8 @@ local l2_end_year = 2025
 **********
 
 forval s = 1/`n_samples' {
+	
+	mata: mata clear
 	
 	// Define settings
 	global analysis		"dvd_l2_method"    	// Analysis name
@@ -50,10 +52,30 @@ forval s = 1/`n_samples' {
 	global report       "0"             	// Report flag
 	global scenario		""					// A_trial / B_ccbm / C_mrdr
 
-	// Execute simulation
-	do "EpiMAP_Myeloma.do" ///
-		`analysis' `int' `line' `coeffs' `data' `min_year' `max_year' ///
-		`min_id' `max_id' `boot' `min_bs' `max_bs' `report'
+	// Set Paths
+	global coefficients_path    "analyses/$analysis/coefficients"
+	global outcomes_path		"analyses/$analysis/outcomes"
+	global patients_path        "analyses/$analysis/patients"
+	global simulated_path       "analyses/$analysis/simulated"
+	global populations_path     "data/populations"
+
+	// Load programs
+	run "core/load_patients.do"
+	run "core/mata_setup.do"
+	run "core/simulation_engine.do"
+	run "core/process_data.do"
+	
+	// Load coefficients
+    qui mata: mata matuse "$coefficients_path/coefficients_$coeffs"
+    
+    // Load utility functions
+    run "core/mata_functions.do"
+    
+    // Execute simulation pipeline
+    load_patients
+    mata_setup
+    simulation
+    process_data
     
     // Filters 
 	keep if MOR_L1E == 0 										// Alive at L2S

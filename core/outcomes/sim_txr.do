@@ -28,7 +28,7 @@ mata {
 			vXB4 = J(rows(idx), 1, 0)
 			
 			// Assemble patient matrix (L1)
-			if (Line == 0) {
+			if (Line == 1) {
 				mPat = (vAge[idx], vAge2[idx], vMale[idx], 
 						vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 						vRISS1[idx], vRISS2[idx], vRISS3[idx], 
@@ -53,7 +53,7 @@ mata {
 			}
 			
 			// Build patient matrix (L2+)
-			else if (Line >= 1) {
+			else if (Line >= 2) {
 				vBCR = mBCR[idx, Line]
 				vBCR_1 = (vBCR :== 1)
 				vBCR_2 = (vBCR :== 2)
@@ -109,7 +109,7 @@ mata {
 			}
 			
 			// Update matrix
-			mTXR[idx, Line+1] = vOC
+			mTXR[idx, Line] = vOC
 		}	
 	}
 	else {
@@ -119,19 +119,19 @@ mata {
 			
 		// Assign "Other" (code 0) to alive patients
 		if (rows(idxAlive) > 0) {
-			mTXR[idxAlive, Line+1] = J(rows(idxAlive), 1, 0)
+			mTXR[idxAlive, Line] = J(rows(idxAlive), 1, 0)
 		}
 			
 		// Set missing for dead patients
 		if (rows(idxDead) > 0) {
-			mTXR[idxDead, Line+1] = J(rows(idxDead), 1, .)
+			mTXR[idxDead, Line] = J(rows(idxDead), 1, .)
 		}
 			
 	}
 }
 
 // Check for override file, execute if it exists
-mata: st_local("current_line", strofreal(Line+1))
+mata: st_local("current_line", strofreal(Line))
 if `current_line' == ${line} {
 	local override_file "${outcomes_path}/sim_txr_override.do"
 	capture confirm file "`override_file'"

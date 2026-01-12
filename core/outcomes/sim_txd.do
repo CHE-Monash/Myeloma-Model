@@ -66,7 +66,7 @@ mata {
 				vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
 		// Add treatment regimen dummies
-		currentTX = mTXR[idx, Line+1]
+		currentTX = mTXR[idx, Line]
 		if (nTXR >= 1) {
 			vTXR1 = (currentTX :== vTXR[1,1])
 			mPat = (mPat, vTXR1)
@@ -107,7 +107,7 @@ mata {
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTXD)))
 
 		// Update matrices
-		mTXD[idx, Line+1] = round(vOC, 0.01)
+		mTXD[idx, Line] = round(vOC, 0.01)
 		mTNE[idx, OMC] = round(vOC, 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] :+ mTNE[idx, OMC]
 	}

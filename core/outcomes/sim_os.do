@@ -27,8 +27,13 @@ mata {
 		segment = segments[s]
     
 		// Determine BCR column based on segment
-		if (segment == 0) { // DN/L1S
-			vBCR = J(Obs, 1, 5)  // BCR = SD as placeholder
+		if (segment == 0) { // DN
+			if (OMC == 1) {
+				vBCR = J(Obs, 1, 5)  // BCR = SD as placeholder
+			}
+			else {
+				vBCR = mBCR[., 1] // L1S
+			}
 		}
 		else if (segment == 1) {  // L1E/L2S Non-ASCT
 			vBCR = mBCR[., 1]
@@ -37,7 +42,7 @@ mata {
 			vBCR = mBCR[., 10]
 		}
 		else {
-			vBCR = mBCR[., Line]
+			vBCR = mBCR[., Line] // Current Line
 		}
 		
 		// Create BCR dummy variables

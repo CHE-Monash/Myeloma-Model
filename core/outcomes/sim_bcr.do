@@ -17,7 +17,7 @@ mata {
 	
 	// Extract previous BCR
 	if (Line >= 2) {
-		vBCR = mBCR[., Line-1]
+		vBCR = mBCR[., Line]
 		vBCR_1 = (vBCR :== 1)
 		vBCR_2 = (vBCR :== 2)
 		vBCR_3 = (vBCR :== 3)
@@ -25,7 +25,7 @@ mata {
 		vBCR_5 = (vBCR :== 5)
 		vBCR_6 = (vBCR :== 6)
 	}
-	if (Line == 2) { // Also need BCR_SCT
+	if (Line == 2) { // Need BCR_SCT
 		vBCR_SCT = mBCR[., 10]
 		vBCR_SCT_0 = (vBCR_SCT :== 0) // No ASCT patients
 		vBCR_SCT_1 = (vBCR_SCT :== 1)
@@ -47,7 +47,7 @@ mata {
 		if (Line == 1) mPat = mPat, vSCT_DN[idx]
 		
 		// Add previous BCR
-		if (Line >= 2 ) {`	'
+		if (Line >= 2 ) {
 			mPat = mPat, (vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
 						  vBCR_4[idx], vBCR_5[idx], vBCR_6[idx])
 		}
@@ -66,7 +66,7 @@ mata {
 			currentTX = mTXR[idx, Line]
 			
 			if (cols(vTXR) >= 1) mPat = mPat, (currentTX :== vTXR[1, 1])
-			if (cols(vTXR) >= 2) mPat = mPat, (currentTX :== vTXR[1, 2])`'
+			if (cols(vTXR) >= 2) mPat = mPat, (currentTX :== vTXR[1, 2])
 			if (cols(vTXR) >= 3) mPat = mPat, (currentTX :== vTXR[1, 3])
 			if (cols(vTXR) >= 4) mPat = mPat, (currentTX :== vTXR[1, 4])
 		}

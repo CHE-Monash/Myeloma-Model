@@ -14,7 +14,7 @@ mata {
     idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))
 	if (rows(idx) > 0) {
 
-		// Select coefficient matrix based on Line
+		// Select coefficients
 		if (Line == 2) {
 			vCoef = bL2_TFI
 			dist = fbL2_TFI
@@ -56,7 +56,7 @@ mata {
 				vECOG0[idx], vECOG1[idx], vECOG2[idx],
 		        vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
-		// Add previous BCR
+		// Add BCR
 		vBCR = mBCR[idx, Line]
 		vBCR_1 = (vBCR :== 1)
 		vBCR_2 = (vBCR :== 2)
@@ -83,7 +83,7 @@ mata {
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTFI)))
 		
 		// Update matrices
-		mTFI[idx, Line+1] = round(vOC, 0.01)
+		mTFI[idx, Line] = round(vOC, 0.01)
 		mTNE[idx, OMC] = round(vOC, 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}

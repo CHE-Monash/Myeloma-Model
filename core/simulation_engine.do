@@ -41,7 +41,8 @@ di "Running simulation"
 **********
 *Line 1 Start (L1S)	
 	mata: OMC = 2
-
+	mata: Line = 1
+	
 	di "L1S - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
@@ -51,6 +52,11 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 1) exit
+		
+	di "L1S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1S - Treatment Duration"
 		qui do "core/outcomes/sim_txd_l1.do"
@@ -70,16 +76,10 @@ di "Running simulation"
 **********
 *Line 1 End (L1E)
 	mata: OMC = 3
-	mata: Line = 1
 
 	di "L1E - Age"
 		qui do "core/outcomes/sim_age.do"
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
-
-	di "L1E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - SCT"
 		qui do "core/outcomes/sim_asct_l1.do"			
@@ -114,7 +114,8 @@ di "Running simulation"
 **********
 *Line 2 Start (L2S)	
 	mata: OMC = 4
-		
+	mata: Line = 2
+	
 	di "L2S - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
@@ -124,6 +125,11 @@ di "Running simulation"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 2) exit
+			
+	di "L2S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)	
 
 	di "L2S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"
@@ -143,16 +149,10 @@ di "Running simulation"
 **********
 *Line 2 End (L2E)	
 	mata: OMC = 5
-	mata: Line = 2
 
 	di "L2E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
-	
-	di "L2E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L2E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"
@@ -172,16 +172,22 @@ di "Running simulation"
 **********
 *Line 3 Start (L3S)
 	mata: OMC = 6
+	mata: Line = 3
 		
 	di "L3S - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-				
+
 	di "L3S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 3) exit
+		
+	di "L3S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)				
 				
 	di "L3S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"	
@@ -201,16 +207,10 @@ di "Running simulation"
 **********
 *Line 3 End (L3E)		
 	mata: OMC = 7
-	mata: Line = 3
 	
 	di "L3E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-	
-	di "L3E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L3E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"		
@@ -230,17 +230,23 @@ di "Running simulation"
 **********
 *Line 4 Start (L4S)	
 	mata: OMC = 8
+	mata: Line = 4
 		
 	di "L4S - Age"
 		qui do "core/outcomes/sim_age.do"	
-		*mata: _matrix_list(mAge, rmAge, cmAge)
+		*mata: _matrix_list(mAge, rmAge, cmAge)	
 
 	di "L4S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
 		if ("$data" == "population" & $line == 4) exit
-			
+		
+	di "L4S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)	
+		
 	di "L4S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"
 		*mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
@@ -259,16 +265,10 @@ di "Running simulation"
 **********
 *Line 4 End (L4E)
 	mata: OMC = 9
-	mata: Line = 4
 		
 	di "L4E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-	
-	di "L4E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L4E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"	
@@ -288,6 +288,7 @@ di "Running simulation"
 **********
 *Line 5 Start (L5S)	
 	mata: OMC = 10
+	mata: Line = 5
 		
 	di "L5S - Age" 
 		qui do "core/outcomes/sim_age.do"	
@@ -296,6 +297,11 @@ di "Running simulation"
 	di "L5S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
+
+	di "L5S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL5_BCR, rbL5_BCR, cbL5_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)		
 
 	di "L5S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"		
@@ -315,17 +321,11 @@ di "Running simulation"
 **********
 *Line 5 End (L5E)	
 	mata: OMC = 11
-	mata: Line = 5
 		
 	di "L5E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
 
-	di "L5E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL5_BCR, rbL5_BCR, cbL5_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
-	
 	di "L5E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
@@ -344,7 +344,8 @@ di "Running simulation"
 **********
 *Line 6 Start (L6S) 		
 	mata: OMC = 12
-	
+	mata: Line = 6
+		
 	di "L6S - Age" 
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
@@ -352,6 +353,11 @@ di "Running simulation"
 	di "L6S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
+		
+	di "L6S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)		
 
 	di "L6S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"	
@@ -371,16 +377,10 @@ di "Running simulation"
 **********
 *Line 6 End (L6E)
 	mata: OMC = 13
-	mata: Line = 6
-		
+	
 	di "L6E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-	
-	di "L6E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L6E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"				
@@ -400,6 +400,7 @@ di "Running simulation"
 **********
 *Line 7 Start (L7S) 	
 	mata: OMC = 14
+	mata: Line = 7
 		
 	di "L7S - Age" 
 		qui do "core/outcomes/sim_age.do"	
@@ -408,6 +409,11 @@ di "Running simulation"
 	di "L7S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
+		
+	di "L7E - Best Clinical Response" 
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL7_BCR, rbL7_BCR, cbL7_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)	
 
 	di "L7S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"	
@@ -427,16 +433,10 @@ di "Running simulation"
 **********
 *Line 7 End (L7E)
 	mata: OMC = 15
-	mata: Line = 7
 		
 	di "L7E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-	
-	di "L7E - Best Clinical Response" 
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL7_BCR, rbL7_BCR, cbL7_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR))
 		
 	di "L7E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"				
@@ -456,7 +456,8 @@ di "Running simulation"
 **********
 *Line 8 Start (L8S) 
 	mata: OMC = 16
-		
+	mata: Line = 8
+	
 	di "L8S - Age" 
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
@@ -464,6 +465,11 @@ di "Running simulation"
 	di "L8S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
+		
+	di "L8S - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL8_BCR, rbL8_BCR, cbL8_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L8S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"	
@@ -483,17 +489,11 @@ di "Running simulation"
 **********
 *Line 8 End (L8E)
 	mata: OMC = 17
-	mata: Line = 8
 		
 	di "L8E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
-	
-	di "L8E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL8_BCR, rbL8_BCR, cbL8_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
-		
+
 	di "L8E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi.do"				
 		*mata: _matrix_list(bL8_TFI, rbL8_TFI, cbL8_TFI)
@@ -512,7 +512,8 @@ di "Running simulation"
 **********
 *Line 9 Start (L9S) 
 	mata: OMC = 18
-		
+	mata: Line = 9
+	
 	di "L9S - Age" 
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)
@@ -520,6 +521,11 @@ di "Running simulation"
 	di "L9S - Treatment Regimen"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
+		
+	di "L9E - Best Clinical Response"
+		qui do "core/outcomes/sim_bcr.do"
+		*mata: _matrix_list(bL9_BCR, rbL9_BCR, cbL9_BCR)
+		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L9S - Treatment Duration"
 		qui do "core/outcomes/sim_txd.do"	
@@ -539,16 +545,10 @@ di "Running simulation"
 **********
 *Line 9 End (L9E)
 	mata: OMC = 19
-	mata: Line = 9
 	
 	di "L9E - Age"
 		qui do "core/outcomes/sim_age.do"	
 		*mata: _matrix_list(mAge, rmAge, cmAge)	
-	
-	di "L9E - Best Clinical Response"
-		qui do "core/outcomes/sim_bcr.do"
-		*mata: _matrix_list(bL9_BCR, rbL9_BCR, cbL9_BCR)
-		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 		
 	di "L9E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"

@@ -23,13 +23,13 @@ global data         "population"        // Patient data (predicted / population)
 global min_year     "1995"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
-global max_id       "101212"            // Last patient ID (<= 101,212)
+global max_id       "10"            // Last patient ID (<= 101,212)
 global boot         "0"                 // Bootstrap flag (0/1)
 global min_bs       ""                  // First bootstrap iteration
 global max_bs       ""                  // Last bootstrap iteration
 global cost_year	"2025"				// Price year for all costs (AUD)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
-global report       "1"                 // Generate report (0/1)
+global report       "0"                 // Generate report (0/1)
 global scenario     ""           		// Scenario
 
 **********
@@ -40,7 +40,6 @@ global coefficients_path    "analyses/$analysis/coefficients"
 global outcomes_path		"analyses/$analysis/outcomes"
 global patients_path        "analyses/$analysis/patients"
 global simulated_path       "analyses/$analysis/simulated"
-global transport_path		"analyses/$analysis/transport"
 
 **********
 * Load Programs
@@ -69,7 +68,7 @@ if ("$boot" == "0") {
     load_patients
     mata_setup
     simulation
-    process_data
+    // process_data
     
     // Save results
     save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", replace
