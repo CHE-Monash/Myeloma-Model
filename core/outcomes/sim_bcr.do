@@ -43,14 +43,15 @@ mata {
 				vECOG0[idx], vECOG1[idx], vECOG2[idx], 
 				vRISS1[idx], vRISS2[idx], vRISS3[idx])
 		
-		// Add SCT
+		// BCR_L1 - Add SCT
 		if (Line == 1) mPat = mPat, vSCT_DN[idx]
 		
-		// Add previous BCR
+		// BCR_L2 onwards - Add previous BCR
 		if (Line >= 2 ) {
 			mPat = mPat, (vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
 						  vBCR_4[idx], vBCR_5[idx], vBCR_6[idx])
 		}
+		// BCR_L2 only - Add BCR_SCT
 		if (Line == 2) {
 			mPat = mPat, (vBCR_SCT_0[idx], vBCR_SCT_1[idx], vBCR_SCT_2[idx], 
 						  vBCR_SCT_3[idx], vBCR_SCT_4[idx])

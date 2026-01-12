@@ -1,7 +1,7 @@
 **********
 * SIM TFI (L2+) 
 *
-* Purpose: Treatment-free Interval at Line 2+ End (time from LXE to L(X+1)S)
+* Purpose: Treatment-free Interval (time from LXE to L(X+1)S)
 * Method: Parametric survival analysis
 * Outcome: Continous time (months)
 **********
@@ -83,7 +83,7 @@ mata {
 		vOC = rowmin((vOC, J(rows(vOC), 1, maxTFI)))
 		
 		// Update matrices
-		mTFI[idx, Line] = round(vOC, 0.01)
+		mTFI[idx, Line+1] = round(vOC, 0.01) // Col 1 of mTFI is DN, so TFI_L3 goes in column 4
 		mTNE[idx, OMC] = round(vOC, 0.01)
 		mTSD[idx, OMC+1] = mTSD[idx, OMC] + mTNE[idx, OMC]
 	}
