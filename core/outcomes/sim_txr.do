@@ -54,7 +54,7 @@ mata {
 			
 			// Build patient matrix (L2+)
 			else if (Line >= 2) {
-				vBCR = mBCR[idx, Line]
+				vBCR = mBCR[idx, Line-1]
 				vBCR_1 = (vBCR :== 1)
 				vBCR_2 = (vBCR :== 2)
 				vBCR_3 = (vBCR :== 3)

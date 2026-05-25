@@ -563,8 +563,8 @@ di "Running simulation"
 			
 			if (rows(idxAlive) > 0) {
 				// Cap OS at age limit for those who would exceed it
-				vExceedsLimit = ((mAge[idxAlive, 1] :+ mOS[idxAlive, OMC]) :> Limit)
-				mOS[idxAlive, OMC] = vExceedsLimit :* (Limit :- mAge[idxAlive, 1]) :+ 
+				vExceedsLimit = ((mAge[idxAlive, 1] :+ (mOS[idxAlive, OMC] :/ 12)) :> Limit)
+				mOS[idxAlive, OMC] = vExceedsLimit :* ((Limit :- mAge[idxAlive, 1]) :* 12) :+ 
 									  (!vExceedsLimit) :* mOS[idxAlive, OMC]
 				
 				// Mark everyone as dead

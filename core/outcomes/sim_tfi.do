@@ -35,17 +35,7 @@ mata {
 			dist = fbL5_TFI
 			maxTFI = maxL5_TFI
 		}
-		else if (Line == 6) {
-			vCoef = bL6_TFI
-			dist = fbL6_TFI
-			maxTFI = maxL6_TFI
-		}
-		else if (Line == 7) {
-			vCoef = bL7_TFI
-			dist = fbL7_TFI
-			maxTFI = maxL7_TFI
-		}
-		else if (Line >= 8) {
+		else if (Line >= 6) {
 			vCoef = bLX_TFI
 			dist = fbLX_TFI
 			maxTFI = maxLX_TFI

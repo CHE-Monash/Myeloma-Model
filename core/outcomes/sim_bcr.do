@@ -17,7 +17,7 @@ mata {
 	
 	// Extract previous BCR
 	if (Line >= 2) {
-		vBCR = mBCR[., Line]
+		vBCR = mBCR[., Line-1]
 		vBCR_1 = (vBCR :== 1)
 		vBCR_2 = (vBCR :== 2)
 		vBCR_3 = (vBCR :== 3)
@@ -51,13 +51,13 @@ mata {
 			mPat = mPat, (vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
 						  vBCR_4[idx], vBCR_5[idx], vBCR_6[idx])
 		}
-		// BCR_L2 only - Add BCR_SCT
+		// BCR_L2 only - Also add BCR_SCT
 		if (Line == 2) {
 			mPat = mPat, (vBCR_SCT_0[idx], vBCR_SCT_1[idx], vBCR_SCT_2[idx], 
 						  vBCR_SCT_3[idx], vBCR_SCT_4[idx])
 		}
 		
-		// Add TXR dummies
+		// Add TXR
 		if (Line <= 4) {
 			if (Line == 1) vTXR = oL1_TXR
 			if (Line == 2) vTXR = oL2_TXR
@@ -80,9 +80,7 @@ mata {
 		if (Line == 3) vCoef_full = bL3_BCR
 		if (Line == 4) vCoef_full = bL4_BCR
 		if (Line == 5) vCoef_full = bL5_BCR
-		if (Line == 6) vCoef_full = bL6_BCR
-		if (Line == 7) vCoef_full = bL7_BCR
-		if (Line >= 8) vCoef_full = bLX_BCR
+		if (Line >= 6) vCoef_full = bLX_BCR
 		
 		vCoef = vCoef_full[1, 1..nPredictors]'
 		cutPointIndices = (cols(vCoef_full) - nCutPoints + 1)..cols(vCoef_full)
@@ -105,8 +103,8 @@ mata {
 
 // Check for override file, execute if it exists
 mata: st_local("current_line", strofreal(Line))
-if `current_line' == ${line} {
-	local override_file "${outcomes_path}/sim_bcr_override.do"
+if `current_line' == $line {
+	local override_file "$outcomes_path/sim_bcr_override.do"
 	capture confirm file "`override_file'"
 	if _rc == 0 {
 		do `override_file'

@@ -14,7 +14,7 @@ mata {
 	idx = selectindex((mMOR[.,OMC-1] :== 0) :& (mState[.,1] :<= OMC))	
 	if (rows(idx) > 0) {
 
-		// GROUP 1: ASCT Patients
+		// Group 1: ASCT
 		idxASCT = idx[selectindex(vSCT_L1[idx] :== 1)]
 		if (rows(idxASCT) > 0) {
 			
@@ -48,7 +48,7 @@ mata {
 			vOC[idxASCT] = rowmin((vOC[idxASCT], J(rows(idxASCT), 1, maxL1_TFI_ASCT)))
 		}
 		
-		// GROUP 2: NoASCT Patients
+		// Group 2: No ASCT
 		idxNoASCT = idx[selectindex(vSCT_L1[idx] :== 0)]
 		if (rows(idxNoASCT) > 0) {
 

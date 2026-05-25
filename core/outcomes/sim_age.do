@@ -22,7 +22,7 @@ mata {
 		vPrevAge = mAge[idxEligible, OMC-1]
 		vPrevTNE = mTNE[idxEligible, OMC-1] / 12  // Convert months to years
 		vNewAge = vPrevAge :+ vPrevTNE
-		mAge[idxEligible, OMC] = round(vNewAge, 0.1)
+		mAge[idxEligible, OMC] = round(vNewAge, 0.2)
 		
 		// Check for patients exceeding age limit
 		vCurrentAges = mAge[idxEligible, OMC]

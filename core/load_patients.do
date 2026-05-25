@@ -23,7 +23,7 @@ program define load_patients
 		use "patients/population_1995_2040_${pop_number}.dta", clear
 	}
 	else if ("$data_type" == "predicted") {
-		use "$patients_path/patients_${analysis}.dta", clear
+		use "$patients_path/patients_${analysis}_${line}.dta", clear
 	}
 	
 	// Filters
