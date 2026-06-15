@@ -1,0 +1,22 @@
+characteristic,value
+N,132
+Age median (range) y,74.5 (36-90.59999847412109)
+Age lt65 %,25.8
+Age 65to74 %,26.5
+Age ge75 %,47.7
+Male %,53.8
+ISS 1 %,18.2
+ISS 2 %,24.2
+ISS 3 %,57.6
+ISS missing %,0
+Time since diagnosis median (range) y,2 (0-7.600000000000001)
+Prior lines median (range),1 (1-5)
+Prior lines = 1 %,53.8
+Prior lines = 2 %,21.2
+Prior lines = 3 %,9.800000000000001
+Prior lines >=4 %,15.2
+Prior ASCT %,18.9
+Prior PI %,84.10000000000001
+Prior IMiD %,64.40000000000001
+Prior Alkylator %,68.90000000000001
+Prior PI + IMiD %,48.5

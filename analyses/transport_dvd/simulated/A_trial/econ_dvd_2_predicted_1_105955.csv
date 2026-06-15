@@ -1,0 +1,2 @@
+scenario,intervention,line,n,mean_cost_disc,mean_cost_undisc,mean_qaly_disc,mean_qaly_undisc,mean_ly
+A_trial,dvd,2,50180,367838.72,429864.71,2.7726,3.3883,5.3319

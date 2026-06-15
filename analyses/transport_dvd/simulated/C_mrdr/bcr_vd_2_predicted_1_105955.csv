@@ -1,0 +1,7 @@
+scenario,intervention,line,bcr_code,bcr_label,n,pct
+C_mrdr,vd,2,1,CR,6519,12.99
+C_mrdr,vd,2,2,VGPR,10793,21.51
+C_mrdr,vd,2,3,PR,15104,30.10
+C_mrdr,vd,2,4,MR,4522,9.01
+C_mrdr,vd,2,5,SD,8429,16.80
+C_mrdr,vd,2,6,PD,4813,9.59

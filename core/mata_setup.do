@@ -258,6 +258,9 @@ program define mata_setup
 		cap gen RISS1 = (RISS == 1)
 		cap gen RISS2 = (RISS == 2)
 		cap gen RISS3 = (RISS == 3)
+		cap gen ISS1 = (ISS == 1)
+		cap gen ISS2 = (ISS == 2)
+		cap gen ISS3 = (ISS == 3)
 		cap gen CMc0 = (CMc == 0)
 		cap gen CMc1 = (CMc == 1)
 		cap gen CMc2 = (CMc == 2)
@@ -278,6 +281,11 @@ program define mata_setup
 		vRISS1 = st_data(., "RISS1")              // RISS = I (best prognosis)
 		vRISS2 = st_data(., "RISS2")              // RISS = II (intermediate)
 		vRISS3 = st_data(., "RISS3")              // RISS = III (poorest prognosis)
+		
+		vISS = st_data(., "ISS")
+		vISS1 = st_data(., "ISS1")              
+		vISS2 = st_data(., "ISS2")              
+		vISS3 = st_data(., "ISS3") 	
 
 		vAge70 = st_data(., "Age70")              // Age >= 70 indicator
 		vAge75 = st_data(., "Age75")              // Age >= 75 indicator
@@ -286,7 +294,7 @@ program define mata_setup
 		vCM1 = st_data(., "CMc1")                 // CM = 1 (1 comorbidity)
 		vCM2 = st_data(., "CMc2")                 // CM = 2 (2 comorbidities)
 		vCM3 = st_data(., "CMc3")                 // CM = 3 (3+ comorbidities)
-		vCKD = st_data(., "CKD")				  // Chronic Kidney Disease
+		vCKD = st_data(., "CM_CKD")				  // Chronic Kidney Disease
 		
 		vCons = st_data(., "Cons")                // Constant vector (all ones)
 

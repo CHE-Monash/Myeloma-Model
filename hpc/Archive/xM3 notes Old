@@ -1,0 +1,40 @@
+[M3 commands]
+DATE=250419
+LocalPath=~/Documents/Monash/Research/"Blood Disorders"/Myeloma/EpiMAP/Model
+M3Path=adami@m3-dtn.massive.org.au
+
+# Make directories
+ssh $M3Path "mkdir em76/$DATE ; cd em76/$DATE ; mkdir Analysis"
+
+# Send Code files to M3
+rsync -auvzce ssh $LocalPath/{xM3.script,"Multiple Imputation.do","Risk Equations.do",Simulation.do,Sub} $M3Path:~/em76/$DATE/
+
+# Send MRDR files to M3
+rsync -auvzce ssh $LocalPath/Analysis/MRDR $M3Path:~/em76/$DATE/Analysis/
+
+
+Analysis=Forecast
+Analysis=VRd-Post
+
+# Send Analysis files to M3
+rsync -auvzce ssh $LocalPath/Analysis/$Analysis/{Coefficients,Simulated,"VRd-Post Cohort10.dta"} $M3Path:~/em76/$DATE/Analysis/$Analysis
+rsync -auvzce ssh $LocalPath/Analysis/$Analysis/{Coefficients,"VRd-Post Cohort10.dta"} $M3Path:~/em76/$DATE/Analysis/$Analysis
+
+# Run xM3.script
+ssh $M3Path "cd em76/$DATE ; sbatch xM3.script"
+
+# Pull Data from M3
+rsync -auvzce ssh $M3Path:~/em76/$DATE/Analysis/$Analysis/Bootstrap/ $LocalPath/Analysis/$Analysis/Bootstrap/
+rsync -auvzce ssh $M3Path:~/em76/$DATE/Analysis/$Analysis/Coefficients/ $LocalPath/Analysis/$Analysis/Coefficients/
+rsync -auvzce ssh $M3Path:~/em76/$DATE/Analysis/$Analysis/Simulated/ $LocalPath/Analysis/$Analysis/Simulated/
+
+rsync -avz --ignore-existing $M3Path:~/em76/$DATE/Analysis/$Analysis/Simulated/ $LocalPath/Analysis/$Analysis/Simulated/
+
+
+
+[Local commands]
+# Add StataMP to PATH in ./bashrc, use source to activate and stataMP to control
+nano ~/.bashrc
+export PATH="/Applications/Stata 17/StataMP.app/Contents/MacOS/:$PATH"
+source ~/.bashrc
+stataMP Test.do

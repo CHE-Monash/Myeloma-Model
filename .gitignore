@@ -1,7 +1,12 @@
 # Simulated output data
 analyses/*/simulated/*.dta
+analyses/*/simulated/**/*.dta
 analyses/*/simulated/report/
 analyses/*/simulated/bootstrap/
+
+# Large patient cohort & population data (exceed GitHub's 100MB limit; regenerate locally)
+patients/*.dta
+analyses/*/patients/*.dta
 
 analyses/dvd_l2_method/*
 analyses/td_l4_pre/*

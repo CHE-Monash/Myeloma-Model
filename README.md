@@ -1,10 +1,6 @@
-# EpiMAP Myeloma v2.1
+# Monash Myeloma Model v2.1
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/)
-[![DOI](https://img.shields.io/badge/DOI-10.1371%2Fjournal.pone.0308812-blue.svg)](https://doi.org/10.1371/journal.pone.0308812)
-
-**Epidemiological Modelling of Australian Patients with Myeloma**
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/) [![DOI](https://img.shields.io/badge/DOI-10.1371%2Fjournal.pone.0308812-blue.svg)](https://doi.org/10.1371/journal.pone.0308812)
 
 A comprehensive discrete-event simulation model for multiple myeloma disease outcomes and treatment pathways, developed through collaboration between Monash University's Centre for Health Economics and Transfusion Research Unit.
 
@@ -17,7 +13,7 @@ A comprehensive discrete-event simulation model for multiple myeloma disease out
 
 ## Model Overview
 
-EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma patients using **30 evidence-based risk equations** derived from the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
+The model simulates the complete treatment journey of multiple myeloma patients using **30 evidence-based risk equations** derived from the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
 
 ### Key Features
 
@@ -38,14 +34,14 @@ EpiMAP Myeloma simulates the complete treatment journey of multiple myeloma pati
 
 ### Installation
 
-```bash
+``` bash
 git clone https://github.com/CHE-Monash/EpiMAP-Myeloma.git
 cd EpiMAP-Myeloma
 ```
 
 ### Basic Usage
 
-```stata
+``` stata
 cd "path/to/epimap-myeloma"
 do "run.do"
 ```
@@ -55,7 +51,7 @@ The `run.do` file contains example parameters. Edit this file to customise your 
 #### Arguments Description
 
 | Position | Argument | Description | Example Values |
-|:--------:|:---------|:------------|:---------------|
+|:---------------:|:----------------|:-----------------|:---------------------|
 | 1 | **Analysis** | Analysis identifier | `base_model`, `vrd_l1_post` |
 | 2 | **Intervention** | Treatment intervention | `VRd`, `SoC`, `all` |
 | 3 | **Line** | Line of therapy (1-9) | `1`, `2`, `3` |
@@ -66,11 +62,12 @@ The `run.do` file contains example parameters. Edit this file to customise your 
 | 8 | **Bootstrap** | Bootstrap flag (0/1) | `0` (no), `1` (yes) |
 | 9 | **MinBS** | Minimum bootstrap sample | `1` |
 | 10 | **MaxBS** | Maximum bootstrap sample | `5`, `100` |
-| 11| **Report** | Report flag | `0' (no), `1' (yes) |
+| 11 | **Report** | Report flag (PDF) | `0` (no), `1` (yes) |
+| 12 | **ExportCSV** | CSV export flag | `0` (no), `1` (yes) |
 
 ### Example Commands
 
-```stata
+``` stata
 // Quick test with 10 patients
 do "main.do" base_model all 0 base_model population 1 10 0 0 0 0
 
@@ -83,9 +80,23 @@ do "main.do" base_model VRd 1 base_model predicted 1 1000 1 1 100 1
 
 The simulation will generate results in `analyses/[analysis_name]/data/simulated/`.
 
+## Result Exports for Downstream Access
+
+Alongside the human-facing PDF report (`$report`), the engine can emit machine-readable **flat CSV** outputs (`$export_csv`). This is the standard format for any downstream consumer — R/Python post-processing, dashboards, or assistant-driven manuscript drafting — that needs the numbers rather than a formatted document.
+
+**Why CSV, not Excel:** flat CSVs are read directly by downstream tools without parsing a binary workbook, avoid file-lock and multi-sheet ambiguity, and diff cleanly under Git. A `.xlsx` is fine as a personal working surface but should not be the hand-off format.
+
+**Convention:**
+
+- **Engine-level (model-wide).** `core/export_results.do` writes the CSVs that *every* analysis needs from a single run (e.g. per-patient summary, BCR distribution, mean cost/QALY/LY). It is gated by `$export_csv`, runs at the same hook as `core/generate_report.do`, reads the variables produced by `core/process_data.do`, and writes into the run's `simulated/<scenario>/` folder. The test for whether a CSV belongs here: *would another analysis want it too?* If yes, it lives in `core/`.
+- **Analysis-level.** Outputs specific to one analysis (bespoke tables, regression coefficients) and any **cross-scenario** aggregation (which no single run can produce, since scenarios run separately) live under `analyses/<name>/`, not in `core/`.
+- **Read surface.** Each analysis exposes a single `analyses/<name>/results/` folder holding the final cross-scenario CSVs plus a `results.md` that narrates and labels the key figures. Intermediate per-scenario CSVs stay in `simulated/<scenario>/`; `results/` is the canonical place a downstream consumer reads from.
+
+See the analysis README (e.g. `analyses/transport_dvd/README.md`) for the per-analysis specifics.
+
 ## Repository Structure
 
-```
+```         
 EpiMAP-Myeloma/
 ├── core/                  # Core simulation ine
 │   ├── matrix_setup.do   # Matrix initialisation
@@ -142,7 +153,7 @@ Irving A, Petrie D, Harris A, Fanning L, Wood EM, Moore E, et al. Developing and
 
 ### Software Citation
 
-```bibtex
+``` bibtex
 @software{epimap_myeloma_v2_1,
   title = {EpiMAP Myeloma: Epidemiological Modelling of Australian Patients with Myeloma},
   author = {Irving, Adam and Petrie, Dennis and Harris, Anthony and Fanning, Laura and 
@@ -171,13 +182,11 @@ Irving A, Petrie D, Harris A, Fanning L, Wood EM, Moore E, et al. Developing and
 
 ### MRDR Patient Data
 
-For access to genuine patient data from the Australia and New Zealand Myeloma and Related Diseases Registry:
-- Submit applications to the MRDR Steering Committee
-- Visit: [mrdr.net.au](https://www.mrdr.net.au/)
+For access to genuine patient data from the Australia and New Zealand Myeloma and Related Diseases Registry: - Submit applications to the MRDR Steering Committee - Visit: [mrdr.net.au](https://www.mrdr.net.au/)
 
 ## Support
 
-- **Model Questions**: [adam.irving@monash.edu](mailto:adam.irving@monash.edu)
+- **Model Questions**: [adam.irving\@monash.edu](mailto:adam.irving@monash.edu)
 - **Technical Issues**: [Create an issue](https://github.com/CHE-Monash/EpiMAP-Myeloma/issues)
 - **Collaboration Enquiries**: Contact the research team
 
@@ -195,6 +204,6 @@ This project is licenced under the GNU General Public Licence v3.0 - see the [LI
 
 The EpiMAP Myeloma project was supported by Medical Research Future Fund GNT1200706 and GNT2017480 and by National Health and Medical Research Council GNT1189490, GNT2024876 and GNT2036025. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
 
----
+------------------------------------------------------------------------
 
 **Important**: This model is designed for research purposes. Clinical decisions should always involve qualified healthcare professionals and consider individual patient circumstances.
