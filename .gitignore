@@ -15,7 +15,6 @@ analyses/td_l4_pre/*
 **/_archive/
 **/^archive/
 **/archive/
-**/Archive/
 
 
 #File types to ignore
