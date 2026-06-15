@@ -11,6 +11,12 @@ analyses/*/patients/*.dta
 analyses/dvd_l2_method/*
 analyses/td_l4_pre/*
 
+# Archived / superseded material (kept locally, out of Git) - all naming variants
+**/_archive/
+**/^archive/
+**/archive/
+**/Archive/
+
 
 #File types to ignore
 .DS_Store
