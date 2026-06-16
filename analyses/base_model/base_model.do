@@ -12,7 +12,7 @@ set more off
 **********
 
 // Set working directory
-cap cd "/Users/adami/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/repo"
+cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
 
 // Analysis settings
 global analysis     "base_model"    	// Analysis name

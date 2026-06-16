@@ -33,7 +33,7 @@ mata {
 		vPR = 1 :/ (1 :+ exp(-vXB))
 		
 		// Generate random numbers
-		vRN = runiform(rows(idx), 1)
+		vRN = rnDraw(idx, rn_asct_dn())
 			
 		// Determine outcome 
 		vOC = (vPR :> vRN)

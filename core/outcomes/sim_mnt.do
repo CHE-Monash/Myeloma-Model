@@ -66,7 +66,7 @@ mata {
 			vPR = 1 :/ (1 :+ exp(-vXB))
 					
 			// Determine outcome
-			vRN = runiform(rows(idxASCT), 1)
+			vRN = rnDraw(idxASCT, rn_mnt(1))
 			vOC = (vPR :> vRN) :* 1
 			
 			// Update vector
@@ -116,7 +116,7 @@ mata {
 			vPR = 1 :/ (1 :+ exp(-vXB))
 					
 			// Determine outcome
-			vRN = runiform(rows(idxNoASCT), 1)
+			vRN = rnDraw(idxNoASCT, rn_mnt(2))
 			vOC = (vPR :> vRN) :* 1
 			
 			// Update vector

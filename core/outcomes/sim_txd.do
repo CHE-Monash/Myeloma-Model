@@ -78,7 +78,7 @@ mata {
 		
 		// Calculate XB and OC
 		vXB = mPat * vCoef
-		vRN = runiform(rows(idx), 1)
+		vRN = rnDraw(idx, rn_txd(Line))
 		vOC = calcSurvTime(vXB, vRN, dist, aux)
 		
 		// Curtail if beyond maximum observed

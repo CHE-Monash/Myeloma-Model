@@ -18,6 +18,7 @@
 capture program drop run_pipeline
 program define run_pipeline
 	run "core/mata_functions.do"
+	run "core/rng_slots.do"
 	load_patients
 	mata_setup
 	simulation

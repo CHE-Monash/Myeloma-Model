@@ -41,7 +41,7 @@ mata {
 		vPR = 1 :/ (1 :+ exp(-vXB))
 		
 		// Generate random numbers
-		vRN = runiform(rows(idx), 1)
+		vRN = rnDraw(idx, rn_asct_l1())
 		
 		// Extract TXR from matrix
 		vTXR_L1_e = mTXR[idx, 1]

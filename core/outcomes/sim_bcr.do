@@ -92,8 +92,8 @@ mata {
 		// Calculate probabilities
 		cumProbs = calcOrdLogitProbs(vXB, cutPoints)
 		
-		// Assign outcomes
-		vRN = runiform(rows(idx), 1)
+		// Assign outcomes (CRN: shared uniforms keyed by patient x BCR-at-Line slot)
+		vRN = rnDraw(idx, rn_bcr(Line))
 		vOC = assignOrdOutcome(vRN, cumProbs, categoryValues)
 	
 		// Update matrix
