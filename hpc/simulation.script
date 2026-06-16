@@ -14,4 +14,4 @@
 
 module load stata/16u2021
 
-stata-mp analyses/dvd_method/dvd_method.do ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_TASK_ID}
+stata-mp analyses/transport_dvd/transport_dvd.do ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_TASK_ID}

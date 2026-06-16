@@ -7,8 +7,8 @@
 clear all
 set more off
 
-cap cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
-*cap cd "~/em76/adam"
+*cap cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
+cap cd "~/em76/adam"
 
 **********
 * Configuration
@@ -24,7 +24,7 @@ global min_year     "1995"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
 global max_id       "105955"            // Last patient ID (Prediction 105955)
-global boot         "0"                 // Bootstrap flag (0/1)
+global boot         "1"                 // Bootstrap flag (0/1)
 global min_bs       `1'                 // First bootstrap iteration
 global max_bs       `2'                 // Last bootstrap iteration
 global cost_year	"2020"				// Cost year
@@ -52,18 +52,14 @@ run "core/mata_setup.do"
 run "core/simulation_engine.do"
 run "core/process_data.do"
 run "core/export_results.do"
+run "core/run_pipeline.do"
 
 cap program drop simulation_pipeline
 program define simulation_pipeline
 		
-	// Load utility functions
-	run "core/mata_functions.do"
-    
-	// Run programs
-	load_patients
-	mata_setup
-	simulation
-	process_data
+	// Shared engine pass: entry -> processed per-patient outcomes
+	//   (run_pipeline loads mata_functions + rng_slots, then runs the pass + builds mRN)
+	run_pipeline
 
 	// Export CSV results (runs by default; skips bootstrap internally)
 	export_results

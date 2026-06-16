@@ -53,18 +53,14 @@ run "core/mata_setup.do"
 run "core/simulation_engine.do"
 run "core/process_data.do"
 run "core/export_results.do"
+run "core/run_pipeline.do"
 
 cap program drop simulation_pipeline
 program define simulation_pipeline
 		
-	// Load utility functions
-	run "core/mata_functions.do"
-    
-	// Run programs
-	load_patients
-	mata_setup
-	simulation
-	process_data
+	// Shared engine pass: entry -> processed per-patient outcomes
+	//   (run_pipeline loads mata_functions + rng_slots, then runs the pass + builds mRN)
+	run_pipeline
 
 	// Export CSV results (runs by default; skips bootstrap internally)
 	export_results
