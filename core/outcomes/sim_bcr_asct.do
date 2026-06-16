@@ -44,7 +44,7 @@ mata {
 		cumProbs = calcOrdLogitProbs(vXB, cutPoints)
 				
 		// Assign outcomes
-		vRN = runiform(rows(idx), 1)
+		vRN = rnDraw(idx, rn_bcr_asct())
 		categoryValues = (1, 2, 3, 4)
 		vOC = assignOrdOutcome(vRN, cumProbs, categoryValues)
 		

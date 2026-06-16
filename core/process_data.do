@@ -15,11 +15,16 @@ capture program drop process_data
 program process_data
 
 local L = $line
+if `L' == 0 local L = 1   // Line 0 = full pathway from diagnosis
 local maxL = 9
 
 di as text "Processing Simulated Data (Starting Line: `L')"
 
-* Create mSum in Mata 
+* Free the CRN matrix - all draws are done by end of simulation; not needed here,
+*   and process_data is the peak-memory stage (mSum -> st_matrix -> svmat).
+cap mata: mata drop mRN
+
+* Create mSum in Mata
 	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCM , vCKD , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , /// 
 			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
@@ -77,12 +82,11 @@ di as text "Processing Simulated Data (Starting Line: `L')"
 			gen TSD_L1E_ref = TSD_L1S_ref + TXD_L1 if TXD_L1 != .
 			local first_l = 2
 		}
-		else {
+		else if `L' > 1 {
 			gen TSD_L`L'S_ref = 0
 			gen TSD_L`L'E_ref = TXD_L`L' if TXD_L`L' != .
 			local first_l = `=`L'+1'
 		}
-		
 		local prev = `L'
 		forval l = `first_l'/`maxL' {
 			local tfi_idx = `=`l'-1'

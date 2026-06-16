@@ -71,7 +71,7 @@ program define B_transport
 
 			// Ordered-logit probabilities + stochastic assignment
 			cumProbs = calcOrdLogitProbs(vXB, cutPoints)
-			vRN = runiform(nPatients, 1)
+			vRN = rnDraw(idx, rn_bcr(Line))   // CRN: same column as core BCR -> aligned across arms
 			categoryValues = (1, 2, 3, 4, 5, 6)
 			vOC = assignOrdOutcome(vRN, cumProbs, categoryValues)
 

@@ -16,20 +16,20 @@ cap cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
 
 global analysis     "transport_dvd"    	// Analysis name
 global int1         "dvd"               // Intervention
-global int0			"vd"				// Comparator ("" for single arm)
+global int0			""				// Comparator ("" for single arm)
 global line         "2"                 // Line being assessed (1-9)
-global coeffs       "dvd_pre"       	// Coefficient set (dvd_pre / dvd_post)
+global coeffs       "dvd_post"       	// Coefficient set (dvd_pre / dvd_post)
 global data         "predicted"         // Patient data (predicted / population)
 global min_year     "1995"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
 global max_id       "105955"            // Last patient ID (Prediction 105955)
-global boot         "1"                 // Bootstrap flag (0/1)
+global boot         "0"                 // Bootstrap flag (0/1)
 global min_bs       `1'                 // First bootstrap iteration
 global max_bs       `2'                 // Last bootstrap iteration
 global cost_year	"2020"				// Cost year
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
-global report       "1"                 // Generate report (0/1)
+global report       "0"                 // Generate report (0/1)
 global scenario     "B_transport"     		// Scenario (A_trial / B_transport / C_mrdr)
 
 local single_arm = ("$int0" == "")

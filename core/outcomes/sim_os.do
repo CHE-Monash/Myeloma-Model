@@ -102,10 +102,10 @@ mata {
 			// Calculate probability of survival to current time point
 			if (OMC >= 2) {
 				vPR = calcSurvProb(vXB, mTSD[idx, OMC], fbOS, aux)
-				vRN = runiform(rows(idx), 1) :* vPR // Conditional on survival to mTSD
+				vRN = rnDraw(idx, rn_os(OMC)) :* vPR // Conditional on survival to mTSD
 			}
 			else {
-				vRN = runiform(rows(idx), 1)  // At diagnosis, no conditioning needed
+				vRN = rnDraw(idx, rn_os(OMC))  // At diagnosis, no conditioning needed
 			}
 				
 			// Calculate survival time

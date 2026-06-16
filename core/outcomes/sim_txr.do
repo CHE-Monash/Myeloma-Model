@@ -93,7 +93,7 @@ mata {
 			vPR4 = vPR3 :+ (vXB4 :/ (vXB1 :+ vXB2 :+ vXB3 :+ vXB4))
 			
 			// Determine Outcome
-			vRN = runiform(rows(idx), 1)
+			vRN = rnDraw(idx, rn_txr(Line))
 			vOC = (vRN :< vPR1) :* vTXR[1,1]
 
 			if (nRegimens >= 2) {

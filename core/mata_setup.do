@@ -11,7 +11,43 @@ program define mata_setup
 	
 	di "Setting up matrices"
 	mata: Obs = st_nobs()
-	
+
+	**********
+	* Common Random Numbers - build the pre-drawn uniform matrix mRN (Obs x K)
+	*   Keyed by patient row x event slot (see core/rng_slots.do). Identical across
+	*   arms within a replication (same seed, same cohort order) and independent
+	*   across replications / bootstrap iterations (seed = base + b). CRN is
+	*   unconditional: every migrated event reads its column from mRN.
+	**********
+	// Ensure the slot registry is loaded (run_pipeline loads it; guard direct callers)
+	capture mata: st_numscalar("__rn_K", rn_K())
+	if _rc {
+		run "core/rng_slots.do"
+		mata: st_numscalar("__rn_K", rn_K())
+	}
+
+	// Seed base (override by setting global crn_seed_base before the run)
+	if ("$crn_seed_base" == "") global crn_seed_base 20260615
+
+	// Replication offset: the bootstrap iteration when bootstrapping, else 0.
+	//   Same value for both arms within a replication; differs across replications.
+	local _b = 0
+	if ("$boot" == "1" & "$b" != "") local _b = $b
+	local _crn_seed = $crn_seed_base + `_b'
+
+	// Cross-arm alignment requires canonical row order (load_patients resets ID=_n).
+	//   A missing reset or a re-sorted cohort would silently break CRN - fail loud.
+	capture assert ID == _n
+	if _rc {
+		di as error "mata_setup: cohort is not in canonical ID==_n order - CRN alignment unsafe."
+		error 459
+	}
+
+	set seed `_crn_seed'
+	mata: mRN = runiform(Obs, rn_K())
+	di as text "CRN: built mRN " _N " x " scalar(__rn_K) " (seed `_crn_seed')"
+
+
 	*mState - State matrix
 	mata {
 		mState = st_data(.,"State DateDN")

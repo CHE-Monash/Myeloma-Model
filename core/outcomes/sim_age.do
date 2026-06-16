@@ -22,7 +22,7 @@ mata {
 		vPrevAge = mAge[idxEligible, OMC-1]
 		vPrevTNE = mTNE[idxEligible, OMC-1] / 12  // Convert months to years
 		vNewAge = vPrevAge :+ vPrevTNE
-		mAge[idxEligible, OMC] = round(vNewAge, 0.2)
+		mAge[idxEligible, OMC] = round(vNewAge, 0.1)  // 0.1 grain matches Age_DN (mata_setup) - removes the cross-grain DN->L1S monotonicity artefact
 		
 		// Check for patients exceeding age limit
 		vCurrentAges = mAge[idxEligible, OMC]

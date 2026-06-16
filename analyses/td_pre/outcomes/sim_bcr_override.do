@@ -81,9 +81,9 @@ program define bcr_override_xb
 			            
             // Calculate probabilities from ordered logit
             cumProbs = calcOrdLogitProbs(vXB, cutPoints)
-            
-            // Stochastic assignment
-            vRN = runiform(nPatients, 1)
+
+            // Stochastic assignment (CRN: same column as core BCR -> aligned across arms)
+            vRN = rnDraw(idx, rn_bcr(Line))
 			categoryValues = (1, 2, 3, 4, 5, 6)
             vOC = assignOrdOutcome(vRN, cumProbs, categoryValues)
             

@@ -41,7 +41,7 @@ mata {
 			vXB_ASCT = mPat_ASCT * coef_ASCT
 			
 			// Calculate outcome (survival time)
-			vRN_ASCT = runiform(rows(idxASCT), 1)
+			vRN_ASCT = rnDraw(idxASCT, rn_tfi_l1(1))
 			vOC[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
 			// Curtail if beyond maximum observed
@@ -77,7 +77,7 @@ mata {
 			vXB_NoASCT = mPat_NoASCT * vCoef_NoASCT
 			
 			// Calculate outcome (survival time)
-			vRN_NoASCT = runiform(rows(idxNoASCT), 1)
+			vRN_NoASCT = rnDraw(idxNoASCT, rn_tfi_l1(2))
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
 			// Curtail if beyond maximum observed

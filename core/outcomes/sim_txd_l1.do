@@ -49,7 +49,7 @@ mata {
 				vXB_S1 = mPat_ASCT * coef_S1
 				
 				// Calculate survival time
-				vRN_ASCT = runiform(rows(idxASCT), 1)
+				vRN_ASCT = rnDraw(idxASCT, rn_txd_l1(1))
 				vDur_S1 = calcSurvTime(vXB_S1, vRN_ASCT, fbL1_TXD_ASCT_S1, aux_S1)
 			
 				// --- SPLINE 2 (for those beyond Cutoff 1) ---
@@ -70,7 +70,7 @@ mata {
 						
 						// Conditional RN: survive past C1
 						vSurvC1 = exp(-exp(vXB_S2) :* (L1_TXD_ASCT_C1 :^ exp(aux_S2)))
-						vRN_S2 = runiform(rows(idxBeyondC1), 1) :* vSurvC1
+						vRN_S2 = rnDraw(idxASCT[idxBeyondC1], rn_txd_l1(2)) :* vSurvC1
 						
 						// Recalculate duration with Spline 2
 						vDur_S2 = calcSurvTime(vXB_S2, vRN_S2, fbL1_TXD_ASCT_S2, aux_S2)
@@ -97,7 +97,7 @@ mata {
 							
 							// Conditional RN: survive past C2
 							vSurvC2 = exp(-exp(vXB_S3) :* (L1_TXD_ASCT_C2 :^ exp(aux_S3)))
-							vRN_S3 = runiform(rows(idxBeyondC2), 1) :* vSurvC2
+							vRN_S3 = rnDraw(idxASCT[idxBeyondC2], rn_txd_l1(3)) :* vSurvC2
 							
 							// Recalculate duration with Spline 3
 							vDur_S3 = calcSurvTime(vXB_S3, vRN_S3, fbL1_TXD_ASCT_S3, aux_S3)
@@ -144,7 +144,7 @@ mata {
 			vXB_NoASCT = mPat_NoASCT * coef_NoASCT
 			
 			// Calculate survival time
-			vRN_NoASCT = runiform(rows(idxNoASCT), 1)
+			vRN_NoASCT = rnDraw(idxNoASCT, rn_txd_l1(4))
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TXD_NoASCT, aux_NoASCT)
 		}
 				
@@ -171,7 +171,7 @@ mata {
 				vXB_Cont = mPat_Cont * coef_Cont
 					
 				// Calculate survival time
-				vRN_Cont = runiform(rows(idxCont), 1)
+				vRN_Cont = rnDraw(idxCont, rn_txd_l1(5))
 				vOC[idxCont] = calcSurvTime(vXB_Cont, vRN_Cont, dist_Cont, aux_Cont)
 					
 				// Curtail if beyond observed maximum

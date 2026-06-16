@@ -29,7 +29,7 @@ mata {
 		vXB = mPat * vCoef
 			
 		// Calculate outcome 
-		vRN = runiform(rows(idx), 1)
+		vRN = rnDraw(idx, rn_tfi_dn())
 		vOC = calcSurvTime(vXB, vRN, fbDN_TFI, aux)
 		
 		// Update matrices	
