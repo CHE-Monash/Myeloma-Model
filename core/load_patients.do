@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Load Patients
+* Monash Myeloma Model - Load Patients
 * 
 * Purpose: Load and filter patient data file
 **********

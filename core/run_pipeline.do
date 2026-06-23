@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Run Pipeline (shared lean engine pass)
+* Monash Myeloma Model - Run Pipeline (shared lean engine pass)
 *
 * Purpose: One definition of the core simulation pass used by every orchestrator
 *          (build_cohort_pool.do, transport_dvd.do, ce_convergence.do, ...).

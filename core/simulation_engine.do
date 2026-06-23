@@ -1,9 +1,9 @@
 **********
-* EpiMAP Myeloma - Simulation Engine
+* Monash Myeloma Model - Simulation Engine
 * 
 * Purpose: Run simulation
 *
-* Author: EpiMAP Research Team
+* Author: Monash Myeloma Model Team
 * Date: November 2025
 **********
 

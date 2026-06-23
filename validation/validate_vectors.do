@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Vector Validation Script
+* Monash Myeloma Model - Vector Validation Script
 * 
 * Purpose: Validate that vector_setup creates identical values to matrix_setup
 *          This ensures the transition from mCore to vectors is correct

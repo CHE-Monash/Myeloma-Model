@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - DVd L2 Cost-Effectiveness Cohort
+* Monash Myeloma Model - DVd L2 Cost-Effectiveness Cohort
 *
 * Purpose: Draw the production cost-effectiveness cohort for the DVd-vs-Vd
 *          analysis: a fixed-size, fixed-seed sample of the 2020-2025 windowed

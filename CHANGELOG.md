@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the EpiMAP Myeloma project will be documented in this file.
+All notable changes to the Monash Myeloma Model project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Standardised CSV result exports**: New convention for emitting machine-readable results for downstream/programmatic access (R/Python post-processing, dashboards, assistant-driven manuscript drafting) instead of manual copy-to-Excel.
   - **`core/export_results.do`**: engine-level export of CSVs common to every analysis (per-patient summary, BCR distribution, mean cost/QALY/LY). Runs by default as part of the simulation pipeline (immediately after `process_data`, once per arm; skipped during bootstrap), reading `core/process_data.do` outputs into `simulated/<scenario>/`. First adopted by the `dvd_method` dispatcher.
   - **`analyses/<name>/results/` contract**: each analysis exposes a single `results/` folder of final (cross-scenario) CSVs plus a `results.md` narrating the key figures — the canonical downstream read surface. Analysis-specific and cross-scenario aggregation live under `analyses/<name>/`, not `core/`.
+
+### Changed
+- **Rebranded** from *EpiMAP Myeloma* to **Monash Myeloma Model**; GitHub repository renamed `CHE-Monash/EpiMAP-Myeloma` → `CHE-Monash/Myeloma-Model` (old URLs auto-redirect). Published papers and DOIs retain the EpiMAP Myeloma name.
 
 ### Planned
 - Integration with R for post-processing analysis

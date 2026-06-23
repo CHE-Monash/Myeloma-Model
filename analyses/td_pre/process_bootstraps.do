@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Process Bootstraps
+* Monash Myeloma Model - Process Bootstraps
 *
 * Purpose: Process bootstrap simulation results 
 * Usage: Set configuration, then run: results, maxbs(500)

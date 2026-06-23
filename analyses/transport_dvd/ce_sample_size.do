@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Cost-Effectiveness Sample-Size / Monte Carlo Precision
+* Monash Myeloma Model - Cost-Effectiveness Sample-Size / Monte Carlo Precision
 *                  (multi-scenario)
 *
 * Purpose: For EACH scenario's PSA (bootstrap) output, isolate the PARAMETER
@@ -34,6 +34,9 @@ cap cd "~/em76_scratch2/adam/transport_dvd"   // where the bootstrap output live
 * Configuration
 **********
 local scenarios "A_trial B_transport C_mrdr"
+local nice_A_trial     "Trial"                // manuscript labels for figure legends
+local nice_B_transport "Calibrated Transport"
+local nice_C_mrdr      "Observed"
 local line      2
 local data      "predicted"
 local maxbs     500
@@ -205,7 +208,7 @@ foreach s of local scenarios {
     if ("`sig_`s''" == "" | "`sdp_`s''" == ".") continue
     local ++k
     gen double ratio_`k' = (`sig_`s''/sqrt(N)) / `sdp_`s''
-    label variable ratio_`k' "`s'"
+    label variable ratio_`k' "`nice_`s''"
     local plot "`plot' (line ratio_`k' N)"
 }
 
@@ -217,7 +220,6 @@ twoway `plot' ///
     xtitle("Simulated cohort size, N") ///
     ytitle("Monte Carlo SD as a fraction of parameter SD") ///
     text(0.28 `chosen_n' "N = `chosen_n'", place(e) size(small)) ///
-    title("MC error vs parameter uncertainty, by scenario", size(medium)) ///
     legend(pos(2) ring(0) cols(1) size(small) region(lstyle(none))) ///
     graphregion(color(white)) plotregion(margin(medium))
 

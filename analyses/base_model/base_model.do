@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Base Model Dispatcher
+* Monash Myeloma Model - Base Model Dispatcher
 * 
 * Purpose: Execute analysis
 **********

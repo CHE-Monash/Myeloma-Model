@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - CE Monte Carlo Precision (multi-scenario)
+* Monash Myeloma Model - CE Monte Carlo Precision (multi-scenario)
 *
 * Purpose: For EACH scenario, from ONE deterministic two-arm run on a shared
 *          cohort, produce the DVd-vs-Vd per-patient SD of the increment (sigma_pp)
@@ -244,7 +244,6 @@ foreach scen of local scenarios {
 	    ylabel(, angle(0) format(%5.3f) labsize(small)) ///
 	    xtitle("Simulated cohort size, N") ytitle("Monte Carlo SD of incremental QALY") ///
 	    text(`ychosen' `chosen_n' "  N = `chosen_n'", place(e) size(small)) ///
-	    title("`scen': MC SD of incremental QALY vs N", size(medium)) ///
 	    legend(order(1 "Analytic (within pool)" 2 "Analytic extrapolation" 3 "Empirical batch means") ///
 	           pos(2) ring(0) cols(1) size(small) region(lstyle(none))) ///
 	    graphregion(color(white)) plotregion(margin(medium))
@@ -274,24 +273,22 @@ foreach scen of local scenarios {
 	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%9.0fc) labsize(vsmall)) ///
 	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Incremental cost", size(small)) ///
-	       title("A. Incremental cost", size(small)) legend(off) name(g_cost, replace) graphregion(color(white))
+	       title("A", size(small)) legend(off) name(g_cost, replace) graphregion(color(white))
 	twoway (rarea q_hi q_lo bs, color(navy%12) lwidth(none)) ///
 	       (scatter dQ_batch bs, msymbol(oh) mcolor(maroon) msize(vsmall)) ///
 	       , yline(`mQ', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
 	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%5.3f) labsize(vsmall)) ///
 	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Incremental QALY", size(small)) ///
-	       title("B. Incremental QALY", size(small)) legend(off) name(g_qaly, replace) graphregion(color(white))
+	       title("B", size(small)) legend(off) name(g_qaly, replace) graphregion(color(white))
 	twoway (rarea i_hi i_lo bs, color(navy%12) lwidth(none)) ///
 	       (scatter icer_batch bs, msymbol(oh) mcolor(maroon) msize(vsmall)) ///
 	       , yline(`icer', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
 	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%9.0fc) labsize(vsmall)) ///
 	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Cost per QALY (ICER)", size(small)) ///
-	       title("C. Cost per QALY (ICER)", size(small)) legend(off) name(g_icer, replace) graphregion(color(white))
+	       title("C", size(small)) legend(off) name(g_icer, replace) graphregion(color(white))
 	graph combine g_cost g_qaly g_icer, rows(1) xsize(11) ysize(4) ///
-	    title("Convergence of incremental outcomes with cohort size (`scen')", size(small)) ///
-	    subtitle("Full-sample estimate (line), +/- 1.96 MC SE band, batch estimates (points); dotted N = `chosen_n'", size(vsmall)) ///
 	    note("After NICE DSU TSD 15 (Davis et al. 2014), Figures 5-7. ICER band is delta-method.", size(vsmall)) ///
 	    graphregion(color(white))
 	graph export "`R'/ce_precision_convergence_`scen'.png", replace width(3200)

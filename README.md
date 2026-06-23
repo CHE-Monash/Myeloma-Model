@@ -35,14 +35,14 @@ The model simulates the complete treatment journey of multiple myeloma patients 
 ### Installation
 
 ``` bash
-git clone https://github.com/CHE-Monash/EpiMAP-Myeloma.git
-cd EpiMAP-Myeloma
+git clone https://github.com/CHE-Monash/Myeloma-Model.git
+cd Myeloma-Model
 ```
 
 ### Basic Usage
 
 ``` stata
-cd "path/to/epimap-myeloma"
+cd "path/to/myeloma-model"
 do "run.do"
 ```
 
@@ -97,7 +97,7 @@ See the analysis README (e.g. `analyses/transport_dvd/README.md`) for the per-an
 ## Repository Structure
 
 ```         
-EpiMAP-Myeloma/
+Myeloma-Model/
 ├── core/                  # Core simulation ine
 │   ├── matrix_setup.do   # Matrix initialisation
 │   ├── load_patients.do  # Patient data loading
@@ -154,15 +154,15 @@ Irving A, Petrie D, Harris A, Fanning L, Wood EM, Moore E, et al. Developing and
 ### Software Citation
 
 ``` bibtex
-@software{epimap_myeloma_v2_1,
-  title = {EpiMAP Myeloma: Epidemiological Modelling of Australian Patients with Myeloma},
+@software{monash_myeloma_model_v2_1,
+  title = {Monash Myeloma Model (originally published as EpiMAP Myeloma)},
   author = {Irving, Adam and Petrie, Dennis and Harris, Anthony and Fanning, Laura and 
             Wood, Erica M and Moore, Elizabeth and Wellard, Cameron and Waters, Neil and
             Augustson, Bradley and Cook, Gordon and Gay, Francesca and McCaughan, Georgia and
             Mollee, Peter and Spencer, Andrew and McQuilten, Zoe K},
   version = {2.1},
   year = {2025},
-  url = {https://github.com/CHE-Monash/EpiMAP-Myeloma},
+  url = {https://github.com/CHE-Monash/Myeloma-Model},
   doi = {10.1371/journal.pone.0308812},
   institution = {Monash University}
 }
@@ -187,7 +187,7 @@ For access to genuine patient data from the Australia and New Zealand Myeloma an
 ## Support
 
 - **Model Questions**: [adam.irving\@monash.edu](mailto:adam.irving@monash.edu)
-- **Technical Issues**: [Create an issue](https://github.com/CHE-Monash/EpiMAP-Myeloma/issues)
+- **Technical Issues**: [Create an issue](https://github.com/CHE-Monash/Myeloma-Model/issues)
 - **Collaboration Enquiries**: Contact the research team
 
 ## Licence
@@ -202,7 +202,7 @@ This project is licenced under the GNU General Public Licence v3.0 - see the [LI
 
 ## Acknowledgements
 
-The EpiMAP Myeloma project was supported by Medical Research Future Fund GNT1200706 and GNT2017480 and by National Health and Medical Research Council GNT1189490, GNT2024876 and GNT2036025. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
+The Monash Myeloma Model project (originally EpiMAP Myeloma) was supported by Medical Research Future Fund GNT1200706 and GNT2017480 and by National Health and Medical Research Council GNT1189490, GNT2024876 and GNT2036025. We thank patients, clinicians, and research staff at participating centres for their invaluable contributions to the MRDR.
 
 ------------------------------------------------------------------------
 

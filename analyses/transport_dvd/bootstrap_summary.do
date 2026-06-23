@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - DVd Calibrated Transport
+* Monash Myeloma Model - DVd Calibrated Transport
 * bootstrap_summary.do  (Tier 3: cross-scenario bootstrap aggregation)
 *
 * Purpose: Collate the three scenarios' 500-iteration BOOTSTRAP results into the

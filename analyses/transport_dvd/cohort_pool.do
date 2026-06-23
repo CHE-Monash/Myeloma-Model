@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - DVd L2 Cohort Pool (build once, reuse)
+* Monash Myeloma Model - DVd L2 Cohort Pool (build once, reuse)
 *
 * Purpose: Build the reusable second-line ENTRY POOL for the DVd-vs-Vd analysis:
 *          all patients (across the independent population samples) who are alive

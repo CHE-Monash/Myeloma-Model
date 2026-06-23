@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is the base EpiMAP Myeloma model that includes **all available treatment regimens** in the risk equations. This represents the full treatment landscape as observed in the MRDR registry data.
+This is the base Monash Myeloma Model configuration that includes **all available treatment regimens** in the risk equations. This represents the full treatment landscape as observed in the MRDR registry data.
 
 ## What's Different About This Model
 

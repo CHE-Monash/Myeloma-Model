@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Export Results (CSV)
+* Monash Myeloma Model - Export Results (CSV)
 *
 * Purpose: Engine-level export of machine-readable CSV results for downstream
 *          access (post-processing, dashboards, manuscript drafting). This is

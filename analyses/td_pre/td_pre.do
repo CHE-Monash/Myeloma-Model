@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - td_l4_pre
+* Monash Myeloma Model - td_l4_pre
 * 
 * Purpose: Execute analysis
 **********

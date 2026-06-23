@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - DVd L2 Method Dispatcher
+* Monash Myeloma Model - DVd L2 Method Dispatcher
 * 
 * Purpose: Execute analysis
 **********

@@ -1,8 +1,8 @@
 **********
-* EpiMAP Myeloma - Generate Report
+* Monash Myeloma Model - Generate Report
 * 
 * Purpose: Create PDF report using putpdf
-*          Integrates with EpiMAP v2.0 dispatcher system
+*          Integrates with Monash Myeloma Model v2.0 dispatcher system
 * 
 * Output: ${int}_${data}_${scenario}.pdf
 **********
@@ -26,7 +26,7 @@ putpdf begin
 
 // Title page
 putpdf paragraph, halign(center)
-putpdf text ("EpiMAP Myeloma v2.0"), bold font(,18)
+putpdf text ("Monash Myeloma Model v2.0"), bold font(,18)
 
 putpdf paragraph
 putpdf text ("Simulation Report"), bold font(,16)

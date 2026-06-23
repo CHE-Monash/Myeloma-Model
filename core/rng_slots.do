@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - RNG Slot Registry (Common Random Numbers)
+* Monash Myeloma Model - RNG Slot Registry (Common Random Numbers)
 *
 * Purpose: Single source of truth for the column layout of the pre-drawn
 *          random-number matrix mRN (Obs x K) used for common random numbers

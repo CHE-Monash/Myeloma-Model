@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Validate Simulation
+* Monash Myeloma Model - Validate Simulation
 * 
 * Purpose: Compare simulation results to MRDR benchmarks
 *

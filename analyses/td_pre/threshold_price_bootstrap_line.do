@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Threshold Price Curve (Combined Lines)
+* Monash Myeloma Model - Threshold Price Curve (Combined Lines)
 *
 * Calculates the maximum cost-effective total cost increment
 * at various WTP thresholds, with 95% confidence intervals

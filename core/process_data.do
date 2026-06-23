@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Process Data
+* Monash Myeloma Model - Process Data
 *
 * Generalised version that processes simulations starting at line $line
 * - If $line == 1: Full pathway from diagnosis, calendar-date discounting

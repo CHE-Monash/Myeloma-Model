@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Validation
+* Monash Myeloma Model - Validation
 *
 * Purpose: Run systematic validation checks after simulation completes
 * Usage: Run after simulation_engine.do

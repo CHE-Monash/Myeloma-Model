@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Mata Setup
+* Monash Myeloma Model - Mata Setup
 *
 * Architecture:
 *   - Vectors: Patient characteristics that don't change (Age, Male, ECOG, RISS)

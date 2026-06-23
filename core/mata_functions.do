@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - Mata Utility Functions
+* Monash Myeloma Model - Mata Utility Functions
 * 
 * Purpose: Reusable functions for survival calculations, ordered logit,
 *          filtering, and validation
@@ -7,7 +7,7 @@
 * Usage: Load once at start of analysis
 *        quietly do "core/mata_functions.do"
 *
-* Author: EpiMAP Team
+* Author: Monash Myeloma Model Team
 * Date: October 2025
 **********
 

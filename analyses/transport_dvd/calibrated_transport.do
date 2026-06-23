@@ -1,5 +1,5 @@
 **********
-* EpiMAP Myeloma - DVd L2 Calibrated Transport
+* Monash Myeloma Model - DVd L2 Calibrated Transport
 * COMBINED trial-resample generator for scenarios A_trial and B_transport
 * B model = relapsed-Vd anchor + LINE indicator (matches the CASTOR population)
 *
