@@ -36,7 +36,14 @@ mata {
 		nCutPoints = 3
 		cutPointIndices = (cols(bSCT_BCR) - nCutPoints + 1)..cols(bSCT_BCR)
 		cutPoints = bSCT_BCR[1, cutPointIndices]
-		
+
+		// Guard: design columns must equal (coefficients - cutpoints). Catches a silent
+		// off-by-one if a factor's level count drifts (e.g. an MI-introduced spurious category).
+		if (nPredictors != cols(bSCT_BCR) - nCutPoints) {
+			errprintf("sim_bcr_asct: design/coefficient mismatch - mPat has %g columns but coefficients imply %g predictors\n", nPredictors, cols(bSCT_BCR) - nCutPoints)
+			exit(459)
+		}
+
 		// Calculate XB
 		vXB = mPat * vCoef
 		

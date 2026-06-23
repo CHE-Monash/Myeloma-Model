@@ -1,7 +1,0 @@
-scenario,intervention,line,bcr_code,bcr_label,n,pct
-A_trial,dvd,2,1,CR,9698,19.33
-A_trial,dvd,2,2,VGPR,20241,40.34
-A_trial,dvd,2,3,PR,12018,23.95
-A_trial,dvd,2,4,MR,2108,4.20
-A_trial,dvd,2,5,SD,5060,10.08
-A_trial,dvd,2,6,PD,1055,2.10

@@ -1,7 +1,0 @@
-scenario,intervention,line,bcr_code,bcr_label,n,pct
-B_transport,vd,2,1,CR,6398,12.75
-B_transport,vd,2,2,VGPR,10605,21.13
-B_transport,vd,2,3,PR,15432,30.75
-B_transport,vd,2,4,MR,4562,9.09
-B_transport,vd,2,5,SD,8305,16.55
-B_transport,vd,2,6,PD,4878,9.72

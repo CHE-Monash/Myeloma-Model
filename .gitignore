@@ -4,6 +4,16 @@ analyses/*/simulated/**/*.dta
 analyses/*/simulated/report/
 analyses/*/simulated/bootstrap/
 
+# Simulated per-patient output CSVs (large; regenerate locally)
+analyses/*/simulated/*.csv
+analyses/*/simulated/**/*.csv
+
+# Scratch / intermediate Stata data in results (regenerate locally)
+analyses/*/results/_*.dta
+
+# HPC job scripts (machine-specific; not needed on GitHub)
+/hpc/
+
 # Large patient cohort & population data (exceed GitHub's 100MB limit; regenerate locally)
 patients/*.dta
 analyses/*/patients/*.dta

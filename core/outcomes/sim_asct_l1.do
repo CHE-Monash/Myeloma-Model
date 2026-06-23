@@ -32,6 +32,11 @@ mata {
 
 		// Extract coefficients
 		nPredictors = cols(mPat)
+		// Guard: design columns must equal the coefficient count (no cutpoints/ancillary here).
+		if (nPredictors != cols(bL1_SCT)) {
+			errprintf("sim_asct_l1: design/coefficient mismatch - mPat has %g columns but coefficient vector has %g\n", nPredictors, cols(bL1_SCT))
+			exit(459)
+		}
 		vCoef = bL1_SCT[1, 1..nPredictors]'
 
 		// Calculate XB

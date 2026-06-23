@@ -1,32 +1,26 @@
 **********
 * EpiMAP Myeloma - Cost-Effectiveness Sample-Size / Monte Carlo Precision
+*                  (multi-scenario)
 *
-* Purpose: From a scenario's PSA (bootstrap) output, isolate the PARAMETER
-*          uncertainty SD of the incremental QALY/cost and find the simulated
-*          cohort size N at which Monte Carlo (first-order) error is negligible
-*          relative to it. Produces the supplementary convergence figure that
-*          defends the chosen N.
+* Purpose: For EACH scenario's PSA (bootstrap) output, isolate the PARAMETER
+*          uncertainty SD of the incremental QALY and express the Monte Carlo
+*          (first-order) error as a fraction of it at the chosen cohort size N.
+*          All scenarios share ONE cohort, so N must satisfy the most demanding
+*          scenario - reported here as the "binding" scenario.
 *
-* Reads (as written by the bootstrap dispatcher; same paths as bootstrap_summary.do):
-*   simulated/<scenario>/bootstrap/{dvd,vd}_<line>_<data>_B<b>.dta
-*   each per-patient with cost_total_d, qaly_total_d.
-*
-* Needs sigma_pp (per-patient SD of the PAIRED increment) from ce_precision.do,
-*   measured on the SAME CRN engine. It is N-independent, so one value serves
-*   every N (config below).
-*
-* Method (O'Hagan, Stevenson & Madan 2007 ANOVA decomposition):
+* Method (per scenario; O'Hagan, Stevenson & Madan 2007 ANOVA decomposition):
 *   Across PSA draws b, with independent first-order draws per draw,
 *       Var(dQ_b) = Var_param + sigma_pp^2 / N_boot
-*   => Var_param = Var(dQ_b) - sigma_pp^2 / N_boot      (the MC component removed)
-*   MC SD at any N is sigma_pp/sqrt(N); choose N so it is <= k * SD_param.
-*   At N_boot = 50k the subtracted term is tiny, so the corrected and raw PSA SDs
-*   nearly coincide - the correction matters only at small N.
+*   => SD_param = sqrt(Var(dQ_b) - sigma_pp^2 / N_boot)
+*      MC SD at N = sigma_pp/sqrt(N);  ratio = MC SD / SD_param;  pick N so ratio <= kfrac.
 *
-* Reusable: edit the Configuration block for any analysis/scenario with a bootstrap.
+* sigma_pp per scenario comes from each scenario's ce_precision run (Config block).
 *
-* Output: results/ce_sample_size.csv   (decomposition + required N)
-*         results/ce_sample_size.png/.pdf
+* Reads:  simulated/<scenario>/bootstrap/{dvd,vd}_<line>_<data>_B<b>.dta
+* Output: results/ce_sample_size.csv        (one row per scenario + binding flag)
+*         results/ce_sample_size_ratio.png  (MC/parameter ratio vs N, all scenarios)
+*
+* Reusable: edit the Configuration block (scenarios, sigma_pp, N, kfrac).
 *
 * Author: Adam Irving
 * Date: June 2026
@@ -34,190 +28,199 @@
 
 clear all
 set more off
+cap cd "~/em76_scratch2/adam/transport_dvd"   // where the bootstrap output lives
 
 **********
 * Configuration
 **********
-cap cd "~/em76/adam/analyses/transport_dvd"   // <-- where the bootstrap output lives (matches bootstrap_summary.do)
-
-local scenario  "B_transport"
+local scenarios "A_trial B_transport C_mrdr"
 local line      2
 local data      "predicted"
 local maxbs     500
 local bootN     50000          // patients per PSA iteration (the N the bootstrap was run at)
+local kfrac     0.05           // MC target: MC SD <= kfrac * parameter SD
+local chosen_n  50000          // cohort size to evaluate / defend
 
-* sigma_pp: per-patient SD of the paired increment, from ce_precision.csv (CRN engine)
-local spp_dQ    0.5538         // sd_pp_dQ   (UPDATE from results/ce_precision.csv)
-local spp_dC    119585         // sd_pp_dC
-
-local wtp       50000          // WTP (A$/QALY) for INMB; AUS has no single value - vary as needed
-local kfrac     0.10           // MC target: MC SD <= kfrac * parameter SD
-local chosen_n  50000          // cohort size to mark/defend on the figure
-
-local sim       "simulated"
-local results   "results"
+local sim     "simulated"
+local results "results"
 cap mkdir "`results'"
 
-**********
-* 1. Collect per-iteration incremental means: dQ_b, dC_b, dNMB_b
-**********
-tempname pf
-postfile `pf' int b double dQ dC dNMB ///
-    using "`results'/_ss_iters.dta", replace
+* sigma_pp per scenario, from each scenario's ce_precision run. ce_precision is
+* run on a DIFFERENT machine (Mac) to this one (HPC), so supply it either way:
+*   1. paste the values below (from ce_precision's console output / ce_precision_sigma.csv), OR
+*   2. copy ce_precision_sigma.csv into results/ - if present it OVERRIDES the values.
+local spp_dQ_A_trial      0.5137
+local spp_dC_A_trial      110907
+local spp_dQ_B_transport  0.5137
+local spp_dC_B_transport  110907
+local spp_dQ_C_mrdr       0.5137
+local spp_dC_C_mrdr       110907
 
-local nfound = 0
-forval i = 1/`maxbs' {
-    local fdvd "`sim'/`scenario'/bootstrap/dvd_`line'_`data'_B`i'.dta"
-    local fvd  "`sim'/`scenario'/bootstrap/vd_`line'_`data'_B`i'.dta"
-    capture confirm file "`fdvd'"
-    local ok = (_rc == 0)
-    capture confirm file "`fvd'"
-    local ok = `ok' & (_rc == 0)
-    if (!`ok') {
-        di as error "  missing pair at b=`i' - skipped"
+local sigfile "`results'/ce_precision_sigma.csv"
+local have_sig = 0
+capture confirm file "`sigfile'"
+if (_rc == 0) {
+    local have_sig = 1
+    tempfile sigtab
+    import delimited "`sigfile'", clear case(lower) varnames(1)
+    keep scenario sd_pp_dq sd_pp_dc
+    qui save "`sigtab'"
+    di as text "sigma_pp: using `sigfile'"
+}
+else {
+    di as text "sigma_pp: table not found - using the config values"
+}
+
+**********
+* 1. Per-scenario decomposition
+**********
+tempname S
+postfile `S' str16 scenario double dQ dQlo dQhi double sd_param_dQ sigpp_dQ ///
+    double mcsd_dQ mcfrac_dQ reqN_dQ sd_param_dC int iters ///
+    using "`results'/_ss_byscenario.dta", replace
+
+foreach s of local scenarios {
+
+    if (`have_sig') {
+        use "`sigtab'", clear
+        qui summarize sd_pp_dq if scenario == "`s'", meanonly
+        local spp_dQ = r(mean)
+        qui summarize sd_pp_dc if scenario == "`s'", meanonly
+        local spp_dC = r(mean)
+    }
+    else {
+        local spp_dQ "`spp_dQ_`s''"
+        local spp_dC "`spp_dC_`s''"
+    }
+    if ("`spp_dQ'" == "") {
+        di as error "  `s': no sigma_pp (table or config) - skipped"
         continue
     }
-    qui use "`fdvd'", clear
-    qui summarize qaly_total_d, meanonly
-    local q1 = r(mean)
-    qui summarize cost_total_d, meanonly
-    local c1 = r(mean)
-    qui use "`fvd'", clear
-    qui summarize qaly_total_d, meanonly
-    local q0 = r(mean)
-    qui summarize cost_total_d, meanonly
-    local c0 = r(mean)
+    if (`spp_dQ' == . | `spp_dQ' == 0) {
+        di as error "  `s': sigma_pp missing/zero - skipped"
+        continue
+    }
 
-    local dq   = `q1' - `q0'
-    local dc   = `c1' - `c0'
-    local dnmb = `wtp'*`dq' - `dc'
-    post `pf' (`i') (`dq') (`dc') (`dnmb')
-    local ++nfound
-    if (`i'==1 | mod(`i',50)==0) di as text "  iteration `i' of `maxbs'"
+    * collect per-iteration increments for this scenario
+    tempfile iters_s
+    tempname P
+    postfile `P' int b double dQ dC using "`iters_s'", replace
+    local nfound = 0
+    forval i = 1/`maxbs' {
+        local fdvd "`sim'/`s'/bootstrap/dvd_`line'_`data'_B`i'.dta"
+        local fvd  "`sim'/`s'/bootstrap/vd_`line'_`data'_B`i'.dta"
+        capture confirm file "`fdvd'"
+        local ok = (_rc == 0)
+        capture confirm file "`fvd'"
+        local ok = `ok' & (_rc == 0)
+        if (!`ok') continue
+        qui use "`fdvd'", clear
+        qui summarize qaly_total_d, meanonly
+        local q1 = r(mean)
+        qui summarize cost_total_d, meanonly
+        local c1 = r(mean)
+        qui use "`fvd'", clear
+        qui summarize qaly_total_d, meanonly
+        local q0 = r(mean)
+        qui summarize cost_total_d, meanonly
+        local c0 = r(mean)
+        post `P' (`i') (`q1' - `q0') (`c1' - `c0')
+        local ++nfound
+    }
+    postclose `P'
+    if (`nfound' == 0) {
+        di as error "  `s': no bootstrap files found under `sim'/`s'/bootstrap/ - skipped"
+        continue
+    }
+
+    use "`iters_s'", clear
+    qui summarize dQ
+    local mQ    = r(mean)
+    local vtotQ = r(Var)
+    qui centile dQ, centile(2.5 97.5)
+    local loQ = r(c_1)
+    local hiQ = r(c_2)
+    local sdparQ  = sqrt(max(0, `vtotQ' - (`spp_dQ'^2)/`bootN'))
+    local mcsdQ   = `spp_dQ'/sqrt(`chosen_n')
+    local mcfracQ = `mcsdQ'/`sdparQ'
+    local reqNQ   = (`spp_dQ'/(`kfrac'*`sdparQ'))^2
+
+    qui summarize dC
+    local sdparC = sqrt(max(0, r(Var) - (`spp_dC'^2)/`bootN'))
+
+    post `S' ("`s'") (`mQ') (`loQ') (`hiQ') (`sdparQ') (`spp_dQ') ///
+        (`mcsdQ') (`mcfracQ') (`reqNQ') (`sdparC') (`nfound')
+
+    di as text "  `s': dQ=" as result %7.4f `mQ' as text "  SD_param=" %7.4f `sdparQ' ///
+        as text "  MC/param@`chosen_n'=" %4.1f (100*`mcfracQ') "%" ///
+        as text "  reqN(`=100*`kfrac''%)=" %9.0fc `reqNQ'
 }
-postclose `pf'
-di as text "Iterations collected: `nfound'"
-if (`nfound' == 0) {
-    di as error "No bootstrap files found - check the cd path and simulated/<scenario>/bootstrap/ names."
+postclose `S'
+
+**********
+* 2. Summary table + binding scenario
+**********
+use "`results'/_ss_byscenario.dta", clear
+count
+if (r(N) == 0) {
+    di as error "No scenarios processed - check the cd path / bootstrap folders."
     exit 601
 }
+qui summarize reqN_dQ
+local reqN_binding = r(max)
+gen byte binding = (reqN_dQ == `reqN_binding')
+gsort -reqN_dQ
 
-**********
-* 2. Variance decomposition: total (PSA) = parameter + Monte Carlo
-**********
-use "`results'/_ss_iters.dta", clear
-
-* --- Incremental QALY ---
-qui summarize dQ
-scalar mQ    = r(mean)
-scalar vtotQ = r(Var)
-qui centile dQ, centile(2.5 97.5)
-scalar loQ = r(c_1)
-scalar hiQ = r(c_2)
-scalar vmcQ   = (`spp_dQ'^2)/`bootN'
-scalar vparQ  = max(0, vtotQ - vmcQ)
-scalar sdtotQ = sqrt(vtotQ)
-scalar sdparQ = sqrt(vparQ)
-scalar mcsdQ_chosen = `spp_dQ'/sqrt(`chosen_n')
-scalar mcfracQ = mcsdQ_chosen / sdparQ
-scalar reqNQ   = (`spp_dQ'/(`kfrac'*sdparQ))^2
-
-* --- Incremental cost ---
-qui summarize dC
-scalar mC     = r(mean)
-scalar vtotC  = r(Var)
-scalar vparC  = max(0, vtotC - (`spp_dC'^2)/`bootN')
-scalar sdparC = sqrt(vparC)
-scalar mcfracC = (`spp_dC'/sqrt(`chosen_n')) / sdparC
-
-* --- INMB (report PSA SD; MC negligible at this N) ---
-qui summarize dNMB
-scalar mNMB     = r(mean)
-scalar sdtotNMB = r(sd)
-qui centile dNMB, centile(2.5 97.5)
-scalar loNMB = r(c_1)
-scalar hiNMB = r(c_2)
-
-**********
-* 3. Console summary
-**********
-di _n "{hline 74}"
-di as text "Cost-effectiveness sample-size analysis - `scenario' (PSA N=`bootN', `nfound' iters)"
-di "{hline 74}"
-di as text "Incremental QALY (dQ):"
-di as text "   PSA mean dQ              = " as result %8.4f mQ as text "  (95% CI " %7.4f loQ " to " %7.4f hiQ ")"
-di as text "   Total PSA SD            = " as result %8.4f sdtotQ
-di as text "   - MC component (N=`bootN')   = " as result %8.5f mcsdQ_chosen
-di as text "   = Parameter SD           = " as result %8.4f sdparQ
-di as text "   MC / param at N=`chosen_n'   = " as result %5.1f (100*mcfracQ) as text " %"
-di as text "   N s.t. MC <= " as result %2.0f (100*`kfrac') as text "% of param SD = " as result %9.0fc reqNQ
-di _n as text "Incremental cost (dC):  parameter SD = " as result %9.0fc sdparC ///
-    as text "   (MC/param at N=`chosen_n' = " as result %4.1f (100*mcfracC) as text "%)"
-di as text "INMB @ " as result %6.0fc `wtp' as text "/QALY: mean = " as result %9.0fc mNMB ///
-    as text "   PSA SD = " as result %9.0fc sdtotNMB
-di "{hline 74}"
-
-**********
-* 4. Summary CSV
-**********
-clear
-set obs 1
-gen scenario          = "`scenario'"
-gen psa_N             = `bootN'
-gen iters             = `nfound'
-gen wtp               = `wtp'
-gen k_target          = `kfrac'
-gen chosen_N          = `chosen_n'
-gen dQ_mean           = mQ
-gen dQ_lo95           = loQ
-gen dQ_hi95           = hiQ
-gen sd_total_dQ       = sdtotQ
-gen mc_sd_dQ_chosenN  = mcsdQ_chosen
-gen sd_param_dQ       = sdparQ
-gen sigma_pp_dQ       = `spp_dQ'
-gen mcfrac_dQ_chosenN = mcfracQ
-gen reqN_dQ           = reqNQ
-gen sd_param_dC       = sdparC
-gen NMB_mean          = mNMB
-gen NMB_sd            = sdtotNMB
+di _n "{hline 78}"
+di as text "Sample-size by scenario (PSA N=`bootN', chosen N=`chosen_n', target k=`=100*`kfrac''%)"
+di "{hline 78}"
+list scenario dQ sd_param_dQ mcfrac_dQ reqN_dQ binding, clean noobs
 export delimited using "`results'/ce_sample_size.csv", replace
-di as text "Saved `results'/ce_sample_size.csv"
+
+local adeq = cond(`chosen_n' >= `reqN_binding', "ADEQUATE for all scenarios", "NOT adequate - raise N")
+di _n as text "Binding scenario requires N >= " as result %9.0fc `reqN_binding' ///
+    as text "  ->  chosen N=`chosen_n' is " as result "`adeq'"
+di "{hline 78}"
+
+* stash per-scenario sigma_pp and parameter SD for the figure
+foreach s of local scenarios {
+    qui summarize sigpp_dQ if scenario == "`s'", meanonly
+    local sig_`s' = r(mean)
+    qui summarize sd_param_dQ if scenario == "`s'", meanonly
+    local sdp_`s' = r(mean)
+}
 
 **********
-* 5. Convergence figure: MC SD of dQ vs N, against the parameter-SD reference
+* 3. Figure: MC SD as a fraction of parameter SD vs N, one line per scenario
+*    (each scenario meets the target where its curve drops below kfrac)
 **********
 clear
 local npts = 300
 set obs `npts'
-local nmin = 1000
-local nmax = 300000
-gen double N = round(exp(ln(`nmin') + (_n-1)/(`npts'-1)*(ln(`nmax')-ln(`nmin'))))
-gen double mcsd = `spp_dQ'/sqrt(N)
+gen double N = round(exp(ln(1000) + (_n-1)/(`npts'-1)*(ln(300000)-ln(1000))))
 
-local par   = sdparQ
-local tgt   = `kfrac'*sdparQ
-local ychos = `spp_dQ'/sqrt(`chosen_n')
+local plot ""
+local k = 0
+foreach s of local scenarios {
+    if ("`sig_`s''" == "" | "`sdp_`s''" == ".") continue
+    local ++k
+    gen double ratio_`k' = (`sig_`s''/sqrt(N)) / `sdp_`s''
+    label variable ratio_`k' "`s'"
+    local plot "`plot' (line ratio_`k' N)"
+}
 
-twoway ///
-    (line mcsd N, lcolor(navy) lwidth(medthick)) ///
-    (scatteri `ychos' `chosen_n', msymbol(O) mcolor(black) msize(medium)) ///
-    , ///
-    yline(`par', lcolor(red) lpattern(dash)) ///
-    yline(`tgt', lcolor(orange) lpattern(shortdash)) ///
-    xline(`chosen_n', lcolor(gs11) lpattern(dot)) ///
+twoway `plot' ///
+    , xline(`chosen_n', lcolor(gs10) lpattern(dot)) ///
     xscale(log) ///
-    xlabel(1000 2000 5000 10000 20000 50000 100000 300000, angle(45) labsize(small)) ///
-    ylabel(, angle(0) format(%5.3f) labsize(small)) ///
+    xlabel(1000 5000 10000 20000 50000 100000 300000, angle(45) labsize(small)) ///
+    ylabel(0(0.05)0.3, angle(0) format(%4.2f) labsize(small)) ///
     xtitle("Simulated cohort size, N") ///
-    ytitle("Monte Carlo SD of incremental QALY") ///
-    text(`par' `nmin' "Parameter SD = `=string(`par',"%5.3f")'", place(ne) size(small) color(red)) ///
-    text(`tgt' `nmin' "`=100*`kfrac''% of parameter SD", place(se) size(small) color(orange)) ///
-    text(`ychos' `chosen_n' "  N = `chosen_n'", place(e) size(small)) ///
-    legend(off) ///
-    title("Monte Carlo error vs parameter uncertainty (`scenario')", size(medium)) ///
-    note("MC SD = sigma_pp/sqrt(N), sigma_pp = `=string(`spp_dQ',"%4.2f")'. Required N for MC <= `=100*`kfrac''% of parameter SD: `=string(reqNQ,"%9.0fc")'.") ///
+    ytitle("Monte Carlo SD as a fraction of parameter SD") ///
+    text(0.28 `chosen_n' "N = `chosen_n'", place(e) size(small)) ///
+    title("MC error vs parameter uncertainty, by scenario", size(medium)) ///
+    legend(pos(2) ring(0) cols(1) size(small) region(lstyle(none))) ///
     graphregion(color(white)) plotregion(margin(medium))
 
-graph export "`results'/ce_sample_size.png", replace width(2200)
-cap graph export "`results'/ce_sample_size.pdf", replace
-di as text "Saved `results'/ce_sample_size.png (.pdf)"
+graph export "`results'/ce_sample_size_ratio.png", replace width(2400)
+cap graph export "`results'/ce_sample_size_ratio.pdf", replace
+di as text "Saved -> results/ce_sample_size.csv and results/ce_sample_size_ratio.png"

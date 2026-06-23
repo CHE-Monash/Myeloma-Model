@@ -81,7 +81,15 @@ mata {
 		if (Line == 4) vCoef_full = bL4_BCR
 		if (Line == 5) vCoef_full = bL5_BCR
 		if (Line >= 6) vCoef_full = bLX_BCR
-		
+
+		// Guard: design columns must equal (coefficients - cutpoints). Catches a silent
+		// off-by-one if a factor's level count drifts between the fitted equation and the
+		// design above (e.g. an MI-introduced spurious BCR_SCT category).
+		if (nPredictors != cols(vCoef_full) - nCutPoints) {
+			errprintf("sim_bcr: design/coefficient mismatch at Line %g - mPat has %g columns but coefficients imply %g predictors\n", Line, nPredictors, cols(vCoef_full) - nCutPoints)
+			exit(459)
+		}
+
 		vCoef = vCoef_full[1, 1..nPredictors]'
 		cutPointIndices = (cols(vCoef_full) - nCutPoints + 1)..cols(vCoef_full)
 		cutPoints = vCoef_full[1, cutPointIndices]

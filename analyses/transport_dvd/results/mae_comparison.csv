@@ -1,5 +1,5 @@
 metric,mean,lo95,hi95
-MAE_A_traditional,8.457,6.214,10.408
-MAE_B_calibrated_transport,4.334,1.633,7.859
-MAE_reduction_abs,4.123,-0.189,7.639
-MAE_reduction_pct,47.95,-2.54,81.41
+MAE_A_traditional,8.335,6.214,10.549
+MAE_B_calibrated_transport,4.375,1.722,8.025
+MAE_reduction_abs,3.960,0.569,6.902
+MAE_reduction_pct,47.91,7.69,77.54

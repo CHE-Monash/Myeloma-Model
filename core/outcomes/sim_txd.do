@@ -74,6 +74,12 @@ mata {
 		// Extract coefficients
 		aux = vCoef[1, cols(vCoef)]
 		nPredictors = cols(mPat)
+		// Guard: design columns must equal coefficients minus the ancillary (1). Catches a
+		// silent off-by-one if a factor's level count drifts (e.g. an MI-introduced category).
+		if (nPredictors != cols(vCoef) - 1) {
+			errprintf("sim_txd: design/coefficient mismatch at Line %g - mPat has %g columns but coefficients imply %g predictors\n", Line, nPredictors, cols(vCoef) - 1)
+			exit(459)
+		}
 		vCoef = vCoef[1, 1..nPredictors]'
 		
 		// Calculate XB and OC

@@ -1,9 +1,0 @@
-metric,value,lo95,hi95
-RPS_A_traditional_mean,0.02192,0.01081,0.03530
-RPS_B_calibrated_transport_mean,0.01211,0.00121,0.03091
-RPS_reduction_abs,0.00980,-0.00491,0.02441
-RPS_skill_score_pct_periter,45.80,-20.03,93.56
-RPS_skill_score_ratio_of_means,0.4472,,
-RPS_A_jensenfree,0.02117,,
-RPS_B_jensenfree,0.01009,,
-RPS_skill_score_jensenfree,0.5232,,

@@ -48,7 +48,7 @@ Output follows the model-wide convention in the root `README.md` (Result Exports
 
 **Tier 2 — analysis-level, per scenario (`analyses/transport_dvd/export_tables.do`).** *(planned)* The DVd-transport-specific tables that no other analysis shares — the treatment-mix / 2.5% table and the bare-model regression coefficients (β_MRDR = the cross-setting shift, β_DVd ≈ −1.158 = the CASTOR contrast). Called from the dispatcher at the end of a scenario run; writes into `simulated/<scenario>/`.
 
-**Tier 3 — cross-scenario aggregation (`analyses/transport_dvd/compare_scenarios.do`).** Written; run once after the 6×500 bootstrap exists. **All three scenarios are bootstrapped** (A = resampled CASTOR BCR, B = calibrated-transport bootstrap, C = resampled observed cohort), so every CI reflects the same sources and is comparable. It reads `simulated/<scenario>/bootstrap/{dvd,vd}_2_predicted_B<b>.dta`, computes the **MAE paired against a common C_b** each iteration (so the A-vs-B reduction CI isn't inflated by benchmark noise) with the reduction (abs + %) and 95% CI, the side-by-side DVd-vs-Vd ICER / inc-cost / inc-QALY CIs, and the per-scenario BCR distributions; writes `bcr_distributions.csv`, `mae_comparison.csv`, `icer_comparison.csv`, `results.md` (and `bootstrap_iterations.dta`) into `results/`. This tier cannot live in a single run, since each scenario is run separately.
+**Tier 3 — cross-scenario aggregation (`analyses/transport_dvd/bootstrap_summary.do`).** Written; run once after the 6×500 bootstrap exists. **All three scenarios are bootstrapped** (A = resampled CASTOR BCR, B = calibrated-transport bootstrap, C = resampled observed cohort), so every CI reflects the same sources and is comparable. It reads `simulated/<scenario>/bootstrap/{dvd,vd}_2_predicted_B<b>.dta`, computes the **MAE paired against a common C_b** each iteration (so the A-vs-B reduction CI isn't inflated by benchmark noise) with the reduction (abs + %) and 95% CI, the side-by-side DVd-vs-Vd ICER / inc-cost / inc-QALY CIs, and the per-scenario BCR distributions; writes `bcr_distributions.csv`, `mae_comparison.csv`, `icer_comparison.csv`, `results.md` (and `bootstrap_iterations.dta`) into `results/`. This tier cannot live in a single run, since each scenario is run separately.
 
 ### Read surface: `results/`
 
@@ -70,27 +70,34 @@ Intermediate per-scenario CSVs stay in `simulated/<scenario>/`; only the final, 
 
 ```         
 analyses/transport_dvd/
-├── README.md            # this file
-├── transport_dvd.do        # dispatcher (runs ONE scenario)
-├── calibrated_transport.do # BCR-transport generator: `0`=deterministic (+ Table 1 baseline), `1`=bootstrap
-├── compare_scenarios.do    # Tier 3 cross-scenario aggregation
-├── generate_cohort.do
-├── coefficients/        # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
-├── outcomes/            # sim_bcr_override.do, sim_txr_override.do (+ per-scenario subfolders)
-├── patients/
+├── README.md                # this file
+│   # 1. Cohort construction
+├── cohort_pool.do           # build the L2-entry pool (case-mix) once; all_l2 = windowed (0) vs all-era (1)
+├── ce_cohort.do             # draw the production cohort (size N) from the pool -> canonical patient file
+│   # 2. Analysis
+├── calibrated_transport.do  # BCR-transport generator: `0`=deterministic (+ Table 1 baseline), `1`=bootstrap
+├── transport_dvd.do         # dispatcher: runs ONE scenario (deterministic + bootstrap)
+├── bootstrap_summary.do     # Tier 3 cross-scenario aggregation of the bootstrap output
+│   # 3. Sample-size justification (methods; runs independently of production)
+├── ce_precision.do          # per-patient sigma_pp + TSD 15 convergence figures
+├── ce_sample_size.do        # parameter SD (from the PSA) + required N + appendix figure
+├── coefficients/            # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
+├── outcomes/                # sim_bcr_override.do (+ per-scenario subfolders)
+├── patients/                # pool + drawn cohort .dta
+├── results/                 # cross-scenario CSVs, figures, results.md
 └── simulated/
-    ├── A_trial/         # per-scenario .dta + Tier-1/2 CSVs
+    ├── A_trial/             # per-scenario .dta + Tier-1/2 CSVs
     ├── B_transport/
     ├── C_mrdr/
-    └── report/          # per-run PDF reports
+    └── report/              # per-run PDF reports
 ```
 
-Planned additions: `export_tables.do`. `compare_scenarios.do` is written; `results/` is created when it runs.
+Planned additions: `export_tables.do`. `bootstrap_summary.do` is written; `results/` is created when it runs.
 
 ## Implementation notes
 
 - `core/generate_report.do` already computes the BCR-by-regimen, cost, QALY and ICER quantities the CSVs need, but as `putpdf` tables and using older variable names (`cTotald`, `qTotald`) that have drifted from `process_data.do` (`cost_total_d`, `qaly_total_d`). The CSV export must read the actual `process_data` variables; ideally each summary is computed once and fed to both the PDF and the CSV so they cannot disagree.
-- The dispatcher's inline ICER calculation only fires in the two-arm case. The cross-scenario ICER comparison belongs in `compare_scenarios.do`, not the dispatcher.
+- The dispatcher's inline ICER calculation only fires in the two-arm case. The cross-scenario ICER comparison belongs in `bootstrap_summary.do`, not the dispatcher.
 
 ## Data
 
@@ -108,7 +115,7 @@ In development. Manuscript Introduction and Methods complete (Methods reconciled
 
 **Method settled (8 Jun 2026): the bare `ologit BCR MRDR DVd` model.** Covariate-adjusted transport was tested in three forms and all worsened out-of-sample calibration (MAE 6.8–7.2 pp vs bare 4.4 pp); reverted to the bare model. `B_transport_dvd.do` + `outcomes/sim_bcr_override.do` updated accordingly.
 
-**Results (bare model; matched cohort n = 50,180; DVd vs Vd, discounted; deterministic + 500-iteration bootstrap).** Source: `results/` via `compare_scenarios.do`.
+**Results (bare model; matched cohort n = 50,180; DVd vs Vd, discounted; deterministic + 500-iteration bootstrap).** Source: `results/` via `bootstrap_summary.do`.
 
 - **BCR accuracy** (benchmark = raw observed DVd, n = 533, fixed): DVd MAE falls from **8.4 pp** (Traditional) to **5.4 pp** (Calibrated Transport); bootstrap 8.5 → 5.4 pp, reduction 36% (95% CI −0.3–6.2 pp). The reduction is **not significant on the symmetric CI**, but Calibrated Transport is more accurate in **96.0% of bootstrap replicates** (≥VGPR closer in 96.0%) — report this exceedance probability rather than significance.
 - **Economics:** ICER A **$456k** → B **$691k** → C **$2.64M** (bootstrap $459k / $711k / $2.40M; B 95% CI $487k–1.52M). ΔQALY A 0.285, B 0.171, C 0.039 (C crosses zero → C's ICER CI is uninterpretable; use its inc-cost/inc-QALY CIs). Calibrated Transport moves the ICER off the over-optimistic trial value toward observed reality — the policy-relevant result, independent of MAE significance.
@@ -118,7 +125,7 @@ In development. Manuscript Introduction and Methods complete (Methods reconciled
 
 1.  **Re-fit the risk equations using all 71 L2 Vd and all 2,720 non-Vd** (same all-years window for both; drop the pre-funding restriction; keep the DVd holdout). This stabilises the Vd category in `bL2_BCR` and clears the sparse-Vd bootstrap failures (which were in the unused TXR_L2 regression anyway). Then re-run all three scenarios + bootstrap.
 2.  **Finish the Vd cost in `core/process_data.do`.** Vd is now costed (`cVd = 724`, regimen code 5) — done. Remaining: per the MSAG 2022 guideline (Table 8), CASTOR Vd is **8 × 21-day cycles** (bortezomib D1,4,8,11), so switch the Vd line from `/28` (uncapped) to a 21-day basis with an 8-cycle cap, mirroring VCd: `cVd * min(8, TXD_L2 * 30.4375 / 21)` — confirming `cVd` is a per-21-day-cycle figure. Also tidy the `cOther` comment (no longer includes Vd).
-3.  **Bootstrap + Tier 3.** Run the 6×500 bootstrap (all three scenarios, both arms), then run `compare_scenarios.do` (written) → `results/`. All three scenarios bootstrapped; MAE paired against a common C_b; ICER CIs side-by-side and comparable.
+3.  **Bootstrap + Tier 3.** Run the 6×500 bootstrap (all three scenarios, both arms), then run `bootstrap_summary.do` (written) → `results/`. All three scenarios bootstrapped; MAE paired against a common C_b; ICER CIs side-by-side and comparable.
 4.  **Tier 2 (`export_tables.do`).** Treatment-mix / 2.5% table and the bare-model coefficients (β_MRDR = cross-setting shift; β_DVd ≈ −1.158 = CASTOR contrast).
 5.  **Manuscript framing follow-through** (vault `todo.md`): **reconcile Methods/Assumptions/Limitations to the bare model** (the covariate single-model is superseded) and add the covariate-test robustness result; comparator is Vd across all scenarios; pooled-SoC removed entirely; "pre-funding only" replaced by the DVd-holdout framing; Vd pooled across all years (n = 71).
 6.  Draft Results from `results/`, then Discussion → Abstract → Conclusion.

@@ -20,7 +20,8 @@ mata {
 	idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
 	if (rows(idx) > 0) {
 
-		// Create treatment regimen dummies
+		// Create treatment regimen dummies (incl. the base regimen: coefficient vectors carry 0b.TXR_L1)
+		TXR_is_R1 = (L1_TXR :== oL1_TXR[1, 1])
 		if (nRegimens >= 2) TXR_is_R2 = (L1_TXR :== oL1_TXR[1, 2])
 		if (nRegimens >= 3) TXR_is_R3 = (L1_TXR :== oL1_TXR[1, 3])
 		if (nRegimens >= 4) TXR_is_R4 = (L1_TXR :== oL1_TXR[1, 4])
@@ -43,7 +44,8 @@ mata {
 					vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
 					vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT])
 			
-			// Add treatment regimen dummies
+			// Add treatment regimen dummies (base regimen first, to match the coefficient layout)
+			mPat = mPat, TXR_is_R1[idxASCT]
 			if (nRegimens >= 2) mPat = mPat, TXR_is_R2[idxASCT]
 			if (nRegimens >= 3) mPat = mPat, TXR_is_R3[idxASCT]
 			if (nRegimens >= 4) mPat = mPat, TXR_is_R4[idxASCT]
@@ -57,6 +59,11 @@ mata {
 			
 			// Extract coefficients for ASCT group
 			nPredictors = cols(mPat)
+			// Guard: design columns must equal the coefficient count (no cutpoints/ancillary here).
+			if (nPredictors != cols(bMNT_ASCT)) {
+				errprintf("sim_mnt (ASCT): design/coefficient mismatch - mPat has %g columns but coefficient vector has %g\n", nPredictors, cols(bMNT_ASCT))
+				exit(459)
+			}
 			vCoef = bMNT_ASCT[1, 1..nPredictors]'
 			
 			// Calculate XB
@@ -93,7 +100,8 @@ mata {
 					vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT], 
 					vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT])
 			
-			// Add treatment regimen dummies
+			// Add treatment regimen dummies (base regimen first, to match the coefficient layout)
+			mPat = mPat, TXR_is_R1[idxNoASCT]
 			if (nRegimens >= 2) mPat = mPat, TXR_is_R2[idxNoASCT]
 			if (nRegimens >= 3) mPat = mPat, TXR_is_R3[idxNoASCT]
 			if (nRegimens >= 4) mPat = mPat, TXR_is_R4[idxNoASCT]
@@ -107,6 +115,11 @@ mata {
 			
 			// Extract coefficients for No ASCT group
 			nPredictors = cols(mPat)
+			// Guard: design columns must equal the coefficient count (no cutpoints/ancillary here).
+			if (nPredictors != cols(bMNT_NoASCT)) {
+				errprintf("sim_mnt (NoASCT): design/coefficient mismatch - mPat has %g columns but coefficient vector has %g\n", nPredictors, cols(bMNT_NoASCT))
+				exit(459)
+			}
 			vCoef = bMNT_NoASCT[1, 1..nPredictors]'
 			
 			// Calculate XB

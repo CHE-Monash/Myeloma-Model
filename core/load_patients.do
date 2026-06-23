@@ -23,7 +23,10 @@ program define load_patients
 		use "patients/population_1995_2040_${pop_number}.dta", clear
 	}
 	else if ("$data_type" == "predicted") {
-		use "$patients_path/patients_${analysis}_${line}.dta", clear
+		// $cohort_file lets a caller (e.g. ce_precision) read a different cohort
+		// without overwriting the production file; default is the canonical cohort.
+		if ("$cohort_file" != "") use "$cohort_file", clear
+		else use "$patients_path/patients_${analysis}_${line}.dta", clear
 	}
 	
 	// Filters

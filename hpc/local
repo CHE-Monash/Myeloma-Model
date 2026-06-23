@@ -1,6 +1,0 @@
-[Local commands]
-# Add StataMP to PATH in ./bashrc, use source to activate and stataMP to control
-nano ~/.bashrc
-export PATH="/Applications/Stata 17/StataMP.app/Contents/MacOS/:$PATH"
-source ~/.bashrc
-stataMP Test.do

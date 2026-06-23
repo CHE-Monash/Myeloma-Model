@@ -16,21 +16,21 @@ cap cd "~/em76/adam"
 
 global analysis     "transport_dvd"    	// Analysis name
 global int1         "dvd"               // Intervention
-global int0			""				// Comparator ("" for single arm)
+global int0			"vd"				// Comparator ("" for single arm)
 global line         "2"                 // Line being assessed (1-9)
 global coeffs       "dvd_post"       	// Coefficient set (dvd_pre / dvd_post)
 global data         "predicted"         // Patient data (predicted / population)
 global min_year     "1995"              // Patients diagnosed from (>= 1995)
-global max_year     "2040"              // Patients diagnosed until (<= 2040)
+global max_year     "2025"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
-global max_id       "105955"            // Last patient ID (Prediction 105955)
+global max_id       "50000"             // Last patient ID (Prediction 105955)
 global boot         "1"                 // Bootstrap flag (0/1)
 global min_bs       `1'                 // First bootstrap iteration
 global max_bs       `2'                 // Last bootstrap iteration
 global cost_year	"2020"				// Cost year
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
 global report       "0"                 // Generate report (0/1)
-global scenario     "B_transport"     		// Scenario (A_trial / B_transport / C_mrdr)
+global scenario     "B_transport"     	// Scenario (A_trial / B_transport / C_mrdr)
 
 local single_arm = ("$int0" == "")
 
@@ -42,6 +42,7 @@ global coefficients_path    "analyses/$analysis/coefficients"
 global outcomes_path		"analyses/$analysis/outcomes"
 global patients_path        "analyses/$analysis/patients"
 global simulated_path       "analyses/$analysis/simulated"
+global scratch_path			"~/em76_scratch2/adam/$analysis/simulated"
 
 **********
 * Load Programs
@@ -139,7 +140,7 @@ if ($boot == 0) {
 else if ($boot == 1) {
 
 	// Ensure bootstrap output folder exists
-	cap mkdir "$simulated_path/$scenario/bootstrap"
+	cap mkdir "$scratch_path/$scenario/bootstrap"
 
 	// Iteration
 	forvalues b = $min_bs / $max_bs {
@@ -156,7 +157,7 @@ else if ($boot == 1) {
 			simulation_pipeline
 			
 			// Save results
-			save "$simulated_path/$scenario/bootstrap/${int}_${line}_${data}_B`b'.dta", replace
+			save "$scratch_path/$scenario/bootstrap/${int}_${line}_${data}_B`b'.dta", replace
 			
 		// Comparator arm
 		global int "$int0"
@@ -169,6 +170,6 @@ else if ($boot == 1) {
 			simulation_pipeline
 			
 			// Save results
-			save "$simulated_path/$scenario/bootstrap/${int}_${line}_${data}_B`b'.dta", replace
+			save "$scratch_path/$scenario/bootstrap/${int}_${line}_${data}_B`b'.dta", replace
     }
 }
