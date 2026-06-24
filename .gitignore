@@ -8,8 +8,10 @@ analyses/*/simulated/bootstrap/
 analyses/*/simulated/*.csv
 analyses/*/simulated/**/*.csv
 
-# Scratch / intermediate Stata data in results (regenerate locally)
-analyses/*/results/_*.dta
+# Generated analysis results — figures/tables for the manuscript & appendix, not the repo
+# (others reproduce by running the analyses; results regenerate locally)
+analyses/*/results/*
+!analyses/*/results/.gitkeep
 
 # HPC job scripts (machine-specific; not needed on GitHub)
 /hpc/

@@ -10,7 +10,7 @@ Conventional transportability needs real-world data on the novel treatment, whic
 
 **Comparator: Vd, across all scenarios** — matching the comparator the PBAC actually used in its DVd decision. The decision-relevant contrast is always DVd vs Vd; the scenarios differ only in how the second-line outcomes are derived.
 
-Empirical hook: Vd was only **2.5%** of second-line treatment in the MRDR (71 of 2,791, all registry years; the earlier 1.5% used an inconsistent denominator). This does not change the comparator (the decision was made against Vd) — it is carried as context and a limitation. The real-world Vd anchor is thin: only **71** patients ever receive Vd at second line across the whole registry (Vd is mostly a first-line regimen).
+Empirical hook: Vd was only **2.5%** of second-line treatment in the MRDR (71 of 2,791, all registry years; the earlier 1.5% used an inconsistent denominator). This does not change the comparator (the decision was made against Vd) — it is carried as context and a limitation. Vd is also thin at second line (only **71** patients ever receive it at L2 across the whole registry; Vd is mostly a first-line regimen), so the transport anchor pools relapsed-setting Vd across lines (n = 135; see *Underlying models*).
 
 ## Scenarios
 
@@ -26,11 +26,15 @@ All three scenarios estimate the same decision-relevant contrast — **DVd vs Vd
 
 ## Underlying models
 
-The comparison is **DVd vs Vd** (the PBAC comparator) in all three scenarios. Vd is observed in both CASTOR and the MRDR, which is exactly what makes it usable as the efficacy–effectiveness anchor for Calibrated Transport. Observed L2 DVd (n = 533 evaluable; 565 starts − 32 missing BCR) is the validation benchmark; the Vd anchor is thin (n = 71, pooled across all registry years — the registry ceiling).
+The comparison is **DVd vs Vd** (the PBAC comparator) in all three scenarios. Vd is observed in both CASTOR and the MRDR, which is what makes it usable as the efficacy–effectiveness anchor for Calibrated Transport. Observed L2 DVd (n = 533 evaluable; 565 starts − 32 missing BCR) is the validation benchmark.
 
-**A single, bare ordered logistic regression** (no covariates — settled 8 Jun 2026): `ologit BCR MRDR DVd`, fit on the **Vd anchor plus the CASTOR arms** — registry L2 Vd (n = 71; MRDR = 1, DVd = 0) + CASTOR Vd (n = 231; MRDR = 0, DVd = 0) + CASTOR DVd (n = 238; MRDR = 0, DVd = 1), with **CASTOR Vd the reference cell**. **β_MRDR** is the registry-Vd-vs-CASTOR-Vd cross-setting shift — it carries the whole trial→real-world calibration; **β_DVd ≈ −1.158** is the CASTOR DVd-vs-Vd effect (the consistency check against the published trial). The real-world DVd prediction is the cell (MRDR = 1, DVd = 1) over the registry cohort; real-world Vd is (MRDR = 1, DVd = 0). So DVd − Vd in scenario B is exactly β_DVd.
+**A line-adjusted ordered logistic regression on a pooled relapsed-Vd anchor:** `ologit BCR MRDR DVd line3 line4 line5`, fit on observed data (no imputation). The anchor pools **all relapsed-setting registry Vd** (regimen code 5, second line onward; n = 135 — L2 71, L3 28, L4 14, L5 17, L6 5; MRDR = 1, DVd = 0), with the resampled CASTOR arms — CASTOR Vd (n = 231; MRDR = 0, DVd = 0, the reference cell) and CASTOR DVd (n = 238; MRDR = 0, DVd = 1). The fit yields `bL2_BCR_T = (β_MRDR, β_DVd, line3, line4, line5 | 5 cutpoints)`. **β_MRDR** is the registry-vs-trial cross-setting shift that carries the whole trial→real-world calibration; **β_DVd ≈ −1.158** is the CASTOR DVd-vs-Vd effect (the consistency check against the published trial).
 
-**Covariate adjustment was tested and rejected (8 Jun 2026).** Three covariate-adjusted variants (full single-stage `MRDR DVd Vd` + covariates; anchor-only single-stage; and a two-stage form with full-registry slopes + Vd-anchor cutpoints + a trial DVd offset) all **worsened** out-of-sample DVd BCR calibration — MAE 6.8–7.2 pp versus the bare model's 4.4 pp. The calibration signal is the entire registry-Vd-vs-trial-Vd shift, which only the bare β_MRDR transmits intact; covariate elaboration fractures it. CASTOR also reports only Age, sex and ISS (no ECOG, no R-ISS), so a faithful match to the base `BCR_L2` covariates isn't feasible. This is reported in the paper as a robustness result. The Vd anchor is small (n = 71, all registry years), so the cross-setting test has limited power — *no evidence of* a residual effect, not *evidence of none*. See the paper's notes.md for detail.
+**Why a pooled anchor with line indicators.** CASTOR enrolled relapsed/refractory patients with at least one prior line (median 2, range 1–9; Palumbo 2016) — it is not an L2-only population. Restricting the anchor to L2 Vd (n = 71) both under-powers it and mismatches CASTOR's line mix, which bakes a line difference into β_MRDR. Pooling all relapsed-setting Vd with a line-of-therapy indicator corrects the mismatch and roughly doubles the anchor; first-line Vd (n = 240, not CASTOR-eligible) is excluded. CASTOR's line of therapy is generated per pseudo-patient from the Palumbo 2016 prior-line shares (DVd 48.6/27.9/14.7/8.8%; Vd 45.7/30.0/13.0/11.3%), reference line L2 and L5+ collapsed into `line5`; the line effect is identified from the registry, while the CASTOR line draw balances the line mix for the comparison.
+
+**Prediction is at L2**, where `line3 = line4 = line5 = 0`: the real-world DVd cell is (MRDR = 1, DVd = 1) and real-world Vd is (MRDR = 1, DVd = 0), so DVd − Vd in scenario B is exactly β_DVd. The override (`outcomes/sim_bcr_override.do`) builds a two-column design (MRDR, DVd) and reads the first two coefficients plus the five cutpoints, so the line coefficients are skipped at prediction.
+
+**Patient-covariate adjustment (age, sex, ISS) was tested and rejected.** Three covariate-adjusted variants all worsened out-of-sample DVd BCR calibration, and CASTOR reports only age, sex and ISS (no ECOG, no R-ISS), so a faithful match to the base `BCR_L2` covariates is not feasible. The line-of-therapy indicator above is a correction to the *anchor's* line composition, not a patient-covariate adjustment, and is retained. The pooled Vd anchor (n = 135) is still modest, so the cross-setting test has limited power — *no evidence of* a residual effect, not *evidence of none*.
 
 ## How to run
 
@@ -46,13 +50,13 @@ Output follows the model-wide convention in the root `README.md` (Result Exports
 
 **Tier 1 — engine-level, per run (`core/`).** `core/export_results.do` writes the CSVs every analysis needs (per-patient summary, BCR distribution, mean cost/QALY/LY) into `simulated/<scenario>/`. It runs by default as part of the simulation pipeline (immediately after `process_data`, once per arm; skipped during bootstrap) — no flag. Not specific to this analysis; it currently emits `bcr_<stub>.csv`, `econ_<stub>.csv`, and `patients_<stub>.csv` (where `<stub> = <int>_<line>_<data>_<min_id>_<max_id>`).
 
-**Tier 2 — analysis-level, per scenario (`analyses/transport_dvd/export_tables.do`).** *(planned)* The DVd-transport-specific tables that no other analysis shares — the treatment-mix / 2.5% table and the bare-model regression coefficients (β_MRDR = the cross-setting shift, β_DVd ≈ −1.158 = the CASTOR contrast). Called from the dispatcher at the end of a scenario run; writes into `simulated/<scenario>/`.
+**Tier 2 — analysis-level, per scenario (`analyses/transport_dvd/export_tables.do`).** *(planned)* The DVd-transport-specific tables that no other analysis shares — the treatment-mix / 2.5% table and the transport-model regression coefficients (β_MRDR = the cross-setting shift, β_DVd ≈ −1.158 = the CASTOR contrast). Called from the dispatcher at the end of a scenario run; writes into `simulated/<scenario>/`.
 
 **Tier 3 — cross-scenario aggregation (`analyses/transport_dvd/bootstrap_summary.do`).** Written; run once after the 6×500 bootstrap exists. **All three scenarios are bootstrapped** (A = resampled CASTOR BCR, B = calibrated-transport bootstrap, C = resampled observed cohort), so every CI reflects the same sources and is comparable. It reads `simulated/<scenario>/bootstrap/{dvd,vd}_2_predicted_B<b>.dta`, computes the **MAE paired against a common C_b** each iteration (so the A-vs-B reduction CI isn't inflated by benchmark noise) with the reduction (abs + %) and 95% CI, the side-by-side DVd-vs-Vd ICER / inc-cost / inc-QALY CIs, and the per-scenario BCR distributions; writes `bcr_distributions.csv`, `mae_comparison.csv`, `icer_comparison.csv`, `results.md` (and `bootstrap_iterations.dta`) into `results/`. This tier cannot live in a single run, since each scenario is run separately.
 
 ### Read surface: `results/`
 
-`analyses/transport_dvd/results/` is the canonical place a downstream consumer reads from:
+`analyses/transport_dvd/results/` is the canonical place a downstream consumer reads from. **It is git-ignored** — these are manuscript/appendix outputs, regenerated locally by running the analysis and `bootstrap_summary.do`, and are not distributed in the repo:
 
 ```         
 results/
@@ -84,7 +88,7 @@ analyses/transport_dvd/
 ├── coefficients/            # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
 ├── outcomes/                # sim_bcr_override.do (+ per-scenario subfolders)
 ├── patients/                # pool + drawn cohort .dta
-├── results/                 # cross-scenario CSVs, figures, results.md
+├── results/                 # cross-scenario CSVs, figures, results.md (git-ignored; local)
 └── simulated/
     ├── A_trial/             # per-scenario .dta + Tier-1/2 CSVs
     ├── B_transport/
@@ -101,7 +105,7 @@ Planned additions: `export_tables.do`. `bootstrap_summary.do` is written; `resul
 
 ## Data
 
-- **Vd comparator / anchor:** MRDR second-line Vd, **all registry years (n = 71)** — pooled given Vd's rarity (the registry ceiling); plus aggregate CASTOR DVd arm characteristics.
+- **Vd comparator / anchor:** MRDR relapsed-setting Vd, **pooled across second line onward (n = 135: L2 71, L3 28, L4 14, L5 17, L6 5)** with a line-of-therapy indicator, to match CASTOR's relapsed line mix; first-line Vd (n = 240, not CASTOR-eligible) is excluded. Plus aggregate CASTOR DVd arm characteristics.
 - **Non-Vd reference:** MRDR second-line non-Vd, **same all-years window (n = 2,720)** (= 2,791 total L2 − 71 Vd). One window for both treatment groups removes the era asymmetry; a calendar-period covariate is optional.
 - **DVd validation (held out):** MRDR second-line DVd, **n = 533 evaluable** (565 starts − 32 missing BCR). The DVd prediction uses no observed DVd outcomes — these are reserved for out-of-sample validation (the paper's holdout claim, replacing the earlier "pre-funding data only" framing). This raw observed distribution (CR 11.4 / VGPR 23.1 / PR 33.4 / MR 7.7 / SD 15.4 / PD 9.0 %) is the **BCR-accuracy benchmark**.
 
@@ -109,13 +113,13 @@ MRDR patient data access is via the MRDR Steering Committee ([mrdr.net.au](https
 
 ## Status
 
-In development. Manuscript Introduction and Methods complete (Methods reconciled to the bare model); Results and Discussion drafted (tracked changes, 9 Jun 2026) — three tables + Figure 1, Discussion across all six subsections. Abstract and Key points remain.
+In development. Manuscript Introduction and Methods complete (Methods currently reflect the earlier bare model and need re-reconciling to the line-adjusted model — see Next steps); Results and Discussion drafted (tracked changes, 9 Jun 2026) — three tables + Figure 1, Discussion across all six subsections. Abstract and Key points remain.
 
 **Done.** Tier-1 CSV export (`core/export_results.do`) live and wired into the dispatcher; all three scenarios (A_trial / B_transport / C_mrdr) run for the DVd and Vd arms with point-estimate CSVs in `simulated/<scenario>/`. All outcomes reported from L2 onwards.
 
-**Method settled (8 Jun 2026): the bare `ologit BCR MRDR DVd` model.** Covariate-adjusted transport was tested in three forms and all worsened out-of-sample calibration (MAE 6.8–7.2 pp vs bare 4.4 pp); reverted to the bare model. `B_transport_dvd.do` + `outcomes/sim_bcr_override.do` updated accordingly.
+**Method (implemented): the line-adjusted `ologit BCR MRDR DVd line3 line4 line5` on a pooled relapsed-Vd anchor.** The anchor pools all relapsed-setting registry Vd (n = 135) with a line-of-therapy indicator to match CASTOR's line mix; prediction is at L2 (line dummies = 0), so DVd − Vd = β_DVd. Patient-covariate adjustment (age/sex/ISS) was tested in three forms and worsened out-of-sample calibration, so it is not used. `calibrated_transport.do` + `outcomes/sim_bcr_override.do` implement this.
 
-**Results (bare model; matched cohort n = 50,180; DVd vs Vd, discounted; deterministic + 500-iteration bootstrap).** Source: `results/` via `bootstrap_summary.do`.
+**Results (matched cohort n = 50,180; DVd vs Vd, discounted; deterministic + 500-iteration bootstrap).** Source: `results/` via `bootstrap_summary.do`. *(These figures were recorded against the earlier L2-only anchor; reconfirm them against the current line-adjusted fit before use.)*
 
 - **BCR accuracy** (benchmark = raw observed DVd, n = 533, fixed): DVd MAE falls from **8.4 pp** (Traditional) to **5.4 pp** (Calibrated Transport); bootstrap 8.5 → 5.4 pp, reduction 36% (95% CI −0.3–6.2 pp). The reduction is **not significant on the symmetric CI**, but Calibrated Transport is more accurate in **96.0% of bootstrap replicates** (≥VGPR closer in 96.0%) — report this exceedance probability rather than significance.
 - **Economics:** ICER A **$456k** → B **$691k** → C **$2.64M** (bootstrap $459k / $711k / $2.40M; B 95% CI $487k–1.52M). ΔQALY A 0.285, B 0.171, C 0.039 (C crosses zero → C's ICER CI is uninterpretable; use its inc-cost/inc-QALY CIs). Calibrated Transport moves the ICER off the over-optimistic trial value toward observed reality — the policy-relevant result, independent of MAE significance.
@@ -126,6 +130,6 @@ In development. Manuscript Introduction and Methods complete (Methods reconciled
 1.  **Re-fit the risk equations using all 71 L2 Vd and all 2,720 non-Vd** (same all-years window for both; drop the pre-funding restriction; keep the DVd holdout). This stabilises the Vd category in `bL2_BCR` and clears the sparse-Vd bootstrap failures (which were in the unused TXR_L2 regression anyway). Then re-run all three scenarios + bootstrap.
 2.  **Finish the Vd cost in `core/process_data.do`.** Vd is now costed (`cVd = 724`, regimen code 5) — done. Remaining: per the MSAG 2022 guideline (Table 8), CASTOR Vd is **8 × 21-day cycles** (bortezomib D1,4,8,11), so switch the Vd line from `/28` (uncapped) to a 21-day basis with an 8-cycle cap, mirroring VCd: `cVd * min(8, TXD_L2 * 30.4375 / 21)` — confirming `cVd` is a per-21-day-cycle figure. Also tidy the `cOther` comment (no longer includes Vd).
 3.  **Bootstrap + Tier 3.** Run the 6×500 bootstrap (all three scenarios, both arms), then run `bootstrap_summary.do` (written) → `results/`. All three scenarios bootstrapped; MAE paired against a common C_b; ICER CIs side-by-side and comparable.
-4.  **Tier 2 (`export_tables.do`).** Treatment-mix / 2.5% table and the bare-model coefficients (β_MRDR = cross-setting shift; β_DVd ≈ −1.158 = CASTOR contrast).
-5.  **Manuscript framing follow-through** (vault `todo.md`): **reconcile Methods/Assumptions/Limitations to the bare model** (the covariate single-model is superseded) and add the covariate-test robustness result; comparator is Vd across all scenarios; pooled-SoC removed entirely; "pre-funding only" replaced by the DVd-holdout framing; Vd pooled across all years (n = 71).
+4.  **Tier 2 (`export_tables.do`).** Treatment-mix / 2.5% table and the transport-model coefficients (β_MRDR = cross-setting shift; β_DVd ≈ −1.158 = CASTOR contrast).
+5.  **Manuscript framing follow-through** (vault `todo.md`): **reconcile Methods/Assumptions/Limitations to the line-adjusted transport model** (pooled relapsed-Vd anchor + line indicator) and add the covariate-test robustness result; comparator is Vd across all scenarios; pooled-SoC removed entirely; "pre-funding only" replaced by the DVd-holdout framing; relapsed Vd pooled across lines (n = 135).
 6.  Draft Results from `results/`, then Discussion → Abstract → Conclusion.
