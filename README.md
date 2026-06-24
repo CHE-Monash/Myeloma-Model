@@ -1,15 +1,16 @@
-# Monash Myeloma Model v2.1
+# Monash Myeloma Model v3.0
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/) [![DOI](https://img.shields.io/badge/DOI-10.1371%2Fjournal.pone.0308812-blue.svg)](https://doi.org/10.1371/journal.pone.0308812)
 
 A comprehensive discrete-event simulation model for multiple myeloma disease outcomes and treatment pathways, developed through collaboration between Monash University's Centre for Health Economics and Transfusion Research Unit.
 
-## What's New in v2.1
+## What's New in v3.0
 
-- **Vectorised Implementation**: Complete rewrite using Mata's vector and matrix operations for dramatically improved performance
-- **Enhanced Code Organisation**: `mata_setup.do` provides clean, maintainable vector-based architecture
-- **Improved Efficiency**: Matrix-based computations replace patient-level loops for faster large-scale simulations
-- **Modernised Repository**: Git-based versioning with clean structure (no version folders)
+- **Calibrated Transport methods**: out-of-trial outcome prediction (e.g. DVd at L2) via the `transport_dvd` analysis
+- **Common Random Numbers (CRN)**: aligned RNG across treatment arms for variance-reduced cost-effectiveness comparisons
+- **Standardised CSV exports**: machine-readable result surface for downstream and programmatic use
+- **Vectorised engine** (incorporated from v2.1): Mata vector/matrix rewrite for dramatically faster large-scale simulation
+- **Rebrand**: project renamed from EpiMAP Myeloma to the Monash Myeloma Model
 
 ## Model Overview
 
@@ -41,85 +42,81 @@ cd Myeloma-Model
 
 ### Basic Usage
 
+Each analysis is driven by its own dispatcher in `analyses/<name>/`. Configure a run by editing the globals at the top of the dispatcher, then run it from Stata:
+
 ``` stata
 cd "path/to/myeloma-model"
-do "run.do"
+do "analyses/base_model/base_model.do"
 ```
 
-The `run.do` file contains example parameters. Edit this file to customise your simulation with the following arguments:
+#### Configuration
 
-#### Arguments Description
+The dispatcher's configuration block sets the run via globals (there are no positional arguments):
 
-| Position | Argument | Description | Example Values |
-|:---------------:|:----------------|:-----------------|:---------------------|
-| 1 | **Analysis** | Analysis identifier | `base_model`, `vrd_l1_post` |
-| 2 | **Intervention** | Treatment intervention | `VRd`, `SoC`, `all` |
-| 3 | **Line** | Line of therapy (1-9) | `1`, `2`, `3` |
-| 4 | **Coefficients** | Coefficient set to use | `base_model`, `VRd`, `SoC` |
-| 5 | **Data** | Dataset type | `Predicted`, `Population` |
-| 6 | **MinID** | Minimum patient ID | `1` |
-| 7 | **MaxID** | Maximum patient ID | `10`, `1000`, `4884` |
-| 8 | **Bootstrap** | Bootstrap flag (0/1) | `0` (no), `1` (yes) |
-| 9 | **MinBS** | Minimum bootstrap sample | `1` |
-| 10 | **MaxBS** | Maximum bootstrap sample | `5`, `100` |
-| 11 | **Report** | Report flag (PDF) | `0` (no), `1` (yes) |
-| 12 | **ExportCSV** | CSV export flag | `0` (no), `1` (yes) |
+| Global | Description | Example |
+|---|---|---|
+| `analysis` | Analysis name (folder under `analyses/`) | `base_model` |
+| `int` | Intervention | `all`, `VRd`, `SoC`, `DVd` |
+| `line` | Line of therapy assessed (1–9; `0` = all) | `0` |
+| `coeffs` | Coefficient set | `base_model` |
+| `data` | Patient data | `population`, `predicted` |
+| `min_year` / `max_year` | Diagnosis-year range | `1995` / `2040` |
+| `min_id` / `max_id` | Patient ID range | `1` / `101212` |
+| `boot` | Bootstrap flag (0/1) | `0` |
+| `min_bs` / `max_bs` | Bootstrap iteration range | `1` / `100` |
+| `cost_year` | Price year for costs (AUD) | `2025` |
+| `drate` | Annual discount rate (PBAC = 5%) | `0.05` |
+| `report` | Generate PDF report (0/1) | `0` |
+| `scenario` | Scenario label | `Base` |
 
-### Example Commands
+#### Available Analyses
 
-``` stata
-// Quick test with 10 patients
-do "main.do" base_model all 0 base_model population 1 10 0 0 0 0
+| Dispatcher | Focus |
+|---|---|
+| `analyses/base_model/base_model.do` | All regimens — current-practice projections |
+| `analyses/vrd_post/vrd_post.do` | VRd at LoT 1, post-market impact |
+| `analyses/transport_dvd/transport_dvd.do` | DVd via Calibrated Transport |
 
-// Full population simulation
-do "main.do" base_model all 0 base_model population 1 4884 0 0 0 1
+Results are written to `analyses/<analysis>/simulated/`.
 
-// Bootstrap analysis
-do "main.do" base_model VRd 1 base_model predicted 1 1000 1 1 100 1
-```
+## Result Exports
 
-The simulation will generate results in `analyses/[analysis_name]/data/simulated/`.
+Each simulation can emit a PDF report (`$report`) and machine-readable **flat CSV** outputs (`$export_csv`) for downstream use (R/Python post-processing, dashboards, manuscript drafting).
 
-## Result Exports for Downstream Access
+- **Engine-level** — `core/export_results.do` writes the CSVs every analysis needs (per-patient summary, BCR distribution, mean cost/QALY/LY) into `simulated/<scenario>/`.
+- **Analysis-level** — outputs specific to one analysis, plus cross-scenario aggregation, live under `analyses/<name>/results/` with a `results.md` summarising the key figures — the canonical read surface for downstream consumers.
 
-Alongside the human-facing PDF report (`$report`), the engine can emit machine-readable **flat CSV** outputs (`$export_csv`). This is the standard format for any downstream consumer — R/Python post-processing, dashboards, or assistant-driven manuscript drafting — that needs the numbers rather than a formatted document.
-
-**Why CSV, not Excel:** flat CSVs are read directly by downstream tools without parsing a binary workbook, avoid file-lock and multi-sheet ambiguity, and diff cleanly under Git. A `.xlsx` is fine as a personal working surface but should not be the hand-off format.
-
-**Convention:**
-
-- **Engine-level (model-wide).** `core/export_results.do` writes the CSVs that *every* analysis needs from a single run (e.g. per-patient summary, BCR distribution, mean cost/QALY/LY). It is gated by `$export_csv`, runs at the same hook as `core/generate_report.do`, reads the variables produced by `core/process_data.do`, and writes into the run's `simulated/<scenario>/` folder. The test for whether a CSV belongs here: *would another analysis want it too?* If yes, it lives in `core/`.
-- **Analysis-level.** Outputs specific to one analysis (bespoke tables, regression coefficients) and any **cross-scenario** aggregation (which no single run can produce, since scenarios run separately) live under `analyses/<name>/`, not in `core/`.
-- **Read surface.** Each analysis exposes a single `analyses/<name>/results/` folder holding the final cross-scenario CSVs plus a `results.md` that narrates and labels the key figures. Intermediate per-scenario CSVs stay in `simulated/<scenario>/`; `results/` is the canonical place a downstream consumer reads from.
-
-See the analysis README (e.g. `analyses/transport_dvd/README.md`) for the per-analysis specifics.
+See each analysis README (e.g. `analyses/transport_dvd/README.md`) for specifics.
 
 ## Repository Structure
 
 ```         
 Myeloma-Model/
-├── core/                  # Core simulation ine
-│   ├── matrix_setup.do   # Matrix initialisation
-│   ├── load_patients.do  # Patient data loading
-│   ├── mata_functions.do # Mata utility functions
-│   └── outcomes/         # Outcome simulation modules
-├── analyses/             # Analysis-specific configurations
-│   ├── base_model/       # Base model with all regimens
-│   └── vrd_l1_post/      # VRd post-market analysis
-├── patients/             # Patient cohort data
-│   ├── population/       # Population projections
-│   └── predicted/        # Predicted cohorts
-├── tests/                # Validation test suite
-│   ├── validate_vectors.do
-│   └── test_*.do
-├─EpiMAP_Myeloma.do       # Main simulation dispatcher
-├─run.do                  # Example wrapper script
-├─README.md
-├─CHANGELOG.md
+├── core/                    # Shared simulation engine
+│   ├── load_patients.do     # Patient data loading
+│   ├── mata_setup.do        # Mata vector/matrix setup
+│   ├── mata_functions.do    # Mata utility functions
+│   ├── simulation_engine.do # Discrete-event simulation core
+│   ├── rng_slots.do         # Common-random-number slot registry
+│   ├── run_pipeline.do      # Shared engine pass used by every analysis
+│   ├── process_data.do      # Post-simulation processing
+│   ├── export_results.do    # Machine-readable CSV exports
+│   ├── generate_report.do   # PDF report
+│   └── outcomes/            # Outcome (risk-equation) modules
+├── analyses/                # Per-analysis dispatchers, data & results
+│   ├── base_model/          # All regimens (current practice)
+│   ├── vrd_post/            # VRd LoT 1 post-market
+│   └── transport_dvd/       # DVd Calibrated Transport
+├── patients/                # Population cohorts (.dta)
+├── validation/              # Test suite & benchmarks
+├── docs/                    # Technical documentation
+├── hpc/                     # MASSIVE M3 cluster scripts
+├── README.md
+├── CHANGELOG.md
 └── LICENSE
 ```
 
-## Performance Improvements in v2.1
+## Performance Improvements in v3.0
 
 The vectorised implementation provides significant performance benefits:
 
@@ -141,7 +138,8 @@ The model has been comprehensively validated:
 
 Access previous versions via Git tags:
 
-- **v2.1**: Current version (vectorised implementation)
+- **v3.0**: Current version — Calibrated Transport & CRN methods, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the v2.1 vectorised engine)
+- **v2.1**: Vectorised Mata implementation (backward compatible)
 - **v2.0**: Reorganised architecture with extended treatment options
 - **v1.0**: Initial public release (August 2024) - `git checkout v1.0`
 
@@ -154,14 +152,14 @@ Irving A, Petrie D, Harris A, Fanning L, Wood EM, Moore E, et al. Developing and
 ### Software Citation
 
 ``` bibtex
-@software{monash_myeloma_model_v2_1,
+@software{monash_myeloma_model_v3_0,
   title = {Monash Myeloma Model (originally published as EpiMAP Myeloma)},
   author = {Irving, Adam and Petrie, Dennis and Harris, Anthony and Fanning, Laura and 
             Wood, Erica M and Moore, Elizabeth and Wellard, Cameron and Waters, Neil and
             Augustson, Bradley and Cook, Gordon and Gay, Francesca and McCaughan, Georgia and
             Mollee, Peter and Spencer, Andrew and McQuilten, Zoe K},
-  version = {2.1},
-  year = {2025},
+  version = {3.0},
+  year = {2026},
   url = {https://github.com/CHE-Monash/Myeloma-Model},
   doi = {10.1371/journal.pone.0308812},
   institution = {Monash University}
