@@ -40,7 +40,7 @@ The comparison is **DVd vs Vd** (the PBAC comparator) in all three scenarios. Vd
 
 The dispatcher `transport_dvd.do` runs **one scenario** (one or two arms) per invocation. Set the configuration globals at the top — `$scenario`, `$coeffs` (`dvd_pre` / `dvd_post`), `$int1`/`$int0`, `$line`, bootstrap flags, and the PDF report flag `$report` — then run it. The pipeline is `load_patients → mata_setup → simulation → process_data → export_results`, followed by validation and (when `$report = 1`) the PDF report. CSV export runs by default — no flag.
 
-**The BCR-transport generator** `calibrated_transport.do` is separate from the dispatcher: it fits the calibrated-transport ordered logit (β_MRDR / β_DVd, observed `m=0` data — no `mi`) that feeds `outcomes/sim_bcr_override.do`. `do calibrated_transport.do 0` runs the deterministic point estimate **and** writes the MRDR Vd anchor baseline for Table 1 → `results/mrdr_vd_baseline.csv`; `do calibrated_transport.do 1 <min> <max>` runs the bootstrap. The Table 1 baseline tabulation runs **only on the deterministic call** (`0`), not during the bootstrap.
+**The BCR-transport generator** `outcomes/calibrated_transport.do` is separate from the dispatcher: it fits the calibrated-transport ordered logit (β_MRDR / β_DVd, observed `m=0` data — no `mi`) that feeds `outcomes/sim_bcr_override.do`. `do outcomes/calibrated_transport.do 0` runs the deterministic point estimate **and** writes the MRDR Vd anchor baseline for Table 1 → `results/mrdr_vd_baseline.csv`; `do outcomes/calibrated_transport.do 1 <min> <max>` runs the bootstrap. The Table 1 baseline tabulation runs **only on the deterministic call** (`0`), not during the bootstrap.
 
 To produce the full comparison, run all three scenarios, then run the cross-scenario aggregation (below).
 
@@ -52,7 +52,7 @@ Output follows the model-wide convention in the root `README.md` (Result Exports
 
 **Tier 2 — analysis-level, per scenario (`analyses/transport_dvd/export_tables.do`).** *(planned)* The DVd-transport-specific tables that no other analysis shares — the treatment-mix / 2.5% table and the transport-model regression coefficients (β_MRDR = the cross-setting shift, β_DVd ≈ −1.158 = the CASTOR contrast). Called from the dispatcher at the end of a scenario run; writes into `simulated/<scenario>/`.
 
-**Tier 3 — cross-scenario aggregation (`analyses/transport_dvd/bootstrap_summary.do`).** Written; run once after the 6×500 bootstrap exists. **All three scenarios are bootstrapped** (A = resampled CASTOR BCR, B = calibrated-transport bootstrap, C = resampled observed cohort), so every CI reflects the same sources and is comparable. It reads `simulated/<scenario>/bootstrap/{dvd,vd}_2_predicted_B<b>.dta`, computes the **MAE paired against a common C_b** each iteration (so the A-vs-B reduction CI isn't inflated by benchmark noise) with the reduction (abs + %) and 95% CI, the side-by-side DVd-vs-Vd ICER / inc-cost / inc-QALY CIs, and the per-scenario BCR distributions; writes `bcr_distributions.csv`, `mae_comparison.csv`, `icer_comparison.csv`, `results.md` (and `bootstrap_iterations.dta`) into `results/`. This tier cannot live in a single run, since each scenario is run separately.
+**Tier 3 — cross-scenario aggregation (`analyses/transport_dvd/simulated/bootstrap_summary.do`).** Written; run once after the 6×500 bootstrap exists. **All three scenarios are bootstrapped** (A = resampled CASTOR BCR, B = calibrated-transport bootstrap, C = resampled observed cohort), so every CI reflects the same sources and is comparable. It reads `simulated/<scenario>/bootstrap/{dvd,vd}_2_predicted_B<b>.dta`, computes the **MAE paired against a common C_b** each iteration (so the A-vs-B reduction CI isn't inflated by benchmark noise) with the reduction (abs + %) and 95% CI, the side-by-side DVd-vs-Vd ICER / inc-cost / inc-QALY CIs, and the per-scenario BCR distributions; writes `bcr_distributions.csv`, `mae_comparison.csv`, `icer_comparison.csv`, `results.md` (and `bootstrap_iterations.dta`) into `results/`. This tier cannot live in a single run, since each scenario is run separately.
 
 ### Read surface: `results/`
 
@@ -64,7 +64,7 @@ results/
 ├── bcr_distributions.csv   # predicted vs observed BCR × 6 categories, all scenarios
 ├── mae_comparison.csv      # MAE per scenario with bootstrap 95% CIs
 ├── icer_comparison.csv     # DVd vs Vd ICER, per scenario
-├── mrdr_vd_baseline.csv    # MRDR Vd anchor baseline → Table 1 (from `calibrated_transport.do 0`)
+├── mrdr_vd_baseline.csv    # MRDR Vd anchor baseline → Table 1 (from `outcomes/calibrated_transport.do 0`)
 └── results.md              # narrates and labels the key figures for downstream use
 ```
 
@@ -74,25 +74,22 @@ Intermediate per-scenario CSVs stay in `simulated/<scenario>/`; only the final, 
 
 ```         
 analyses/transport_dvd/
-├── README.md                # this file
-│   # 1. Cohort construction
-├── cohort_pool.do           # build the L2-entry pool (case-mix) once; all_l2 = windowed (0) vs all-era (1)
-├── ce_cohort.do             # draw the production cohort (size N) from the pool -> canonical patient file
-│   # 2. Analysis
-├── calibrated_transport.do  # BCR-transport generator: `0`=deterministic (+ Table 1 baseline), `1`=bootstrap
-├── transport_dvd.do         # dispatcher: runs ONE scenario (deterministic + bootstrap)
-├── bootstrap_summary.do     # Tier 3 cross-scenario aggregation of the bootstrap output
-│   # 3. Sample-size justification (methods/appendix; git-ignored, local only)
-├── sample_size/             # ce_precision.do (sigma_pp + convergence), ce_sample_size.do (required N)
-├── coefficients/            # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
-├── outcomes/                # sim_bcr_override.do (+ per-scenario subfolders)
-├── patients/                # pool + drawn cohort .dta
-├── results/                 # cross-scenario CSVs, figures, results.md (git-ignored; local)
+├── README.md                   # this file
+├── transport_dvd.do            # dispatcher: runs ONE scenario (deterministic + bootstrap)
+├── outcomes/
+│   ├── calibrated_transport.do # BCR-transport generator: `0`=deterministic, `1`=bootstrap
+│   ├── sim_bcr_override.do      # L2 BCR override (per-scenario subfolders A_trial/, B_transport/)
+│   └── sim_txr_override.do
+├── coefficients/               # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
+├── patients/                   # cohort .dta (git-ignored)
+│   └── sample_size/            # cohort_pool, ce_cohort, ce_precision, ce_sample_size — methods; git-ignored, local
+├── results/                    # cross-scenario CSVs, figures, results.md (git-ignored; local)
 └── simulated/
-    ├── A_trial/             # per-scenario .dta + Tier-1/2 CSVs
+    ├── bootstrap_summary.do    # Tier 3 cross-scenario aggregation of the bootstrap output
+    ├── A_trial/                # per-scenario .dta + CSVs
     ├── B_transport/
     ├── C_mrdr/
-    └── report/              # per-run PDF reports
+    └── report/                 # per-run PDF reports
 ```
 
 Planned additions: `export_tables.do`. `bootstrap_summary.do` is written; `results/` is created when it runs.
@@ -116,7 +113,7 @@ In development. Manuscript Introduction and Methods complete (Methods currently 
 
 **Done.** Tier-1 CSV export (`core/export_results.do`) live and wired into the dispatcher; all three scenarios (A_trial / B_transport / C_mrdr) run for the DVd and Vd arms with point-estimate CSVs in `simulated/<scenario>/`. All outcomes reported from L2 onwards.
 
-**Method (implemented): the line-adjusted `ologit BCR MRDR DVd line3 line4 line5` on a pooled relapsed-Vd anchor.** The anchor pools all relapsed-setting registry Vd (n = 135) with a line-of-therapy indicator to match CASTOR's line mix; prediction is at L2 (line dummies = 0), so DVd − Vd = β_DVd. Patient-covariate adjustment (age/sex/ISS) was tested in three forms and worsened out-of-sample calibration, so it is not used. `calibrated_transport.do` + `outcomes/sim_bcr_override.do` implement this.
+**Method (implemented): the line-adjusted `ologit BCR MRDR DVd line3 line4 line5` on a pooled relapsed-Vd anchor.** The anchor pools all relapsed-setting registry Vd (n = 135) with a line-of-therapy indicator to match CASTOR's line mix; prediction is at L2 (line dummies = 0), so DVd − Vd = β_DVd. Patient-covariate adjustment (age/sex/ISS) was tested in three forms and worsened out-of-sample calibration, so it is not used. `outcomes/calibrated_transport.do` + `outcomes/sim_bcr_override.do` implement this.
 
 **Results (matched cohort n = 50,180; DVd vs Vd, discounted; deterministic + 500-iteration bootstrap).** Source: `results/` via `bootstrap_summary.do`. *(These figures were recorded against the earlier L2-only anchor; reconfirm them against the current line-adjusted fit before use.)*
 

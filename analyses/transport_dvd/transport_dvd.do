@@ -1,12 +1,12 @@
 **********
-* Monash Myeloma Model - DVd L2 Method Dispatcher
+* Monash Myeloma Model
+* Calibrated Transport Dispatcher
 * 
 * Purpose: Execute analysis
 **********
 
 clear all
 set more off
-
 
 **********
 * Configuration
