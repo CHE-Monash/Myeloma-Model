@@ -16,6 +16,13 @@ analyses/*/results/*
 # Cohort-construction & sample-size scripts (methods/appendix; not shipped)
 analyses/transport_dvd/patients/sample_size/
 
+# transport_dvd: WORK IN PROGRESS (DVd Calibrated Transport paper) — kept OFF GitHub
+# until journal submission, then remove this line and tag a release. Local copy retained.
+analyses/transport_dvd/
+
+# Machine-specific local config (real paths; never committed — see config.example.do)
+/config.do
+
 # HPC job scripts (machine-specific; not needed on GitHub)
 /hpc/
 
