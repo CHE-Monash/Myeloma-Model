@@ -11,8 +11,6 @@ set more off
 * Configuration
 **********
 
-// Set working directory
-cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
 
 // Analysis settings
 global analysis     "base_model"    	// Analysis name

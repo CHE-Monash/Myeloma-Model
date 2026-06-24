@@ -26,7 +26,7 @@ putpdf begin
 
 // Title page
 putpdf paragraph, halign(center)
-putpdf text ("Monash Myeloma Model v2.0"), bold font(,18)
+putpdf text ("Monash Myeloma Model v3.0"), bold font(,18)
 
 putpdf paragraph
 putpdf text ("Simulation Report"), bold font(,16)

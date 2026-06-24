@@ -7,7 +7,6 @@
 * Date: January 2026
 **********
 
-cd "~/Documents/Monash/Research/Blood Disorders/EpiMAP-Local/Myeloma/Simulation"
 
 **********
 // Load Benchmarks

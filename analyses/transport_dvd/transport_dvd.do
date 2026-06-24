@@ -7,8 +7,6 @@
 clear all
 set more off
 
-*cap cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
-cap cd "~/em76/adam"
 
 **********
 * Configuration

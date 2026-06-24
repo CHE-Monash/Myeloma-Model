@@ -1,938 +1,188 @@
----
+# Monash Myeloma Model — Technical Review
 
-editor_options: 
-  markdown: 
-    wrap: 72
----
+**Version:** 3.0 · **Updated:** 2026-06-24 · **Tooling:** Stata 15+ (Mata)
 
-# Monash Myeloma Model - Technical Review
+This document describes the architecture and implementation of the Monash Myeloma Model as it stands in the current codebase. It is rebuilt from source and supersedes earlier versions. Where a method underpins a specific analysis (notably Calibrated Transport), the authoritative specification lives in that analysis's own README; this review covers the shared engine.
 
-## Executive Summary
+## Executive summary
 
-The Monash Myeloma Model is a sophisticated **discrete-event simulation (DES)** model for multiple myeloma disease progression and treatment outcomes. Version 2.1 represents a major architectural transformation from loop-based to **vectorised matrix operations** using Stata's Mata language, achieving \~700× performance improvements whilst maintaining identical outputs.
+The Monash Myeloma Model is a discrete-event microsimulation of the multiple myeloma treatment journey, from diagnosis through up to nine lines of therapy and death. It predicts best clinical response, treatment duration, treatment-free interval and overall survival from roughly 30 risk equations estimated on the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR), and attaches costs and quality-adjusted life years for health-economic evaluation.
 
-------------------------------------------------------------------------
+The engine is implemented in Stata's Mata language as a vectorised microsimulation: every patient is advanced through the same event simultaneously using matrix operations rather than a per-patient loop. All stochastic events draw from a pre-generated common-random-number (CRN) matrix, so two arms of a comparison see identical randomness for each patient — the basis for variance-reduced cost-effectiveness comparison.
 
-## Architecture Overview
+## Architecture overview
 
-### Core Design Philosophy
+### Design philosophy
 
-The simulation follows a **modular, state-based architecture** where: - Patient cohorts flow through discrete outcome milestone checkpoints (OMCs) - Each checkpoint represents a specific disease state (diagnosis, line start, line end) - Outcomes at each checkpoint are predicted using evidence-based risk equations - All computations operate on entire patient cohorts simultaneously (vectorised)
+The model holds the simulated population entirely in Mata memory and operates on it column-by-column across the patient pathway. The governing convention (set in `core/mata_setup.do`) is:
 
-### Key Architectural Components
+- **Vectors** hold fixed patient characteristics (age, sex, ECOG, R-ISS, comorbidity, ASCT intent, etc.), one element per patient.
+- **Matrices** hold pathway-varying outcomes, one row per patient and one column per pathway point.
 
-```         
-repo/
-├── core/                          # Simulation engine
-│   ├── simulation_engine.do       # Main orchestration logic
-│   ├── mata_setup.do              # Matrix/vector initialisation  
-│   ├── load_patients.do           # Patient cohort loading
-│   ├── mata_functions.do          # Utility functions
-│   ├── process_data.do            # Post-simulation data assembly
-│   └── outcomes/                  # Outcome prediction modules
-│       ├── sim_os.do             # Overall survival
-│       ├── sim_bcr.do            # Best clinical response
-│       ├── sim_txr.do            # Treatment regimen
-│       ├── sim_txd*.do           # Treatment duration
-│       ├── sim_tfi*.do           # Treatment-free intervals
-│       ├── sim_asct*.do          # ASCT eligibility/outcomes
-│       ├── sim_mnt.do            # Maintenance therapy
-│       ├── sim_mort.do           # Mortality tracking
-│       └── sim_age.do            # Age progression
-├── analyses/                      # Analysis configurations
-│   ├── base_model/               # Base model (all regimens)
-│   ├── vrd_l1_post/              # VRd post-market analysis
-│   └── dvd_l2_method/            # DVd L2 methodology
-├── patients/                      # Patient data
-│   ├── population/               # Population projections
-│   └── predicted/                # Trial-based cohorts
-└── tests/                        # Validation suite
-    ├── validate_vectors.do
-    └── test_*.do
-```
+A run is driven by a small set of `global` macros set in a per-analysis dispatcher; there is no positional command-line interface.
 
-------------------------------------------------------------------------
+### Pathway points (OMC)
 
-## Simulation Flow
+The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). Column 1 is diagnosis (DN); columns 2–19 are the start and end of each line, L1S/L1E through L9S/L9E. The engine walks these points in order, and outcome matrices are dimensioned `Obs × 19` to match.
 
-### High-Level Execution Pipeline
+## Run interface
 
-``` stata
-1. Load Coefficients    → mata matuse "coefficients.mmat"
-2. Load Patients        → load_patients (from .dta file)
-3. Setup Vectors        → mata_setup (initialise all matrices)
-4. Run Simulation       → simulation (30 outcome equations)
-5. Process Results      → process_data (assemble output dataset)
-6. Validate & Report    → validation.do, generate_report.do
-```
+There is no `main.do` and no positional-argument entry point. Each analysis ships a dispatcher do-file (`analyses/<name>/<name>.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
 
-### Outcome Milestone Checkpoints (OMC)
+The configuration block (canonical form in `analyses/base_model/base_model.do`):
 
-The simulation progresses through 19 discrete checkpoints:
+| Global | Meaning | Default |
+|---|---|---|
+| `$analysis` | Analysis name (also sets the four `*_path` globals) | `base_model` |
+| `$int` | Intervention label (two-arm analyses use `$int1`/`$int0`) | `all` |
+| `$line` | Line of therapy assessed (`0` = full pathway from diagnosis; 1–9) | `0` |
+| `$coeffs` | Coefficient set loaded via `mata matuse` | `base_model` |
+| `$data` | Patient data: `population` or `predicted` | `population` |
+| `$min_year` / `$max_year` | Diagnosis-year range | `1995` / `2040` |
+| `$min_id` / `$max_id` | Patient ID range | `1` / `101212` |
+| `$boot` | Bootstrap flag (0/1) | `0` |
+| `$min_bs` / `$max_bs` | Bootstrap iteration range | `""` |
+| `$cost_year` | Price year for costs (AUD) | `2025` |
+| `$drate` | Annual discount rate (PBAC = 5%) | `0.05` |
+| `$report` | Generate PDF report (0/1) | `0` |
+| `$scenario` | Scenario label (woven into output paths) | `""` |
 
-| OMC | Checkpoint | Key Outcomes |
-|----------------|--------------------------|------------------------------|
-| 1 | Diagnosis (DN) | ASCT eligibility, TFI to L1, OS, Mortality |
-| 2 | Line 1 Start (L1S) | Age update, TXR, TXD, OS, Mortality |
-| 3 | Line 1 End (L1E) | BCR, ASCT receipt, ASCT BCR, Maintenance, TFI, OS, Mortality |
-| 4 | Line 2 Start (L2S) | Age, TXR, TXD, OS, Mortality |
-| 5 | Line 2 End (L2E) | BCR, TFI, OS, Mortality |
-| ... | Lines 3-9 | Repeated pattern (Start → End) |
-| 19 | Line 9 End (L9E) | Final BCR, OS, Terminal mortality |
+Two invocation patterns coexist. `base_model.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
 
-At each checkpoint, the simulation: 1. **Filters** patients who are alive and have reached this state 2. **Predicts** outcomes using risk equations (ordered logit, parametric survival, multinomial logit) 3. **Updates** patient state matrices with new outcomes 4. **Tracks** cumulative time since diagnosis
+> `analyses/vrd_post/vrd_post.do` is a legacy dispatcher still using camel-case globals (`$Int`, `$Line`, `$Boot`, …) and the old `matrix_setup` naming. It is functionally superseded by the `base_model`/`transport_dvd` convention and is a candidate for modernisation.
 
-------------------------------------------------------------------------
+## Simulation flow
 
-## Data Structures
+A typical run proceeds:
 
-### Core Patient Matrices (All in Mata Memory Space)
+1. **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `population_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
+2. **`core/mata_setup.do`** (`mata_setup`) — builds the Mata characteristic vectors and outcome matrices from the Stata data, and constructs the CRN matrix `mRN`. It asserts `ID == _n` (errors otherwise).
+3. **`core/simulation_engine.do`** (`simulation`) — the deterministic event loop. At each of the 19 OMC points it sets the current `OMC` and `Line` and executes the relevant `core/outcomes/sim_*.do` module, filling the outcome matrices.
+4. **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs and discounted QALYs.
 
-#### **Input Vectors** (Patient Characteristics)
+The dispatcher then saves the dataset, runs the in-run invariant checks in `core/validation.do`, and optionally writes CSV exports and/or a PDF report.
 
-``` stata
-vID        : Patient identifiers (n × 1)
-vAge       : Age at diagnosis (continuous)
-vAge2      : Age squared (for quadratic effects)
-vMale      : Sex indicator (0=Female, 1=Male)
-vECOG      : Original ECOG category (0, 1, 2+)
-vECOG0/1/2 : ECOG dummy variables
-vRISS      : Original R-ISS category (1, 2, 3)
-vRISS1/2/3 : R-ISS dummy variables
-vCMc       : Comorbidity score (0, 1, 2, 3+)
-vCM0/1/2/3 : Comorbidity dummy variables
-vCKD       : Chronic kidney disease indicator
-vAge70/75  : Age threshold indicators
-vCons      : Constant vector (all 1s)
-vSCT_DN    : ASCT eligibility at diagnosis
-vSCT_L1    : ASCT receipt at Line 1
-vMNT       : Maintenance therapy receipt
-```
+## Data structures
 
-#### **Outcome Matrices** (n × 19 columns, one per OMC)
+All built in `core/mata_setup.do`. Outcome matrices are `Obs × 19` unless noted, with paired row/column label matrices.
 
-``` stata
-mAge       : Age at each checkpoint (continuous time)
-mOS        : Overall survival cumulative time
-mTNE       : Time to next event (treatment duration or TFI)
-mTSD       : Time since diagnosis (cumulative)
-mMOR       : Mortality indicator (0=alive, 1=dead)
-mOC        : Outcome container [Time, MortalityFlag]
-mTXR       : Treatment regimen (1-9 for each line)
-mTXD       : Treatment duration (months per line)
-mBCR       : Best clinical response (1-6: CR, VGPR, PR, MR, SD, PD)
-              Column 10: BCR post-ASCT
-mTFI       : Treatment-free intervals (diagnosis + Lines 1-8)
-mState     : State tracking for eligibility logic
-```
+| Matrix | Shape | Contents |
+|---|---|---|
+| `mState` | `Obs×2` | Entry disease state, diagnosis date |
+| `mAge` | `Obs×19` | Age at each pathway point |
+| `mOS` | `Obs×19` | Simulated overall-survival time from diagnosis |
+| `mTNE` | `Obs×19` | Time to next event (duration of the current OMC) |
+| `mTSD` | `Obs×19` | Cumulative time since diagnosis (`TSD_DN = 0`) |
+| `mMOR` | `Obs×19` | Mortality flag (1 dead, 0 alive, `.` not reached) |
+| `mOC` | `Obs×2` | Final outcome: death/censor time, mortality flag |
+| `mTXR` | `Obs×9` | Treatment regimen code per line |
+| `mTXD` | `Obs×9` | Treatment duration (months) per line |
+| `mBCR` | `Obs×10` | Best clinical response per line, plus post-ASCT response |
+| `mTFI` | `Obs×9` | Treatment-free interval (TFI for line *L* sits in column *L+1*) |
 
-------------------------------------------------------------------------
+Fixed characteristics are held as vectors: `vID`, `vAge`/`vAge2` (updated to current age each OMC), `vMale`, ECOG dummies, R-ISS and ISS dummies, comorbidity and chronic-kidney-disease indicators, age-threshold indicators (`vAge70`, `vAge75`), the constant `vCons`, and ASCT/maintenance receipt vectors (`vSCT_DN`, `vSCT_L1`, `vMNT`). `process_data` reassembles these into a single summary matrix and exports them as long-named Stata variables (`OS_DN`, `BCR_L1`, `OC_TIME`, …).
 
-## Risk Equation Architecture
+## Risk-equation / outcomes architecture
 
-### 30 Evidence-Based Models
+The roughly 30 risk equations are organised into self-contained modules under `core/outcomes/`. Each module filters to eligible patients, assembles a design matrix from the characteristic vectors, extracts the relevant coefficient block from an externally loaded Mata matrix, computes a linear predictor, draws a CRN uniform, maps it to an outcome, and writes back into the appropriate matrix. Most carry a design/coefficient dimension guard (`exit(459)` on mismatch).
 
-The simulation implements **30 distinct risk equations** derived from MRDR registry data:
+| Module | Outcome | Method |
+|---|---|---|
+| `sim_asct_dn` | ASCT intent at diagnosis | Logistic |
+| `sim_asct_l1` | ASCT receipt at L1 | Logistic (gated on regimen/response) |
+| `sim_tfi_dn` | TFI diagnosis → L1 | Parametric survival |
+| `sim_tfi_l1` | TFI L1 → L2 | Parametric survival, split by ASCT status |
+| `sim_tfi` | TFI for L2+ | Parametric survival, line-specific |
+| `sim_txr` | Treatment regimen per line | Multinomial logit (pooled "Other" fallback) |
+| `sim_bcr` | Best clinical response (1=CR … 6=PD) | Ordered logit (6 categories, 5 cutpoints) |
+| `sim_bcr_asct` | Post-ASCT response | Ordered logit |
+| `sim_txd_l1` | L1 treatment duration | Three-segment spline survival (fixed+ASCT), plus continuous-therapy branch |
+| `sim_txd` | L2+ treatment duration | Parametric survival, line-specific |
+| `sim_os` | Overall survival | Parametric survival, segmented by BCR × line |
+| `sim_mort` | Death at this OMC | Deterministic (time crosses OS) |
+| `sim_age` | Age update and age-limit deaths | Deterministic |
+| `sim_mnt` | Maintenance receipt | Logistic, split by ASCT status |
 
-| ID | Outcome | Model Type | Key Covariates |
-|---------------|---------------|------------------|-------------------------|
-| 1-2 | Overall Survival (DN/L1S) | Parametric survival | Age, Sex, ECOG, R-ISS, CM |
-| 3 | ASCT Eligibility (DN) | Logistic | Age, ECOG, R-ISS, CM, CKD |
-| 4 | Diagnosis to Treatment Interval | Parametric survival | Age, Sex, R-ISS |
-| 5-7 | L1 TXD ASCT (3 manual splines) | Parametric survival | Age, Sex, ECOG, TXR |
-| 8 | L1 TXD Non-ASCT | Parametric survival | Age, Sex, ECOG, R-ISS, TXR |
-| 9 | L1 BCR | Ordered logistic | Age, Sex, ECOG, R-ISS, TXR |
-| 10 | ASCT Receipt (L1) | Logistic | Age, ECOG, R-ISS, L1 BCR |
-| 11 | ASCT BCR | Ordered logistic | Age, Sex, ECOG, R-ISS, L1 BCR |
-| 12 | Maintenance Therapy | Logistic | Age, ECOG, ASCT status, L1 BCR |
-| 13-14 | L1 TFI (ASCT vs Non-ASCT) | Parametric survival | Age, Sex, ECOG, R-ISS, L1 BCR |
-| 15-30 | L2-L9 TXR, TXD, BCR, TFI, OS | Varied | Line-specific with prior BCR |
+The parametric survival families implemented in `core/mata_functions.do` are **exponential, Weibull and Gompertz** (closed-form inverse-CDF sampling; `ereg` is an alias for exponential). The family for each equation is selected by a string global (`fbOS`, `fbDN_TFI`, …). Response is modelled by **ordered logit** (`calcOrdLogitProbs` + `assignOrdOutcome`) and regimen choice by **multinomial logit**; ASCT and maintenance receipt are logistic. The L1 treatment-duration equation uses three conditional spline segments for the fixed-duration plus ASCT group.
 
-### Common Modelling Approaches
+## Mortality and survival tracking
 
-#### **1. Ordered Logistic Regression (BCR)**
+Survival is the master clock. `sim_os` draws a survival time from diagnosis at each pathway point, conditioned on the patient having survived to the current time-since-diagnosis; it is re-drawn at each OMC because the linear predictor changes as response and line evolve. `sim_mort` then declares death at an OMC when cumulative time crosses the drawn survival time, sets `mMOR`/`mOC`, and clips the realised duration (`mTXD` or `mTFI`) to the time actually experienced.
 
-``` stata
-// Multinomial outcome with ordered categories
-// Reference: Progressive Disease (PD)
-Pr(BCR = CR) = exp(XB_CR) / [1 + Σexp(XB_k)]
-Pr(BCR = VGPR) = exp(XB_VGPR) / [1 + Σexp(XB_k)]
-...
-// Normalisation ensures: Σ Pr(BCR_k) = 1
-```
+This is a single-cause time-to-event design rather than a formal competing-risks framework, with two additional absorbing mechanisms: an **age cap** (`Limit = 100`) that bounds age at death and can retroactively end a patient in the prior OMC, and a **terminal absorption** at L9E that forces any remaining survivors to die. `core/validation.do` enforces the survival invariants (no death-flag reversal, non-negative outcome times, monotone time-since-diagnosis, no outcomes recorded after death).
 
-#### **2. Parametric Survival (OS, TXD, TFI)**
+## Common random numbers (CRN)
 
-``` stata
-// Generalised gamma distribution with 3 parameters
-log(time) = XB + σ * (κ * z) where z ~ N(0,1)
-// Extracted coefficients: XB, σ (sigma), κ (kappa)
-// Transform: exp(XB + error_term) with proper error bounds
-```
+The model uses common random numbers to reduce the variance of incremental (between-arm) cost-effectiveness estimates. Every stochastic event reads a fixed column of a pre-drawn uniform matrix for a fixed patient (row), so the same uniform feeds the same event for the same patient in every arm of a comparison; only the coefficients differ between arms, which isolates the treatment effect.
 
-#### **3. Logistic Regression (Binary Outcomes)**
+`core/rng_slots.do` is the single source of truth for the column layout of the CRN matrix. It defines a total width `rn_K()` = 74 columns, partitioned into named blocks with per-event accessor functions returning the absolute column for an (event, point) pair — for example `rn_os(omc)` (cols 1–19), `rn_bcr(line)` (cols 20–28), `rn_txr(line)` (cols 30–38), `rn_txd_l1(seg)` (cols 39–43), and a reserved override block `rn_override(1..8)` (cols 67–74). The accessor used throughout the outcome modules is:
 
-``` stata
-// ASCT eligibility, maintenance therapy
-Pr(Y = 1) = invlogit(XB) = exp(XB) / [1 + exp(XB)]
-// Draw: runiform() < Pr(Y=1)
-```
-
-------------------------------------------------------------------------
-
-## Vectorisation Strategy (v2.0 → v2.1 Transformation)
-
-### The Challenge
-
-**v2.0 Loop-Based Approach:**
-
-``` stata
-forvalues i = 1/$Obs {
-    scalar age = Age[`i']
-    scalar male = Male[`i']
-    // ... extract all covariates individually
-    scalar XB = b1*age + b2*male + ...
-    mata: mOS[`i', OMC] = exp(XB + error)
+```mata
+real colvector rnDraw(real colvector idx, real scalar slot) {
+    external real matrix mRN
+    return(mRN[idx, slot])
 }
 ```
 
-**Problem:** 10,000 patients × 19 checkpoints × multiple outcomes = \~500,000+ individual loop iterations
+The matrix itself is built in `mata_setup`:
 
-### The Solution
-
-**v2.1 Vectorised Approach:**
-
-``` stata
-mata {
-    // Extract all alive patients at this checkpoint
-    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
-    
-    // Build patient matrix (n_alive × k_predictors)
-    pMat = (vAge[idx], vAge2[idx], vMale[idx], vECOG1[idx], ...)
-    
-    // Extract coefficient vector (1 × k_predictors)
-    coefs = bMatrix[coefCols]
-    
-    // Matrix multiplication: (n × k) × (k × 1) = (n × 1)
-    XB = pMat * coefs'
-    
-    // Vectorised error generation and transformation
-    errors = rnormal(rows(idx), 1, 0, sigma)
-    outcomes = exp(XB + bounded(errors, kappa, -maxError, maxError))
-    
-    // Update outcome matrix in one operation
-    mOS[idx, OMC] = outcomes
-}
+```stata
+if ("$crn_seed_base" == "") global crn_seed_base 20260615
+local _crn_seed = $crn_seed_base + `_b'   // `_b' = bootstrap index (0 if not bootstrapping)
+set seed `_crn_seed'
+mata: mRN = runiform(Obs, rn_K())          // Obs × 74
 ```
 
-**Performance Gain:** - **Before:** 23+ minutes for 10,000 patients - **After:** \<2 seconds for 10,000 patients - **Speedup:** \~700×
+Cross-arm alignment rests on three guarantees: an identical seed for both arms within a replication; identical cohort row order (enforced by `ID = _n` in `load_patients` and asserted in `mata_setup`); and fixed (patient × slot) addressing. Across bootstrap replications the seed is offset by the iteration index, so Monte-Carlo noise is independent between replications while arms stay aligned within each. CRN is unconditional — there is no `runiform()` fallback and no runtime toggle. The matrix is dropped in `process_data` to free peak memory.
 
-------------------------------------------------------------------------
+The slot registry imposes two rules: sequential draws for the same patient must use distinct slots (e.g. the three L1 treatment-duration spline draws), and an override that *replaces* a core event reuses that event's slot, while a genuinely new stochastic event takes a column from the reserved override block.
 
-## Key Mata Utility Functions
+## Bootstrap uncertainty
 
-### `bounded()` - Error Term Constraint
+Parameter uncertainty is propagated through the coefficients. When `$boot == 1`, the dispatcher loops over iterations `$min_bs..$max_bs`; each iteration loads a resampled coefficient set (`coefficients_<set>_B<b>.mmat`), re-runs the full pipeline with the CRN seed offset by `b`, and saves a per-iteration dataset under `…/bootstrap/`. Each replication therefore combines a resampled coefficient vector (parameter uncertainty) with independent Monte-Carlo noise, while the two arms remain CRN-aligned within the replication.
 
-``` stata
-real colvector bounded(real colvector values, 
-                       real scalar maxValue, 
-                       real scalar minValue)
-```
+`core/process_bootstraps.do` aggregates a two-arm comparison: for each saved replication it extracts per-arm means (costs, discounted QALYs, mean overall survival, treatment duration) and the response/subsequent-line distributions, computes incrementals and the ICER, and reports means with 2.5/97.5-percentile bootstrap confidence intervals.
 
-**Purpose:** Constrain error terms to prevent implausible predictions - Used in survival models to prevent survival times \<0 or \>age limit - Applies limits only to non-missing values - Returns clamped vector: `min(max(value, minValue), maxValue)`
+## Analyses
 
-### `validateDimensions()` - Matrix Multiplication Check
+- **`base_model`** — the full treatment landscape, with all observed MRDR regimens in the risk equations. Used for population projections and as the baseline for the health-economic models. Its output, `analyses/base_model/simulated/all_0_population_1_101212.dta`, is the file the validation suite checks.
+- **`vrd_post`** — VRd at line 1, post-market. Uses a coefficient set in which VRd is excluded, so VRd-eligible patients are re-allocated to historical alternatives; two scenarios (`SoC` vs `VRd`) quantify the clinical impact of VRd availability.
+- **`transport_dvd`** — a two-arm comparative cost-effectiveness analysis of DVd versus Vd at line 2, built on the Calibrated Transport method (below). Runs under three scenarios (`A_trial`, `B_transport`, `C_mrdr`), each saved to its own `simulated/<scenario>/` subtree.
 
-``` stata
-void validateDimensions(real matrix pMat, 
-                        real rowvector coefs, 
-                        string scalar matrixName)
-```
+## Calibrated Transport
 
-**Purpose:** Catch dimension mismatches before matrix multiplication - Critical for debugging coefficient extraction errors - Provides detailed diagnostic output if cols(pMat) ≠ cols(coefs)
+Calibrated Transport predicts the real-world Australian second-line outcomes of a regimen — here DVd at line 2 — before funding, when no domestic real-world data on the new regimen exist. The method exploits a comparator observed in **both** the trial (CASTOR) and the registry (MRDR): Vd. This shared anchor calibrates the trial DVd-versus-Vd effect into the Australian setting, re-expressing it as an absolute real-world prediction. Implementation fits an ordered-logit response model on a stacked dataset of the registry Vd anchor and the resampled trial arms (with line-of-therapy indicators in the on-disk model), then overrides line-2 response in the simulation via `core/outcomes/sim_bcr_override.do`, drawing CRN-aligned uniforms so the DVd and Vd arms are paired patient-by-patient. The three scenarios contrast the traditional trial transfer (`A_trial`), Calibrated Transport (`B_transport`) and the observed MRDR benchmark (`C_mrdr`).
 
-### `validateOutcomes()` - Categorical Outcome Validation
+The definitive method specification, including the exact regression form and the validation results, lives in `analyses/transport_dvd/README.md` and the associated paper. A supporting Monte-Carlo precision workflow justifies the simulated cohort size:
 
-``` stata
-void validateOutcomes(real colvector outcomes, 
-                      real rowvector validValues, 
-                      string scalar outcomeName)
-```
+- `cohort_pool.do` builds a reusable, arm-agnostic line-2 entry pool once.
+- `ce_cohort.do` draws the fixed-size production cohort (50,000) from that pool.
+- `ce_precision.do` estimates the per-patient SD of the incremental outcome using common random numbers, giving the Monte-Carlo SD of a size-N mean.
+- `ce_sample_size.do` combines that per-patient SD with bootstrap parameter uncertainty (an O'Hagan/Stevenson/Madan ANOVA decomposition) to report the required cohort size.
+- `bootstrap_summary.do` aggregates the cross-scenario bootstrap into response distributions, prediction error versus the observed benchmark, and ICERs.
 
-**Purpose:** Ensure categorical predictions fall within expected ranges - Used for BCR (1-6), TXR regimen codes, binary indicators - Warns if invalid values detected (helps catch logic errors)
+## Health-economic integration
 
-------------------------------------------------------------------------
+`process_data` attaches costs and utilities to the simulated pathway and discounts both at `$drate` (PBAC default 5%) to the `$cost_year` price base. Costs are accumulated by treatment and line; quality-adjusted life years are derived from response- and line-specific utilities applied over the simulated time. Two-arm analyses collapse mean discounted cost and QALY by arm to form the incremental cost-effectiveness ratio.
 
-## Treatment Pathway Modelling
+## Outputs
 
-### Line 1 Special Handling
+`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model.do`.
 
-**ASCT Pathway:**
+`core/generate_report.do` produces a `putpdf` report (titled "Monash Myeloma Model v3.0") when `$report == 1`, covering the patient sample, treatments, overall survival (with figures), lines of therapy, treatment duration, treatment-free interval and economic outcomes.
 
-```         
-Diagnosis → ASCT Eligibility Check
-    ↓ (if eligible)
-L1 Start → Induction Therapy (TXR, TXD, BCR)
-    ↓
-L1 End → ASCT Receipt Decision
-    ↓ (if receives ASCT)
-    → ASCT BCR (separate equation, typically better)
-    → Maintenance Therapy Decision
-    → Treatment-Free Interval (ASCT-specific coefficients)
-```
+## Validation
 
-**Non-ASCT Pathway:**
+Validation is described in `docs/validation.md`. In brief: `validation/validate_simulation.do` compares a base-model run against pre-baked MRDR benchmarks in `validation/benchmarks/` across five families (overall survival, response, treatment duration, treatment-free interval and pathways) with documented tolerances; `core/validation.do` runs lighter invariant checks within each simulation; and `validation/validate_vectors.do` plus the `test_*.do` scripts are developer equivalence checks for the vectorised implementation.
 
-```         
-Diagnosis → ASCT Ineligibility
-    ↓
-L1 Start → Standard Therapy (TXR, TXD, BCR)
-    ↓
-L1 End → No ASCT
-    → Maintenance Therapy Decision
-    → Treatment-Free Interval (non-ASCT coefficients)
-```
+## Performance
 
-### Regimen Selection Logic
+The vectorised Mata implementation processes all patients simultaneously through matrix operations rather than a per-patient loop, which makes it substantially faster than the original loop-based implementation and allows large cohorts (tens of thousands of patients, with bootstrap replication) to be simulated in practical time. Memory is the main constraint at scale; the CRN matrix is the largest transient structure and is released in `process_data` once outcomes are finalised.
 
-**Line 1 (3 regimens modelled explicitly):** - **VRd** (Bortezomib-Lenalidomide-Dex): 15% of cohort, superior efficacy - **VCd** (Bortezomib-Cyclophosphamide-Dex): 58% of cohort, standard care - **Other**: 26% of cohort, averaged survival benefit
+## Common pitfalls and debugging
 
-**Line 2+ (regression to mean approach):** - **DVd** (Daratumumab-Bortezomib-Dex): Modelled explicitly at L2 in some analyses - **Rd** (Lenalidomide-Dex): Common L2 option (16% in MRDR) - **Other**: Averaged coefficients for other regimens at L2+
-
-**Treatment Regimen Codes:**
-
-``` stata
-// Encoded as integers in mTXR matrix
-1 = VRd
-2 = VCd  
-3 = Other (L1)
-4 = DVd (L2)
-5 = Rd (L2)
-6-9 = Other regimens (L2+)
-```
-
-------------------------------------------------------------------------
-
-## Mortality and Survival Tracking
-
-### Competing Risks Framework
-
-At every checkpoint, patients face **two competing risks:**
-
-1.  **Event-driven mortality**: Death before next treatment/event
-2.  **Censoring events**: Progression to next line, treatment discontinuation
-
-``` stata
-mata {
-    // Predict overall survival time from current age
-    vOS_predicted = exp(XB_OS + errors)
-    
-    // Predict time to next event (TXD or TFI)
-    vTNE_predicted = exp(XB_TNE + errors)
-    
-    // Competing risk: which happens first?
-    vDiesFirst = (vOS_predicted :< vTNE_predicted)
-    
-    // Update mortality matrix
-    mMOR[idx, OMC] = vDiesFirst
-    
-    // Update outcome time container
-    mOC[idx, 1] = vDiesFirst :* vOS_predicted + 
-                  (1 :- vDiesFirst) :* vTNE_predicted
-    mOC[idx, 2] = vDiesFirst  // Mortality flag
-}
-```
-
-### Terminal Mortality (OMC 19)
-
-``` stata
-// All patients still alive at L9E are forced to mortality
-idxAlive = selectindex(mMOR[., OMC-1] :== 0)
-
-// Cap OS at age limit (e.g., 100 years)
-vExceedsLimit = ((mAge[idxAlive, 1] :+ mOS[idxAlive, OMC]) :> Limit)
-mOS[idxAlive, OMC] = vExceedsLimit :* (Limit :- mAge[idxAlive, 1]) :+ 
-                      (!vExceedsLimit) :* mOS[idxAlive, OMC]
-
-// Mark all as dead
-mMOR[idxAlive, OMC] = J(rows(idxAlive), 1, 1)
-mOC[idxAlive, 1] = mOS[idxAlive, OMC]
-mOC[idxAlive, 2] = J(rows(idxAlive), 1, 1)
-```
-
-------------------------------------------------------------------------
-
-## Best Clinical Response (BCR) Prediction
-
-### Ordered Categories (1-6)
-
-```         
-1 = Complete Response (CR)        - Best outcome
-2 = Very Good Partial Response (VGPR)
-3 = Partial Response (PR)
-4 = Minimal Response (MR)
-5 = Stable Disease (SD)
-6 = Progressive Disease (PD)      - Worst outcome (reference)
-```
-
-### Multinomial Logit Implementation
-
-``` stata
-mata {
-    // Build patient matrix
-    pMat = (vAge[idx], vMale[idx], vECOG1[idx], vECOG2[idx], 
-            vRISS2[idx], vRISS3[idx], vTXR_VRd[idx], vTXR_Other[idx], vCons[idx])
-    
-    // Extract coefficients for each BCR category (except reference PD)
-    coefCols_CR = (1, 2, 3, 4, 5, 6, 7, 8, 9)      // Columns for CR
-    coefCols_VGPR = (10, 11, 12, 13, 14, 15, 16, 17, 18) // Columns for VGPR
-    // ... similar for PR, MR, SD
-    
-    // Calculate XB for each category
-    XB_CR = pMat * bBCR[coefCols_CR]'
-    XB_VGPR = pMat * bBCR[coefCols_VGPR]'
-    // ... etc
-    
-    // Exponentiate
-    exp_CR = exp(XB_CR)
-    exp_VGPR = exp(XB_VGPR)
-    // ... etc
-    exp_PD = J(rows(idx), 1, 1)  // Reference category
-    
-    // Calculate denominator (normalisation)
-    denom = exp_CR + exp_VGPR + exp_PR + exp_MR + exp_SD + exp_PD
-    
-    // Calculate probabilities
-    pr_CR = exp_CR :/ denom
-    pr_VGPR = exp_VGPR :/ denom
-    // ... etc (probabilities sum to 1.0)
-    
-    // Cumulative probabilities for drawing
-    cum_CR = pr_CR
-    cum_VGPR = cum_CR + pr_VGPR
-    cum_PR = cum_VGPR + pr_PR
-    cum_MR = cum_PR + pr_MR
-    cum_SD = cum_MR + pr_SD
-    // cum_PD = 1.0 (all remaining probability)
-    
-    // Draw random uniform and map to category
-    u = runiform(rows(idx), 1)
-    vBCR_outcome = (u :< cum_CR) :* 1 +
-                   ((u :>= cum_CR) :& (u :< cum_VGPR)) :* 2 +
-                   ((u :>= cum_VGPR) :& (u :< cum_PR)) :* 3 +
-                   ((u :>= cum_PR) :& (u :< cum_MR)) :* 4 +
-                   ((u :>= cum_MR) :& (u :< cum_SD)) :* 5 +
-                   (u :>= cum_SD) :* 6
-    
-    // Update BCR matrix
-    mBCR[idx, OMC_to_Line_mapping] = vBCR_outcome
-}
-```
-
-### BCR as Predictor
-
-BCR at Line N becomes a **powerful predictor** for outcomes at Line N+1: - **Better Line 1 BCR** → Better Line 2 BCR, longer TFI, better OS - **CR/VGPR at L1** → 2-3× longer median OS vs PD at L1 - BCR interacts with Line number in OS equations (separate coefficients per line segment)
-
-------------------------------------------------------------------------
-
-## Parametric Survival Models
-
-### Generalised Gamma Distribution
-
-**Why Generalised Gamma?** - Flexible shape: can approximate exponential, Weibull, lognormal, log-logistic - Handles non-monotonic hazards (initially increasing, then decreasing) - Three-parameter control: μ (location), σ (scale), κ (shape)
-
-**Implementation:**
-
-``` stata
-mata {
-    // Extract coefficients
-    XB = pMat * coefs[linearPredictorCols]'      // Linear predictor
-    sigma = coefs[sigmaCol]                       // Scale parameter
-    kappa = coefs[kappaCol]                       // Shape parameter
-    
-    // Generate error term
-    z = rnormal(rows(idx), 1, 0, 1)              // Standard normal
-    error = sigma * (kappa * z)                   // Scaled error
-    
-    // Bound error to prevent extreme values
-    maxError = 3 * abs(sigma)
-    minError = -3 * abs(sigma)
-    error = bounded(error, maxError, minError)
-    
-    // Transform to time scale
-    log_time = XB + error
-    time = exp(log_time)
-    
-    // Apply clinical constraints
-    time = bounded(time, maxTime, minTime)       // E.g., TXD: 1-60 months
-    
-    // Update outcome matrix
-    mTXD[idx, Line] = time
-}
-```
-
-### Manual Splines for ASCT Patients (L1 TXD)
-
-**Problem:** ASCT patients have bi-phasic treatment duration: 1. **Induction phase**: 3-6 months of chemotherapy 2. **Post-ASCT phase**: Variable duration depending on response
-
-**Solution:** Three separate survival equations
-
-``` stata
-// Equation 5: TXD from L1 start to ASCT
-// Equation 6: TXD from ASCT to end of induction/consolidation  
-// Equation 7: Total L1 TXD (combined model)
-
-// In simulation:
-if (vSCT_L1[i] == 1) {
-    // Use ASCT-specific coefficients
-    TXD_L1 = predict_with_spline(bL1_TXD_ASCT_S1, bL1_TXD_ASCT_S2, bL1_TXD_ASCT_S3)
-} else {
-    // Use non-ASCT coefficients
-    TXD_L1 = predict_parametric(bL1_TXD)
-}
-```
-
-------------------------------------------------------------------------
-
-## Bootstrap Uncertainty Quantification
-
-### Purpose
-
-- Characterise **parameter uncertainty** in risk equations
-- Generate **confidence intervals** for health economic outcomes (QALYs, costs, ICERs)
-- Validate **model robustness** (out-of-sample prediction)
-
-### Implementation
-
-**Training Cohort Resampling:**
-
-``` stata
-// In estimation repository:
-forvalues b = 1/100 {
-    // Resample training cohort with replacement
-    bsample
-    
-    // Re-estimate all 30 risk equations
-    ologit BCR_L1 age male ECOG RISS TXR
-    matrix coef_BCR_L1_B`b' = e(b)
-    
-    // ... repeat for all 30 equations
-    
-    // Save coefficients
-    mata: mata matsave "coefficients_B`b'.mmat", replace
-}
-```
-
-**Simulation with Bootstrap Samples:**
-
-``` stata
-// In simulation repository:
-forvalues b = 1/$max_bs {
-    // Load bootstrap coefficient set
-    mata: mata matuse "coefficients_B`b'.mmat"
-    
-    // Run full simulation with this parameter set
-    load_patients
-    mata_setup
-    simulation
-    process_data
-    
-    // Save results
-    save "simulated_B`b'.dta", replace
-}
-```
-
-**Aggregation:**
-
-``` stata
-// Combine bootstrap iterations
-use "simulated_B1.dta", clear
-forvalues b = 2/100 {
-    append using "simulated_B`b'.dta"
-}
-
-// Calculate 95% confidence intervals
-collapse (p50) median_OS = OS (p2.5) lower_OS = OS (p97.5) upper_OS = OS, by(time)
-```
-
-------------------------------------------------------------------------
-
-## Validation Strategy
-
-### Out-of-Sample Prediction (70/30 Split)
-
-**Training Cohort (70%):** - Multiple imputation of missing values - Estimate all 30 risk equations - Bootstrap 100 times for uncertainty
-
-**Validation Cohort (30%):** - Independent holdout sample - Diagnostic characteristics provided to simulation - No parameter estimation performed
-
-**Comparison:** - Kaplan-Meier curves: Validation vs Simulated - 95% confidence intervals generated via bootstrap - Monthly p-value tests (H₀: no difference between curves) - Result: 90% of 120 months showed no significant difference (p \> 0.05)
-
-### BCR as Surrogate for OS
-
-**Test:** Do patients with better BCR have better OS?
-
-``` stata
-// Stratify by BCR at Line 1
-stset OS, failure(death)
-
-sts graph, by(BCR_L1)
-// Expected: Monotonically decreasing survival curves from CR → PD
-
-sts test BCR_L1
-// Result: Highly significant (p < 0.001)
-```
-
-**Finding:** BCR is a valid surrogate for OS - Patients with CR/VGPR have 2-3× longer median survival than PD - Justifies using BCR in cost-effectiveness analysis (intermediate outcome)
-
-------------------------------------------------------------------------
-
-## Command-Line Interface
-
-### Main Entry Point: `main.do`
-
-``` stata
-// Syntax:
-do "main.do" [analysis] [intervention] [line] [coeffs] [data] ///
-             [min_id] [max_id] [bootstrap] [min_bs] [max_bs] [report]
-```
-
-### Parameter Specifications
-
-| Arg | Name | Description | Examples |
-|---------------|---------------|------------------------|------------------|
-| 1 | **analysis** | Analysis configuration folder | `base_model`, `vrd_l1_post`, `dvd_l2_method` |
-| 2 | **intervention** | Treatment to simulate | `VRd`, `DVd`, `SoC`, `all` |
-| 3 | **line** | Line of therapy (0=all) | `0`, `1`, `2`, `3`, `4` |
-| 4 | **coeffs** | Coefficient set | `base_model`, `VRd`, `SoC` |
-| 5 | **data** | Patient cohort type | `population`, `predicted` |
-| 6 | **min_id** | Minimum patient ID | `1` |
-| 7 | **max_id** | Maximum patient ID | `10`, `1000`, `4884` |
-| 8 | **bootstrap** | Bootstrap flag | `0` (no), `1` (yes) |
-| 9 | **min_bs** | Min bootstrap iteration | `1` |
-| 10 | **max_bs** | Max bootstrap iteration | `100`, `500` |
-| 11 | **report** | Generate report | `0` (no), `1` (yes) |
-
-### Example Commands
-
-``` stata
-// Quick test: 10 patients, no bootstrap
-do "main.do" base_model all 0 base_model population 1 10 0 0 0 0
-
-// Full simulation: all 4,884 patients with report
-do "main.do" base_model all 0 base_model population 1 4884 0 0 0 1
-
-// Bootstrap analysis: 1000 patients, 100 iterations
-do "main.do" base_model VRd 1 base_model predicted 1 1000 1 1 100 1
-
-// Population projection: Line 2 specific
-do "main.do" base_model all 2 base_model population 1 4884 0 0 0 1
-```
-
-------------------------------------------------------------------------
-
-## Analysis Configurations
-
-### `base_model/`
-
-**Purpose:** Foundation model with all standard regimens - **Regimens:** VRd, VCd, Other (L1); Rd, DVd, Other (L2+) - **Coefficients:** Estimated from full MRDR training cohort - **Use case:** Baseline comparisons, validation
-
-### `vrd_l1_post/`
-
-**Purpose:** Post-market analysis of VRd at Line 1 - **Focus:** VRd-specific outcomes after PBS listing - **Data:** Real-world VRd patients (2014-2023) - **Use case:** Post-market surveillance, effectiveness evaluation
-
-### `dvd_l2_method/`
-
-**Purpose:** DVd transportability methodology at Line 2 - **Focus:** CASTOR trial → MRDR population bridging - **Methods:** Calibrated Transportation with common comparator (Vd) - **Use case:** Pre-market HTA submission, reimbursement decision
-
-------------------------------------------------------------------------
-
-## Health Economic Integration
-
-### Utility Mapping (QALYs)
-
-``` stata
-// Map BCR and age to EQ-5D utilities
-// Formula: u = baseline - age_decrement + BCR_benefit - treatment_disutility
-
-utility_CR = 0.85 - 0.005*(age-60) + 0.00 - 0.02  // No CR benefit (reference)
-utility_VGPR = 0.85 - 0.005*(age-60) - 0.03 - 0.02
-utility_PR = 0.85 - 0.005*(age-60) - 0.06 - 0.02
-utility_SD = 0.85 - 0.005*(age-60) - 0.12 - 0.02
-utility_PD = 0.85 - 0.005*(age-60) - 0.18 - 0.02
-
-// Treatment disutility:
-// - On chemotherapy: -0.02
-// - Off treatment (TFI): +0.02
-```
-
-### Cost Attribution
-
-``` stata
-// Per-patient costs by state:
-cost_L1_chemo = acquisition_cost + admin_cost + monitoring_cost
-cost_L1_ASCT = inpatient_cost + stem_cell_cost + complication_cost
-cost_L1_maintenance = acquisition_cost + monitoring_cost
-cost_TFI = monitoring_cost  // Minimal
-
-// Aggregate:
-total_cost = Σ(state_duration × state_cost) across all lines
-```
-
-### Threshold Analysis
-
-``` stata
-// Find break-even price where ICER = willingness-to-pay threshold
-// E.g., For DVd vs SoC at L4:
-
-ICER(price) = [Cost_DVd(price) - Cost_SoC] / [QALY_DVd - QALY_SoC]
-
-// Solve: ICER(price*) = WTP_threshold
-// Implemented via bootstrap confidence intervals
-```
-
-------------------------------------------------------------------------
-
-## Common Pitfalls and Debugging
-
-### 1. Dimension Mismatch Errors
-
-**Symptom:**
-
-```         
-conformability error
-    pMat * coefs'
-```
-
-**Cause:** Patient matrix columns ≠ coefficient vector columns
-
-**Solution:**
-
-``` stata
-// Always use validateDimensions() before multiplication
-mata: validateDimensions(pMat, coefs, "BCR_L1")
-```
-
-### 2. Missing Coefficient Extraction
-
-**Symptom:** Some patients get missing outcomes (`.`)
-
-**Cause:** Coefficient column indices don't match matrix structure
-
-**Solution:**
-
-``` stata
-// Verify coefficient extraction:
-mata: bBCR[coefCols]  // Display extracted coefficients
-mata: cols(pMat)      // Should equal cols(bBCR[coefCols])
-```
-
-### 3. Probability Sums ≠ 1.0 (BCR)
-
-**Symptom:** Invalid BCR categories or probabilities
-
-**Cause:** Floating point error in cumulative probability calculation
-
-**Solution:**
-
-``` stata
-// Force normalisation:
-denom = exp_CR + exp_VGPR + ... + exp_PD
-pr_CR = exp_CR :/ denom  // Guarantees sum = 1.0
-```
-
-### 4. Extreme Survival Predictions
-
-**Symptom:** OS predictions of 500+ years
-
-**Cause:** Unbounded error terms in parametric models
-
-**Solution:**
-
-``` stata
-// Always bound error terms:
-errors = bounded(rnormal(...), maxError, minError)
-
-// And bound final predictions:
-vOS = bounded(exp(XB + errors), maxOS, 0.1)  // E.g., max 30 years
-```
-
-### 5. Mortality Not Updating
-
-**Symptom:** Patients "stuck" alive beyond predicted OS
-
-**Cause:** Mortality logic not checking competing risks correctly
-
-**Solution:**
-
-``` stata
-// Ensure competing risk check at every OMC:
-vDiesFirst = (mOS[idx, OMC] :< mTNE[idx, OMC])
-mMOR[idx, OMC] = vDiesFirst
-```
-
-------------------------------------------------------------------------
-
-## Performance Optimisation Tips
-
-### 1. Vectorise Everything
-
-**Bad:**
-
-``` stata
-forvalues i = 1/$N {
-    XB = b1*x1[`i'] + b2*x2[`i'] + ...
-    outcome[`i'] = exp(XB)
-}
-```
-
-**Good:**
-
-``` stata
-mata {
-    XB = pMat * coefs'          // Single matrix multiplication
-    outcomes = exp(XB)           // Vectorised exponentiation
-    mOutcome[idx, OMC] = outcomes
-}
-```
-
-### 2. Pre-filter Indices
-
-**Bad:**
-
-``` stata
-mata {
-    for (i = 1; i <= rows(mMOR); i++) {
-        if (mMOR[i, OMC-1] == 0 & mState[i, 1] <= OMC) {
-            // Process patient i
-        }
-    }
-}
-```
-
-**Good:**
-
-``` stata
-mata {
-    idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
-    // Now operate on pMat[idx, ], vAge[idx], etc.
-}
-```
-
-### 3. Avoid Unnecessary Copying
-
-**Bad:**
-
-``` stata
-mata {
-    tempAge = mAge[., 1]           // Creates copy
-    tempAge2 = tempAge :^ 2        // Creates another copy
-}
-```
-
-**Good:**
-
-``` stata
-mata {
-    vAge2 = vAge :^ 2              // Direct operation on view
-}
-```
-
-### 4. Use Mata for All Computations
-
-**Bad:**
-
-``` stata
-// Switching between Stata and Mata repeatedly
-foreach var in Age Male ECOG {
-    mata: v`var' = st_data(., "`var'")
-}
-```
-
-**Good:**
-
-``` stata
-// Load all at once in mata_setup.do
-mata {
-    vAge = st_data(., "Age_DN")
-    vMale = st_data(., "Male")
-    vECOG = st_data(., "ECOGcc")
-    // ... all variables in one block
-}
-```
-
-------------------------------------------------------------------------
-
-## Future Development Roadmap
-
-### Planned Enhancements
-
-1.  **Infection Risk Sub-Module**
-    - Discrete monthly time steps for infection probability
-    - Grade 3-4 infection costs and disutilities
-    - Risk factors: Age, neutropenia, regimen intensity
-2.  **Progression-Free Survival Integration**
-    - Alternative endpoint to BCR
-    - Requires PFS data extraction from MRDR
-    - Enable comparison: BCR-based vs PFS-based predictions
-3.  **R/Python Translation**
-    - Broaden accessibility beyond Stata users
-    - Leverage modern ML libraries (survival analysis packages)
-    - Improved visualisation capabilities
-4.  **Smoldering Myeloma Extension**
-    - Add pre-diagnosis states (SMM risk stratification)
-    - CTX-1 biomarker-guided intervention
-    - Compare watch-and-wait vs early treatment strategies
-5.  **Performance Profiling**
-    - Identify remaining bottlenecks
-    - Explore GPU acceleration for bootstrap analyses
-    - Target: \<1 second for 10,000 patients
-
-------------------------------------------------------------------------
-
-## Key Insights for Users
-
-### When to Use the Model
-
-**Ideal Use Cases:** - Pre-market HTA submissions (predict RWE from trials) - Post-market surveillance (validate trial predictions) - Cost-effectiveness analysis (QALY estimation) - Budget impact modelling (population projections) - Comparative effectiveness research
-
-**Not Suitable For:** - Individual patient risk prediction (use ISS/R-ISS instead) - Real-time clinical decision support (too computationally intensive) - Non-myeloma cancers (disease-specific model)
-
-### Interpreting Outputs
-
-**Key Variables:** - `OS`: Overall survival from **diagnosis** (not from current line) - `TXD_LN`: Duration of treatment at line N (months) - `TFI_LN`: Treatment-free interval **after** line N (months off treatment) - `BCR_LN`: Best response **during** line N (1=CR to 6=PD)
-
-**Important Caveats:** - Bootstrap CIs reflect **parameter uncertainty**, not **patient heterogeneity** - Model assumes MRDR population characteristics (Australian/NZ) - Extrapolation beyond 10 years increasingly uncertain - Novel regimens not in MRDR require external efficacy assumptions
-
-------------------------------------------------------------------------
-
-## References and Resources
-
-### Key Publications
-
-1.  **Irving et al. (2024)** - "Discrete-event simulation modelling of multiple myeloma using a national clinical registry" (PLOS ONE)
-    - DOI: 10.1371/journal.pone.0308812
-    - Describes model development, validation, and BCR-OS relationship
-2.  **Dahabreh et al. (2019)** - "Extending inferences from a randomized trial to a target population"
-    - Framework for transportability and generalisation
-3.  **Cole & Stuart (2010)** - "Generalizing evidence from randomized clinical trials to target populations"
-    - Foundation for population adjustment methods
-
-### GitHub Repository
-
-- **URL:** `https://github.com/CHE-Monash/EpiMAP-Myeloma`
-- **License:** GPL-3.0
-- **Version:** 2.1 (October 2025)
-
-### Data Access
-
-- **MRDR:** Not publicly available (patient confidentiality)
-- **De-identified data:** Available via application to MRDR Steering Committee
-- **Contact:** <https://www.mrdr.net.au/>
-
-------------------------------------------------------------------------
-
-## Conclusion
-
-EpiMAP Myeloma v2.1 represents a **state-of-the-art discrete-event simulation** for multiple myeloma disease modelling. The vectorisation transformation has delivered unprecedented performance whilst maintaining clinical validity. Its 30 evidence-based risk equations, comprehensive treatment pathway modelling, and robust validation make it a powerful tool for health technology assessment, comparative effectiveness research, and health economic evaluation.
-
-The modular architecture enables extension to novel therapies, alternative endpoints, and related disease states, positioning EpiMAP as a flexible platform for future myeloma outcomes research.
+- **Dimension mismatch (`exit(459)`).** Each outcome module checks that its design matrix width matches the loaded coefficient block. A mismatch usually means the wrong coefficient set was loaded for the analysis, or a characteristic vector is missing.
+- **Broken CRN alignment.** If `ID != _n` after loading (for example, an extra filter or sort applied outside `load_patients`), `mata_setup` errors. Preserve the canonical row order, or arms will no longer be paired.
+- **Response probabilities not summing to one.** Ordered-logit cutpoints must be loaded in order; a truncated or mis-ordered coefficient block produces invalid probabilities.
+- **Extreme survival predictions.** Check the survival-family global (`fb*`) matches the fitted distribution; an exponential global applied to Weibull coefficients yields implausible tails.
+- **Working directory.** Dispatchers assume the repository root. Run from there (the built-in error names the missing `core/…` file if you do not).

@@ -30,7 +30,6 @@ clear all
 set more off
 macro drop _all
 
-cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
 
 **********
 * Configuration

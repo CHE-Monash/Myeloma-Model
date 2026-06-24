@@ -6,17 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Planned
+- Integration with R for post-processing analysis
+- Extended documentation for health economic applications
+
+## [3.0] - 2026-06-24
+
 ### Added
-- **Standardised CSV result exports**: New convention for emitting machine-readable results for downstream/programmatic access (R/Python post-processing, dashboards, assistant-driven manuscript drafting) instead of manual copy-to-Excel.
+- **Calibrated Transport methods** (`analyses/transport_dvd/`): out-of-trial outcome prediction (e.g. DVd at L2) with a common-random-number engine, sample-size workflow, and cohort pipeline.
+- **Common Random Numbers (CRN)**: aligned RNG across treatment arms via an `mRN` slot registry (`core/rng_slots.do`) and `rnDraw` migration, for variance-reduced cost-effectiveness comparisons.
+- **Consolidated pipeline**: dispatchers unified onto `core/run_pipeline.do`; added `analyses/transport_dvd/ce_sample_size.do`.
+- **Standardised CSV result exports**: machine-readable results for downstream/programmatic access (R/Python post-processing, dashboards, assistant-driven manuscript drafting) instead of manual copy-to-Excel.
   - **`core/export_results.do`**: engine-level export of CSVs common to every analysis (per-patient summary, BCR distribution, mean cost/QALY/LY). Runs by default as part of the simulation pipeline (immediately after `process_data`, once per arm; skipped during bootstrap), reading `core/process_data.do` outputs into `simulated/<scenario>/`. First adopted by the `dvd_method` dispatcher.
   - **`analyses/<name>/results/` contract**: each analysis exposes a single `results/` folder of final (cross-scenario) CSVs plus a `results.md` narrating the key figures — the canonical downstream read surface. Analysis-specific and cross-scenario aggregation live under `analyses/<name>/`, not `core/`.
 
 ### Changed
 - **Rebranded** from *EpiMAP Myeloma* to **Monash Myeloma Model**; GitHub repository renamed `CHE-Monash/EpiMAP-Myeloma` → `CHE-Monash/Myeloma-Model` (old URLs auto-redirect). Published papers and DOIs retain the EpiMAP Myeloma name.
+- **Version bump to 3.0**: consolidates the v2.1 vectorised engine with the Calibrated Transport/CRN methods into a single major release. From v3.0 onward, major versions increment with each published paper (see Version Naming Convention).
 
-### Planned
-- Integration with R for post-processing analysis
-- Extended documentation for health economic applications
+### Incorporated from v2.1
+- Vectorised Mata engine, modular `mata_setup.do`, and the comprehensive validation suite — see the [2.1] entry below for detail.
 
 ## [2.1] - 2025-10-27
 
@@ -209,11 +218,12 @@ Each release includes:
 
 ## Version Naming Convention
 
-This project uses semantic versioning (MAJOR.MINOR format):
-- **Major version** (1.0 → 2.0): Significant changes, may break compatibility
-- **Minor version** (2.0 → 2.1): New features, improvements, backward compatible
+From v3.0 onward, **major versions increment with each published paper** (the model state used for that paper) or a significant methodological upgrade; minor versions cover interim features and fixes between papers:
+- **Major version** (e.g. 2.0 → 3.0): the model as used for a new published paper, or a significant methodological/architectural upgrade.
+- **Minor version** (e.g. 3.0 → 3.1): new features, improvements, or fixes between papers; backward compatible where possible.
 
 Examples:
 - v1.0: Initial release
 - v2.0: Reorganised structure (breaking changes)
 - v2.1: Vectorised implementation (backward compatible)
+- v3.0: Calibrated Transport & CRN methods; rebrand to Monash Myeloma Model

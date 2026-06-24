@@ -62,6 +62,33 @@ global max_bs `3'
 * Helpers
 **********
 
+* export_coefs : write the full fitted regression table to a tidy CSV — every
+*   parameter (MRDR, DVd, line3-5 and the five cut-points) with coefficient,
+*   standard error, z, p and 95% CI. Reads r(table) (captured into `rtname')
+*   and the e(b) column names. Feeds Supplementary Table S3.
+mata:
+void export_coefs(string scalar rtname, string scalar path)
+{
+    real matrix    rt
+    string matrix  cs
+    real scalar    j, fh
+    rt = st_matrix(rtname)                         // rows: 1 b, 2 se, 3 z, 4 p, 5 ll, 6 ul
+    cs = st_matrixcolstripe("e(b)")                // col 2 = parameter name
+    fh = fopen(path, "w")
+    fput(fh, "term,coef,se,z,p,ci_lower,ci_upper")
+    for (j=1; j<=cols(rt); j++) {
+        fput(fh, cs[j,2] + "," +
+            strtrim(strofreal(rt[1,j], "%12.6f")) + "," +
+            strtrim(strofreal(rt[2,j], "%12.6f")) + "," +
+            strtrim(strofreal(rt[3,j], "%12.4f")) + "," +
+            strtrim(strofreal(rt[4,j], "%12.3g")) + "," +
+            strtrim(strofreal(rt[5,j], "%12.6f")) + "," +
+            strtrim(strofreal(rt[6,j], "%12.6f")))
+    }
+    fclose(fh)
+}
+end
+
 * fill_bcr : build pseudo-patients with BCR filled from 6 category counts (CR..PD)
 cap program drop fill_bcr
 program define fill_bcr
@@ -116,7 +143,7 @@ end
 *   b_out   - B_transport output path for the coefficients (bL2_BCR_T)
 cap program drop run_one
 program define run_one
-    args regsrc doboot a_vd a_dvd b_out
+    args regsrc doboot a_vd a_dvd b_out coef_csv
     tempfile tvd tdvd
 
     * ---- CASTOR Vd arm (n=231, Table 2: CR 21, VG 47, PR 80, MR 20, SD 47, PD 16) ----
@@ -160,6 +187,7 @@ program define run_one
     gen line5 = (Line >= 5)                        // L5+
 
     ologit BCR MRDR DVd line3 line4 line5
+    matrix rtab = r(table)                          // full coef table (b/se/z/p/CI), all terms
 
     mata: bL2_BCR_T  = st_matrix("e(b)")
     mata: rbL2_BCR_T = st_matrixrowstripe("e(b)")
@@ -168,6 +196,12 @@ program define run_one
         mata: cbL2_BCR_T[`i',1] = "`i'"
     }
     mata: mata matsave "`b_out'" bL2_BCR_T rbL2_BCR_T cbL2_BCR_T, replace
+
+    * ---- full regression table -> results CSV (point-estimate run only; the
+    *      bootstrap calls pass no `coef_csv', so this is skipped there) ----
+    if "`coef_csv'" != "" {
+        mata: export_coefs("rtab", "`coef_csv'")
+    }
 
     matrix drop pVd pDVd
 end
@@ -359,13 +393,15 @@ if ($boot == 0) {
     local Local "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"
     local Out   "`Local'/analyses/transport_dvd/outcomes"
     cap mkdir "`Out'/A_trial"
+    cap mkdir "`Local'/analyses/transport_dvd/results"
 
     run_one ///
         "/Volumes/shared/R-MNHS-SPHPM-EPM-TRU/EpiMAP/Myeloma/Data/251128/MRDR Long MI.dta" ///
         0 ///
         "`Out'/A_trial/bcr_vd_l2.mmat" ///
         "`Out'/A_trial/bcr_dvd_l2.mmat" ///
-        "`Out'/B_transport/transport_dvd.mmat"
+        "`Out'/B_transport/transport_dvd.mmat" ///
+        "`Local'/analyses/transport_dvd/results/transport_dvd_coefs.csv"
 
     * ---- Table 1 baselines (MRDR columns): only on the deterministic run ----
     *      comparator anchor (Vd, relapsed lines 2-6) + held-out novel target (DVd, L2).

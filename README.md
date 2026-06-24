@@ -81,7 +81,7 @@ Results are written to `analyses/<analysis>/simulated/`.
 
 ## Result Exports
 
-Each simulation can emit a PDF report (`$report`) and machine-readable **flat CSV** outputs (`$export_csv`) for downstream use (R/Python post-processing, dashboards, manuscript drafting).
+Each simulation can emit a PDF report (`$report`) and machine-readable **flat CSV** outputs for downstream use (R/Python post-processing, dashboards, manuscript drafting). CSV export is produced for point-estimate runs and skipped under bootstrap.
 
 - **Engine-level** — `core/export_results.do` writes the CSVs every analysis needs (per-patient summary, BCR distribution, mean cost/QALY/LY) into `simulated/<scenario>/`.
 - **Analysis-level** — outputs specific to one analysis, plus cross-scenario aggregation, live under `analyses/<name>/results/` with a `results.md` summarising the key figures — the canonical read surface for downstream consumers.

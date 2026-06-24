@@ -28,7 +28,6 @@
 
 clear all
 set more off
-cap cd "~/em76_scratch2/adam/transport_dvd"   // where the bootstrap output lives
 
 **********
 * Configuration
@@ -212,15 +211,18 @@ foreach s of local scenarios {
     local plot "`plot' (line ratio_`k' N)"
 }
 
+local nlab : display %15.0fc `chosen_n'   // comma-formatted N for the marker
+local nlab = trim("`nlab'")
+
 twoway `plot' ///
     , xline(`chosen_n', lcolor(gs10) lpattern(dot)) ///
     xscale(log) ///
-    xlabel(1000 5000 10000 20000 50000 100000 300000, angle(45) labsize(small)) ///
-    ylabel(0(0.05)0.3, angle(0) format(%4.2f) labsize(small)) ///
-    xtitle("Simulated cohort size, N") ///
-    ytitle("Monte Carlo SD as a fraction of parameter SD") ///
-    text(0.28 `chosen_n' "N = `chosen_n'", place(e) size(small)) ///
-    legend(pos(2) ring(0) cols(1) size(small) region(lstyle(none))) ///
+    xlabel(1000 2000 4000 8000 16000 32000 64000 128000 256000, angle(45) labsize(small) format(%12.0fc)) ///
+    ylabel(0(0.1)0.5, angle(0) format(%3.1f) labsize(small) grid glcolor(gs14) glwidth(vthin)) ///
+    xtitle("Simulated cohort size, N (log scale)") ///
+    ytitle("Monte Carlo SD / parameter SD") ///
+    text(0.28 `chosen_n' "N = `nlab'", place(e) size(small)) ///
+    legend(pos(6) rows(1) size(small) region(lstyle(none))) ///
     graphregion(color(white)) plotregion(margin(medium))
 
 graph export "`results'/ce_sample_size_ratio.png", replace width(2400)

@@ -1,104 +1,64 @@
-# EpiMAP Myeloma Validation System
+# Monash Myeloma Model — Validation
 
 ## Overview
 
-This system extracts validation benchmarks from MRDR training data and compares simulation results against them to ensure model accuracy.
+Validation compares a base-model simulation against benchmarks derived from the MRDR registry to confirm the model reproduces observed outcomes within agreed tolerances. Benchmarks are pre-baked CSVs held in `validation/benchmarks/`; there is no in-repo benchmark generator (they are extracted from MRDR upstream).
+
+## How to run
+
+Validation reads the base-model output, so run the base-model dispatcher first, then the validation script — both from the repository root:
+
+```stata
+// 1. Produce the base-model simulation
+do "analyses/base_model/base_model.do"
+//    → analyses/base_model/simulated/all_0_population_1_101212.dta
+
+// 2. Validate it against the MRDR benchmarks
+do "validation/validate_simulation.do"
+```
+
+`validate_simulation.do` imports the benchmark CSVs inline (there is no separate loader), loads the simulated dataset, runs the checks below, and prints a pass/fail summary.
 
 ## Files
 
-1. **generate_benchmarks.do** - Extract benchmarks from MRDR training data (run once)
-2. **validate_simulation.do** - Compare simulation to benchmarks (run after each simulation)
-3. **validation/load_benchmarks.do** - Helper script to load benchmarks into Mata
+| File | Role |
+|---|---|
+| `validation/validate_simulation.do` | Headline acceptance test: simulation vs MRDR benchmarks |
+| `validation/benchmarks/*.csv` | Pre-baked MRDR benchmark targets (13 files) |
+| `core/validation.do` | Lighter invariant checks run inside every simulation (distinct from the acceptance test) |
+| `validation/validate_vectors.do` | Developer check: vectorised representation reproduces the old matrix representation |
+| `validation/test_mata_functions.do` | Unit check: ordered-logit and survival helpers |
+| `validation/test_survival_functions.do` | Unit check: exponential / Weibull / Gompertz inverse-CDF sampling |
+| `validation/test_SCT_DN.do` | Loop-vs-vector equivalence check for ASCT-at-diagnosis |
 
-## Workflow
+## Benchmarks
 
-### Step 1: Generate Benchmarks (One-time)
+`validation/benchmarks/` contains 13 CSVs: `OS_L1_NoASCT.csv`, `OS_ASCT.csv`, `OS_L2.csv`, `OS_L3.csv`, `BCR.csv`, `TXD_L1_NoASCT.csv`, `TXD_L1_ASCT.csv`, `TXD_L2.csv`, `TFI_L1_NoASCT.csv`, `TFI_L1_ASCT.csv`, `TFI_L2.csv`, `TFI_L3.csv`, and `Pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median and quartiles; pathways carries the ASCT and subsequent-line reach rates.
 
-```stata
-// Run on MRDR training data
-use "data/mrdr_training.dta", clear
-do "generate_benchmarks.do"
-```
+## Checks and tolerances
 
-**Outputs:**
-- validation/benchmarks/OS_L1.csv
-- validation/benchmarks/OS_ASCT.csv
-- validation/benchmarks/OS_L2.csv
-- validation/benchmarks/TFI_L1_NoASCT.csv
-- validation/benchmarks/TFI_L1_ASCT.csv
-- validation/benchmarks/TFI_L2.csv
-- validation/benchmarks/TFI_L3.csv
-- validation/benchmarks/TXD_L1.csv
-- validation/benchmarks/TXD_L2.csv
-- validation/benchmarks/BCR_distributions.csv
-- validation/benchmarks/Pathways.csv
+`validate_simulation.do` runs five families of checks and counts passes and failures:
 
-### Step 2: Run Simulation
+| Family | Metric | Tolerance |
+|---|---|---|
+| Overall survival | 3-year and 5-year survival %, by response and line (L1 no-ASCT, ASCT, L2, L3) | within ±10 percentage points |
+| Best clinical response | per-category % by line (L1, ASCT, L2, L3) | within ±5 percentage points |
+| Treatment duration (TXD) | median (simulated ÷ benchmark) | within ±20% |
+| Treatment-free interval (TFI) | median (simulated ÷ benchmark), plus response ordering (CR > VGPR > PR > MR > SD) at L2 | within ±20% |
+| Pathways | ASCT and L2–L5 reach rates | within ±5 percentage points |
 
-```stata
-do "main_simulation.do"
-```
+The wider tolerances on treatment duration and treatment-free interval reflect parametric underestimation against censored training data and sparser cells in poor-responder and later-line groups.
 
-### Step 3: Validate Results
+## Interpreting results
 
-```stata
-do "validate_simulation.do"
-```
+The script ends with a summary of tests run, passed and failed. As a guide: a pass rate above 90% indicates the model reproduces the benchmarks well; 75–90% warrants reviewing the failed checks; below 75% indicates a structural issue to investigate before relying on the run.
 
-**Tests performed:**
-1. BCR distributions by line (±5% tolerance)
-2. TFI medians by BCR (±20% tolerance)
-3. OS at 3-year, 5-year by BCR (±10% tolerance)
-4. TXD medians by BCR (±20% tolerance)
-5. Treatment pathways (±5% tolerance)
+## Developer equivalence checks
 
-## Validation Tolerances
+`validate_vectors.do` and the `test_*.do` scripts are standalone developer tools, not part of the acceptance test. They assert that the vectorised implementation reproduces the previous loop-based results and that the Mata helpers match their analytic formulae, at machine tolerance. They are run individually as needed during engine changes.
 
-| Outcome | Metric | Tolerance | Reason |
-|---------|--------|-----------|--------|
-| BCR | Percentages | ±5% | Stable distributions |
-| TFI | Median | ±20% | Censoring, parametric underestimation |
-| OS | 3/5-year survival | ±10% | Well-measured timepoints |
-| TXD | Median | ±20% | Similar to TFI |
-| Pathways | Percentages | ±5% | Cumulative proportions |
+> Note: `validation/test_SCT_DN.do` currently loads coefficients from a path that no longer exists (`analyses/base_model/data/coefficients/…`); it needs updating to the current `analyses/base_model/coefficients/` layout before it will run.
 
-## Expected Discrepancies
+## When to refresh benchmarks
 
-**TFI underestimation (10-20%):**
-- Parametric models underestimate due to censored training data
-- Weibull tail behavior differs from Kaplan-Meier
-- Acceptable if ordering (CR > VGPR > PR) preserved
-
-**Poor responder categories (MR, SD):**
-- Wider tolerance due to sparse data (N<200)
-- Higher uncertainty in parameter estimates
-
-**Late-line outcomes (L5+):**
-- Limited training data
-- Higher acceptable deviation
-
-## Interpreting Results
-
-**Pass rate >90%:** Model accurately reproduces training data
-**Pass rate 75-90%:** Minor discrepancies, review failed tests
-**Pass rate <75%:** Significant model issues, investigate code
-
-## When to Re-generate Benchmarks
-
-- MRDR training data updated
-- Imputation strategy changed
-- Variable definitions changed
-- Model structure changed (e.g., BCR categories)
-
-## Integration with Git
-
-Commit benchmark CSV files to version control to track:
-- Changes in MRDR data over time
-- Model performance across versions
-- Regression detection
-
-## Notes
-
-- Benchmarks use mi extract 1 (first imputation) for deterministic results
-- Validation uses simulation output, not live MRDR data
-- Variable names in validate_simulation.do must match simulation output
+Regenerate the benchmark CSVs (upstream, from MRDR) when the training data are updated, the imputation strategy changes, variable definitions change, or the model structure changes (for example, the response categories). Commit the refreshed benchmarks so model performance can be tracked across versions and regressions detected.

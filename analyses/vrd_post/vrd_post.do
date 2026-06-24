@@ -1,52 +1,111 @@
 **********
-*Monash Myeloma Model - VRd Line 1 Post-Market Analysis
+* Monash Myeloma Model - VRd Line 1 Post-Market Dispatcher
+*
+* Purpose: VRd at line 1, post-market impact. Uses a coefficient set in which
+*          VRd is excluded from the risk equations; $int toggles the comparison
+*          (SoC = VRd-eligible patients receive historical alternatives;
+*           VRd = VRd available).
 **********
 
-**********
-*Analysis Configuration
-	local analysis_name "vrd_l1_post"
-	local coefficient_file "coefficients_vrd_l1_post"
+clear all
+set more off
 
 **********
-*Load Programs
-	quietly do "core/mata_functions.do"
-	quietly do "core/load_patients.do"
-	quietly do "core/matrix_setup.do"	
-	quietly do "core/simulation_engine.do"
-	quietly do "core/process_data.do"
-	
+* Configuration
 **********
-*Determine processing approach
-	if("$Boot" == "0") {
-		// No Bootstrapping
-		mata: mata matuse "$coefficients_path/`coefficient_file'"
-				
-		mata_functions
-		load_patients		
-		matrix_setup
-		simulation
-		process_data
-		
-		save "$simulated_path/$Int $Line $Data $MinID $MaxID.dta", replace
-		di "Analysis completed: $simu;ated_path/$Int $Line $Data $MinID $MaxID.dta"
-	}
-	else {
-		// Bootstrapping
-		forvalues b = $MinBS / $MaxBS {
-			di as text "Processing bootstrap iteration `b' of $MaxBS..."
-			
-			mata: mata clear
-			mata: mata matuse "$coefficients_path/bootstrap/`coefficient_file'_B`b'"
-			
-			mata_functions
-			load_patients		
-			matrix_setup
-			simulation
-			process_data
-			
-			save "$simulated_path/bootstrap/$Int $Line $Data $MinID $MaxID Bootstrap_B`b'.dta", replace
-			di "Bootstrap iteration `b' completed: Bootstrap_B`b'.dta"
-		}
-		
-		di "All bootstrap iterations completed. Files saved as Bootstrap_B[MinBS-MaxBS].dta"
-	}
+
+// Analysis settings
+global analysis     "vrd_post"          // Analysis name
+global int          "VRd"               // Intervention scenario (SoC / VRd)
+global line         "1"                 // Line being assessed (1-9)
+global coeffs       "vrd_post"          // Coefficient set (VRd excluded)
+global data         "predicted"         // Patient data (predicted / population)
+global min_year     "1995"              // Patients diagnosed from (>= 1995)
+global max_year     "2040"              // Patients diagnosed until (<= 2040)
+global min_id       "1"                 // First patient ID (>= 1)
+global max_id       "999999"            // Last patient ID (high cap = whole cohort)
+global boot         "0"                 // Bootstrap flag (0/1)
+global min_bs       ""                  // First bootstrap iteration
+global max_bs       ""                  // Last bootstrap iteration
+global cost_year    "2025"              // Price year for all costs (AUD)
+global drate        "0.05"              // Annual discount rate (PBAC = 5%)
+global report       "0"                 // Generate report (0/1)
+global scenario     ""                  // Scenario
+
+**********
+* Set Paths
+**********
+
+global coefficients_path    "analyses/$analysis/coefficients"
+global outcomes_path        "analyses/$analysis/outcomes"
+global patients_path        "analyses/$analysis/patients"
+global simulated_path       "analyses/$analysis/simulated"
+
+// Predicted cohort uses a legacy filename; point load_patients at it directly.
+// (Rename to patients_vrd_post_1.dta to drop this override.)
+global cohort_file          "$patients_path/patients_vrd_l1_post.dta"
+
+**********
+* Load Programs
+**********
+
+run "core/load_patients.do"
+run "core/mata_setup.do"
+run "core/simulation_engine.do"
+run "core/process_data.do"
+
+**********
+* Execute Simulation
+**********
+
+if ("$boot" == "0") {
+
+// No Bootstrapping
+
+    // Load coefficients
+    qui mata: mata matuse "$coefficients_path/coefficients_$coeffs"
+
+    // Load utility functions
+    run "core/mata_functions.do"
+
+    // Execute simulation pipeline
+    load_patients
+    mata_setup
+    simulation
+    process_data
+
+    // Save results
+    save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}.dta", replace
+
+    // Validate results
+    run "core/validation.do"
+
+    // Generate report
+    if ("$report" == "1") qui do "core/generate_report.do"
+
+}
+else {
+
+    // Bootstrapping
+    forvalues b = $min_bs/$max_bs {
+        global BSIteration "`b'"
+        mata: mata clear
+
+        // Load coefficients
+        qui mata: mata matuse "$coefficients_path/bootstrap/coefficients_${coeffs}_B`b'"
+
+        // Load utility functions
+        run "core/mata_functions.do"
+
+        // Execute simulation pipeline
+        load_patients
+        mata_setup
+        simulation
+        process_data
+
+        // Save results
+        save "$simulated_path/bootstrap/${int}_${line}_${data}_${min_id}_${max_id}_B`b'.dta", replace
+
+        di as text "Iteration `b' completed"
+    }
+}

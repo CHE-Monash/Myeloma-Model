@@ -25,9 +25,6 @@ clear all
 set more off
 macro drop _all
 
-cap cd "/Users/adami/Documents/Monash/Vault/research/models/myeloma model/repo"   // local (Mac)
-cap cd "~/em76/adam"                                                              // HPC repo root
-
 **********
 * Configuration
 **********
@@ -37,7 +34,7 @@ local seed         = 20260612
 
 local grid         "10000 20000 50000 100000 150000"   // analytic MCSD reference points (printed)
 local target_dQ    = 0.005           // absolute MC-SD target for the printed reqN
-local batch_sizes  "2000 5000 10000 20000 50000 75000"   // empirical batch sizes (bs<=run_n/2 used)
+local batch_sizes  "1000 2000 4000 8000 16000 32000 64000"   // empirical batch sizes (doubling N; bs<=run_n/2 used)
 
 local chosen_n     = 50000           // cohort size marked on the figures
 local curve_min    = 1000            // figure x-range (analytic curve)
@@ -240,7 +237,7 @@ foreach scen of local scenarios {
 	    (scatter mcsd_emp_dQ N, msymbol(Oh) mcolor(maroon) msize(medium)) ///
 	    (scatteri `ychosen' `chosen_n', msymbol(O) mcolor(black) msize(medium)) ///
 	    , xscale(log) ///
-	    xlabel(1000 2000 5000 10000 20000 50000 100000, angle(45) labsize(small)) ///
+	    xlabel(1000 2000 4000 8000 16000 32000 64000 128000, angle(45) labsize(small)) ///
 	    ylabel(, angle(0) format(%5.3f) labsize(small)) ///
 	    xtitle("Simulated cohort size, N") ytitle("Monte Carlo SD of incremental QALY") ///
 	    text(`ychosen' `chosen_n' "  N = `chosen_n'", place(e) size(small)) ///
@@ -258,38 +255,40 @@ foreach scen of local scenarios {
 	gen double bs = round(exp(ln(`curve_min') + (_n - 1)/(`npts' - 1) * (ln(`curve_max') - ln(`curve_min'))))
 	gen double q_hi = `mQ' + 1.96 * `sQ' / sqrt(bs)
 	gen double q_lo = `mQ' - 1.96 * `sQ' / sqrt(bs)
-	gen double c_hi = `mC' + 1.96 * `sC' / sqrt(bs)
-	gen double c_lo = `mC' - 1.96 * `sC' / sqrt(bs)
+	gen double c_hi = (`mC' + 1.96 * `sC' / sqrt(bs))/1000
+	gen double c_lo = (`mC' - 1.96 * `sC' / sqrt(bs))/1000
 	gen double icer_se = (1/abs(`mQ')) * sqrt( max(0, (`sC'^2)/bs + (`icer'^2)*(`sQ'^2)/bs - 2*`icer'*`cov_CQ'/bs) )
-	gen double i_hi = `icer' + 1.96 * icer_se
-	gen double i_lo = `icer' - 1.96 * icer_se
+	gen double i_hi = (`icer' + 1.96 * icer_se)/1000
+	gen double i_lo = (`icer' - 1.96 * icer_se)/1000
 	append using "`R'/ce_precision_estimates_`scen'.dta"
-	gen double icer_batch = dC_batch / dQ_batch
+	replace dC_batch = dC_batch / 1000                  // cost batch means in thousands
+	gen double icer_batch = dC_batch / dQ_batch         // ICER in thousands (dC_batch already /1000)
+	local mC_k   = `mC' / 1000
+	local icer_k = `icer' / 1000
 	sort bs
 
 	twoway (rarea c_hi c_lo bs, color(navy%12) lwidth(none)) ///
 	       (scatter dC_batch bs, msymbol(oh) mcolor(maroon) msize(vsmall)) ///
-	       , yline(`mC', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
-	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
+	       , yline(`mC_k', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
+	       xscale(log) xlabel(1000 2000 4000 8000 16000 32000 64000 128000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%9.0fc) labsize(vsmall)) ///
-	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Incremental cost", size(small)) ///
+	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Incremental cost (A\$K)", size(small)) ///
 	       title("A", size(small)) legend(off) name(g_cost, replace) graphregion(color(white))
 	twoway (rarea q_hi q_lo bs, color(navy%12) lwidth(none)) ///
 	       (scatter dQ_batch bs, msymbol(oh) mcolor(maroon) msize(vsmall)) ///
 	       , yline(`mQ', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
-	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
+	       xscale(log) xlabel(1000 2000 4000 8000 16000 32000 64000 128000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%5.3f) labsize(vsmall)) ///
 	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Incremental QALY", size(small)) ///
 	       title("B", size(small)) legend(off) name(g_qaly, replace) graphregion(color(white))
 	twoway (rarea i_hi i_lo bs, color(navy%12) lwidth(none)) ///
 	       (scatter icer_batch bs, msymbol(oh) mcolor(maroon) msize(vsmall)) ///
-	       , yline(`icer', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
-	       xscale(log) xlabel(2000 5000 20000 50000 100000, angle(45) labsize(vsmall)) ///
+	       , yline(`icer_k', lcolor(navy)) xline(`chosen_n', lpattern(dot) lcolor(gs9)) ///
+	       xscale(log) xlabel(1000 2000 4000 8000 16000 32000 64000 128000, angle(45) labsize(vsmall)) ///
 	       ylabel(, angle(0) format(%9.0fc) labsize(vsmall)) ///
-	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Cost per QALY (ICER)", size(small)) ///
+	       xtitle("Simulated cohort size, N", size(vsmall)) ytitle("Cost per QALY (A\$K)", size(small)) ///
 	       title("C", size(small)) legend(off) name(g_icer, replace) graphregion(color(white))
 	graph combine g_cost g_qaly g_icer, rows(1) xsize(11) ysize(4) ///
-	    note("After NICE DSU TSD 15 (Davis et al. 2014), Figures 5-7. ICER band is delta-method.", size(vsmall)) ///
 	    graphregion(color(white))
 	graph export "`R'/ce_precision_convergence_`scen'.png", replace width(3200)
 	di as text "  saved figures -> ce_precision_mcsd_`scen'.png, ce_precision_convergence_`scen'.png"
