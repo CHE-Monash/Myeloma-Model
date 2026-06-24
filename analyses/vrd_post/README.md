@@ -14,7 +14,7 @@ This analysis **excludes VRd from the risk equations** to simulate what would ha
 - **VRd** (Bortezomib, Lenalidomide, Dexamethasone) ❌ **EXCLUDED**
 
 ### What's Included
-- **VCd** (Bortezomib, Cyclophosphamide, Dexamethasone) ✅ 
+- **VCd** (Bortezomib, Cyclophosphamide, Dexamethasone) ✅
 - **VTd** (Bortezomib, Thalidomide, Dexamethasone) ✅
 - **Other historical regimens** ✅
 
@@ -26,25 +26,36 @@ This analysis **excludes VRd from the risk equations** to simulate what would ha
 
 ## Analysis Scenarios
 
+The scenario is selected by the `$int` global in `vrd_post.do`; run the dispatcher from the repository root.
+
 ### Scenario 1: Historical Practice (SoC)
+
+Set `$int "SoC"`, then:
+
 ```stata
-do "analyses/vrd_l1_post/EpiMAP_Myeloma_VRd_L1_Post.do" vrdpost SoC 1 VRd Predicted 1 4884 0
+do "analyses/vrd_post/vrd_post.do"
 ```
+
 - VRd patients get alternative regimens (VCd, VTd, Other)
 - Shows what outcomes would have been without VRd
 
 ### Scenario 2: VRd Available
-```stata  
-do "analyses/vrd_l1_post/EpiMAP_Myeloma_VRd_L1_Post.do" vrdpost VRd 1 VRd Predicted 1 4884 0
+
+Set `$int "VRd"`, then:
+
+```stata
+do "analyses/vrd_post/vrd_post.do"
 ```
+
 - VRd patients receive VRd
 - Shows actual VRd impact
 
 ## Key Files
 
-- **Coefficients**: `EpiMAP_Myeloma_Coefficients_VRd_L1_Post.dta` (VRd excluded)
-- **Patient cohort**: `EpiMAP_Myeloma_Patients_VRd_L1_Post.dta` (VRd-eligible patients)
-- **Bootstrap coefficients**: 500 samples in `bootstrap/` folder
+- **Dispatcher**: `vrd_post.do` (configure via globals; `$int` toggles SoC / VRd)
+- **Coefficients**: `coefficients/coefficients_vrd_post.mmat` (VRd excluded)
+- **Patient cohort**: `patients/patients_vrd_l1_post.dta` (VRd-eligible patients; loaded via `$cohort_file`)
+- **Bootstrap coefficients**: samples in `coefficients/bootstrap/`
 
 ## Expected Results
 
@@ -53,13 +64,13 @@ Compare survival, response rates, and treatment pathways between scenarios to qu
 ## Files Structure
 
 ```
-analyses/vrd_l1_post/
-├── README.md                                           # This file
-├── EpiMAP_Myeloma_VRd_L1_Post.do                      # Main analysis script  
-└── data/
-    ├── coefficients/
-    │   ├── EpiMAP_Myeloma_Coefficients_VRd_L1_Post.dta # VRd-excluded coefficients
-    │   └── bootstrap/                                   # 500 bootstrap samples
-    └── patients/
-        └── EpiMAP_Myeloma_Patients_VRd_L1_Post.dta     # VRd-eligible cohort
+analyses/vrd_post/
+├── README.md                       # This file
+├── vrd_post.do                     # Dispatcher (configure via globals)
+├── coefficients/
+│   ├── coefficients_vrd_post.mmat  # VRd-excluded coefficients
+│   └── bootstrap/                  # bootstrap coefficient samples
+├── patients/
+│   └── patients_vrd_l1_post.dta    # VRd-eligible cohort
+└── simulated/                      # run outputs
 ```

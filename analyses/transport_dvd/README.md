@@ -82,9 +82,8 @@ analyses/transport_dvd/
 ├── calibrated_transport.do  # BCR-transport generator: `0`=deterministic (+ Table 1 baseline), `1`=bootstrap
 ├── transport_dvd.do         # dispatcher: runs ONE scenario (deterministic + bootstrap)
 ├── bootstrap_summary.do     # Tier 3 cross-scenario aggregation of the bootstrap output
-│   # 3. Sample-size justification (methods; runs independently of production)
-├── ce_precision.do          # per-patient sigma_pp + TSD 15 convergence figures
-├── ce_sample_size.do        # parameter SD (from the PSA) + required N + appendix figure
+│   # 3. Sample-size justification (methods/appendix; git-ignored, local only)
+├── sample_size/             # ce_precision.do (sigma_pp + convergence), ce_sample_size.do (required N)
 ├── coefficients/            # coefficients_dvd_pre / coefficients_dvd_post (+ bootstrap/)
 ├── outcomes/                # sim_bcr_override.do (+ per-scenario subfolders)
 ├── patients/                # pool + drawn cohort .dta

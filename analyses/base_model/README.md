@@ -28,15 +28,16 @@ Use the base model for:
 
 ## Key Files
 
-- **Coefficients**: `EpiMAP_Coefficients_v2.mmat` (includes all regimen effects)
-- **Population**: Any population from `data/populations_2025-2030/`
-- **Main script**: `EpiMAP_Myeloma_v2.0.do`
+- **Dispatcher**: `base_model.do` (sets the run via globals)
+- **Coefficients**: `coefficients/coefficients_base_model.mmat` (all regimen effects)
+- **Population**: a cohort from the repo-root `patients/` folder (e.g. `population_1995_2040_1.dta`)
 
 ## Usage
 
+Configure the run by editing the globals at the top of `base_model.do` (`$int`, `$line`, `$data`, `$min_id`/`$max_id`, …), then run it from the repository root:
+
 ```stata
-// Basic run with all regimens included
-do "EpiMAP_Myeloma_v2.0.do" base SoC 1 Base Population 1 4884 0
+do "analyses/base_model/base_model.do"
 ```
 
 ## Comparison with Other Analyses

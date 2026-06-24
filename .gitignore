@@ -13,6 +13,9 @@ analyses/*/simulated/**/*.csv
 analyses/*/results/*
 !analyses/*/results/.gitkeep
 
+# Sample-size justification scripts (methods/appendix; not part of the reproduction path)
+analyses/transport_dvd/sample_size/
+
 # HPC job scripts (machine-specific; not needed on GitHub)
 /hpc/
 

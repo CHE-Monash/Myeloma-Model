@@ -1,4 +1,4 @@
-# EpiMAP Myeloma Model Testing Suite
+# Monash Myeloma Model Testing Suite
 ## Comprehensive Test Specifications for Model Logic Validation
 
 **Version 2.0**  
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive testing framework for the EpiMAP Myeloma discrete event simulation model. The testing suite is designed to validate model logic across all 30 risk equations, ensure data integrity throughout the simulation, and verify the accuracy of treatment pathway modelling and clinical outcome predictions.
+This document outlines a comprehensive testing framework for the Monash Myeloma Model discrete event simulation model. The testing suite is designed to validate model logic across all 30 risk equations, ensure data integrity throughout the simulation, and verify the accuracy of treatment pathway modelling and clinical outcome predictions.
 
 The test suite is organised into seven major categories covering:
 1. Input validation
@@ -1787,7 +1787,7 @@ These tests ensure the model is reproducible, well-documented, and accessible to
 
 ## Conclusion
 
-This comprehensive testing suite provides a structured approach to validating the EpiMAP Myeloma discrete event simulation model. By systematically testing input validation, risk equations, treatment pathways, survival calculations, edge cases, performance, and outputs, we can ensure the model produces clinically valid, reproducible, and reliable predictions of multiple myeloma outcomes.
+This comprehensive testing suite provides a structured approach to validating the Monash Myeloma Model discrete event simulation model. By systematically testing input validation, risk equations, treatment pathways, survival calculations, edge cases, performance, and outputs, we can ensure the model produces clinically valid, reproducible, and reliable predictions of multiple myeloma outcomes.
 
 The testing framework is designed to be:
 - **Comprehensive:** Covering all major model components
