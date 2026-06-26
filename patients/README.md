@@ -12,7 +12,7 @@ This directory contains 10 different population realisations for multiple myelom
 
 ## Population Characteristics
 
-Each population dataset contains approximately X,XXX patients with:
+Each population dataset contains 101,212 patients with:
 
 | Variable | Description | Range/Categories |
 |----------|-------------|------------------|

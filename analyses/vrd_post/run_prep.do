@@ -5,7 +5,7 @@
 * repository root; uncomment the step you need. MRDR data is read via $data_dir.
 **********
 
-cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"      // $data_dir (git-ignored; see config.example.do)
 
 * Risk equations -> analyses/vrd_post/coefficients/coefficients_vrd_post.mmat

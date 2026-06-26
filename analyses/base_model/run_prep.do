@@ -6,7 +6,7 @@
 * Prep counterpart to the simulation dispatcher (base_model.do).
 **********
 
-cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"      // $data_dir (git-ignored; see config.example.do)
 
 * Risk equations -> analyses/base_model/coefficients/coefficients_base_model.mmat

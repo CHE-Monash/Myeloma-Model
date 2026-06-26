@@ -1,5 +1,6 @@
 **********
-* Monash Myeloma Model - Validate Simulation
+* Monash Myeloma Model
+* Validate Simulation
 * 
 * Purpose: Compare simulation results to MRDR benchmarks
 *
@@ -7,7 +8,7 @@
 * Date: January 2026
 **********
 
-cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
 
 
@@ -20,47 +21,47 @@ di "LOADING BENCHMARKS"
 di "{hline 80}"
 
 // OS benchmarks
-import delimited "validation/benchmarks/OS_L1_NoASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/os_l1_noasct.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L1_NoASCT_bench)
 
-import delimited "validation/benchmarks/OS_ASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/os_asct.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_ASCT_bench)
 
-import delimited "validation/benchmarks/OS_L2.csv", clear case(preserve)
+import delimited "validation/benchmarks/os_l2.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L2_bench)
 
-import delimited "validation/benchmarks/OS_L3.csv", clear case(preserve)
+import delimited "validation/benchmarks/os_l3.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L3_bench)
 
 // BCR distributions
-import delimited "validation/benchmarks/BCR.csv", clear case(preserve)
+import delimited "validation/benchmarks/bcr.csv", clear case(preserve)
 mkmat N CR VG PR MR SD PD, matrix(BCR_bench)
 
 // TXD benchmarks
-import delimited "validation/benchmarks/TXD_L1_NoASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/txd_l1_noasct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TXD_L1_NoASCT_bench)
 
-import delimited "validation/benchmarks/TXD_L1_ASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/txd_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TXD_L1_ASCT_bench)
 
-import delimited "validation/benchmarks/TXD_L2.csv", clear case(preserve)
+import delimited "validation/benchmarks/txd_l2.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TXD_L2_bench)
 
 // TFI benchmarks
-import delimited "validation/benchmarks/TFI_L1_NoASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/tfi_l1_noasct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TFI_L1_NoASCT_bench)
 
-import delimited "validation/benchmarks/TFI_L1_ASCT.csv", clear case(preserve)
+import delimited "validation/benchmarks/tfi_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TFI_L1_ASCT_bench)
 
-import delimited "validation/benchmarks/TFI_L2.csv", clear case(preserve)
+import delimited "validation/benchmarks/tfi_l2.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TFI_L2_bench)
 
-import delimited "validation/benchmarks/TFI_L3.csv", clear case(preserve)
+import delimited "validation/benchmarks/tfi_l3.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored, matrix(TFI_L3_bench)
 
 // Pathways
-import delimited "validation/benchmarks/Pathways.csv", clear case(preserve)
+import delimited "validation/benchmarks/pathways.csv", clear case(preserve)
 mkmat N ASCT L2 L3 L4 L5 L6 L7 L8, matrix(Pathways_bench)
 
 di "Benchmarks loaded successfully"

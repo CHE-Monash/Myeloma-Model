@@ -37,8 +37,7 @@ patients/*.csv
 patients/*.xlsx
 analyses/*/patients/*.dta
 
-analyses/dvd_l2_method/*
-analyses/td_l4_pre/*
+# Superseded analysis kept locally, off GitHub
 analyses/td_pre/*
 
 # Archived / superseded material (kept locally, out of Git) - all naming variants

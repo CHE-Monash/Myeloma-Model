@@ -173,7 +173,7 @@ The definitive method specification, including the exact regression form and the
 
 ## Validation
 
-Validation is described in `docs/validation.md`. In brief: `validation/validate_simulation.do` compares a base-model run against pre-baked MRDR benchmarks in `validation/benchmarks/` across five families (overall survival, response, treatment duration, treatment-free interval and pathways) with documented tolerances; `core/validation.do` runs lighter invariant checks within each simulation; and `validation/validate_vectors.do` plus the `test_*.do` scripts are developer equivalence checks for the vectorised implementation.
+Validation is described in `docs/validation.md`. In brief: `validation/validate_simulation.do` compares a base-model run against pre-baked MRDR benchmarks in `validation/benchmarks/` across five families (overall survival, response, treatment duration, treatment-free interval and pathways) with documented tolerances; `core/validation.do` runs lighter invariant checks within each simulation; and the `test_*.do` scripts are developer equivalence checks for the vectorised implementation (`validation/validate_vectors.do`, the original matrix-to-vector transition check, is retired to `validation/_archive/`).
 
 ## Performance
 

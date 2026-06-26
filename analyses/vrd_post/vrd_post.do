@@ -10,7 +10,7 @@
 clear all
 set more off
 
-cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
 
 **********

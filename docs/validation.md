@@ -33,7 +33,7 @@ do "validation/validate_simulation.do"
 
 ## Benchmarks
 
-`validation/benchmarks/` contains 13 CSVs: `OS_L1_NoASCT.csv`, `OS_ASCT.csv`, `OS_L2.csv`, `OS_L3.csv`, `BCR.csv`, `TXD_L1_NoASCT.csv`, `TXD_L1_ASCT.csv`, `TXD_L2.csv`, `TFI_L1_NoASCT.csv`, `TFI_L1_ASCT.csv`, `TFI_L2.csv`, `TFI_L3.csv`, and `Pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median and quartiles; pathways carries the ASCT and subsequent-line reach rates.
+`validation/benchmarks/` contains 13 CSVs: `os_l1_noasct.csv`, `os_asct.csv`, `os_l2.csv`, `os_l3.csv`, `bcr.csv`, `txd_l1_noasct.csv`, `txd_l1_asct.csv`, `txd_l2.csv`, `tfi_l1_noasct.csv`, `tfi_l1_asct.csv`, `tfi_l2.csv`, `tfi_l3.csv`, and `pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median and quartiles; pathways carries the ASCT and subsequent-line reach rates.
 
 ## Checks and tolerances
 
