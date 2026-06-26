@@ -2,7 +2,7 @@
 
 ## Overview
 
-Validation compares a base-model simulation against benchmarks derived from the MRDR registry to confirm the model reproduces observed outcomes within agreed tolerances. Benchmarks are pre-baked CSVs held in `validation/benchmarks/`; there is no in-repo benchmark generator (they are extracted from MRDR upstream).
+Validation compares a base-model simulation against benchmarks derived from the MRDR registry to confirm the model reproduces observed outcomes within agreed tolerances. Benchmarks are CSVs held in `validation/benchmarks/`, generated from the imputed MRDR data by `prep/generate_benchmarks.do` (run against the restricted registry data — see `prep/README.md`).
 
 ## How to run
 
@@ -61,4 +61,4 @@ The script ends with a summary of tests run, passed and failed. As a guide: a pa
 
 ## When to refresh benchmarks
 
-Regenerate the benchmark CSVs (upstream, from MRDR) when the training data are updated, the imputation strategy changes, variable definitions change, or the model structure changes (for example, the response categories). Commit the refreshed benchmarks so model performance can be tracked across versions and regressions detected.
+Regenerate the benchmark CSVs (re-run `prep/generate_benchmarks.do`) when the training data are updated, the imputation strategy changes, variable definitions change, or the model structure changes (for example, the response categories). Commit the refreshed benchmarks so model performance can be tracked across versions and regressions detected.

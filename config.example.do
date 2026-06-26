@@ -6,9 +6,19 @@
 * `capture run "config.do"` from the repository root.
 **********
 
-* Base directory for bootstrap / scratch output:
+* Repository root (interactively-run scripts cd here; load config.do once per session):
+global repo_root    "/path/to/repo"
+
+* Bootstrap / scratch output:
 global scratch_dir  "/path/to/scratch"
 
-* Directory holding the MRDR extract ("MRDR Long MI.dta") and its bootstrap/ subfolder.
-* Restricted data — not included in the repo; request access via the MRDR Steering Committee:
-global data_dir     "/path/to/MRDR/Data/251128"
+* MRDR data cut (folder name + filename suffix):
+global data_cut     "251128"
+
+* Restricted MRDR data (request access via the MRDR Steering Committee):
+*   epimap_dir   = the EpiMAP project dir on your data drive
+*   data_dir     = the dated working dir within it (MRDR Long.dta, MRDR Long MI.dta, ...)
+*   mrdr_raw_dir = the raw registry tables (tbl_*.dta)
+global epimap_dir   "/path/to/EpiMAP/Myeloma"
+global data_dir     "${epimap_dir}/Data/${data_cut}"
+global mrdr_raw_dir "/path/to/MRDR/Registry data/MRDR Data/2025/${data_cut}_Data"

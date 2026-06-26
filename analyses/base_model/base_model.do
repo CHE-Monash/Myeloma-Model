@@ -7,6 +7,9 @@
 clear all
 set more off
 
+cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
+
 **********
 * Configuration
 **********

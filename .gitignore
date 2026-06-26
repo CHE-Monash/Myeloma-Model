@@ -23,11 +23,18 @@ analyses/transport_dvd/
 # Machine-specific local config (real paths; never committed — see config.example.do)
 /config.do
 
+# Data-prep scripts (MRDR → model inputs; run against restricted data, not shipped).
+# The prep/README.md ships; the scripts (incl. sub/ helpers) stay local. Outputs (.mmat) ship.
+prep/*.do
+prep/sub/
+
 # HPC job scripts (machine-specific; not needed on GitHub)
 /hpc/
 
 # Large patient cohort & population data (exceed GitHub's 100MB limit; regenerate locally)
 patients/*.dta
+patients/*.csv
+patients/*.xlsx
 analyses/*/patients/*.dta
 
 analyses/dvd_l2_method/*
@@ -69,6 +76,9 @@ ehthumbs.db
 *.dta~
 *.do~
 *.ado~
+
+# Local editor/assistant config (machine-specific; not repo content)
+.claude/settings.local.json
 
 # Keep .gitkeep files (they won't be ignored by the above patterns)
 

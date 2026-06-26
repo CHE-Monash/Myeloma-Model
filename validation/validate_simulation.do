@@ -7,6 +7,9 @@
 * Date: January 2026
 **********
 
+cap cd "$repo_root"          // ensure repo root (config.do sets $repo_root; load once per session)
+capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
+
 
 **********
 // Load Benchmarks
@@ -89,9 +92,9 @@ qui forvalues bcr = 1/6 {
 	local bench_3yr = OS_L1_NoASCT_bench[`bcr', 5] * 100
 	
 	qui sts generate surv_temp = s if BCR_L1 == `bcr' & SCT_L1 == 0
-	qui summarize surv_temp if BCR_L1 == `bcr' & SCT_L1 == 0 & abs(_t - 36) < 0.5
+	qui summarize surv_temp if BCR_L1 == `bcr' & SCT_L1 == 0 & _t <= 36
 	if r(N) > 0 {
-		local sim_3yr = r(mean) * 100
+		local sim_3yr = r(min) * 100
 		local diff = `sim_3yr' - `bench_3yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -113,9 +116,9 @@ qui forvalues bcr = 1/6 {
 	local bench_5yr = OS_L1_NoASCT_bench[`bcr', 7] * 100
 	
 	qui sts generate surv_temp = s if BCR_L1 == `bcr' & SCT_L1 == 0
-	qui summarize surv_temp if BCR_L1 == `bcr' & SCT_L1 == 0 & abs(_t - 60) < 0.5
+	qui summarize surv_temp if BCR_L1 == `bcr' & SCT_L1 == 0 & _t <= 60
 	qui if r(N) > 0 {
-		local sim_5yr = r(mean) * 100
+		local sim_5yr = r(min) * 100
 		local diff = `sim_5yr' - `bench_5yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -145,9 +148,9 @@ qui forvalues bcr = 1/4 {
 	local bench_3yr = OS_ASCT_bench[`bcr', 5] * 100
 	
 	qui sts generate surv_temp = s if BCR_SCT == `bcr'
-	qui summarize surv_temp if BCR_SCT == `bcr' & abs(_t - 36) < 0.5
+	qui summarize surv_temp if BCR_SCT == `bcr' & _t <= 36
 	if r(N) > 0 {
-		local sim_3yr = r(mean) * 100
+		local sim_3yr = r(min) * 100
 		local diff = `sim_3yr' - `bench_3yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -169,9 +172,9 @@ qui forvalues bcr = 1/4 {
 	local bench_5yr = OS_ASCT_bench[`bcr', 7] * 100
 	
 	qui sts generate surv_temp = s if BCR_SCT == `bcr'
-	qui summarize surv_temp if BCR_SCT == `bcr' & abs(_t - 60) < 0.5
+	qui summarize surv_temp if BCR_SCT == `bcr' & _t <= 60
 	qui if r(N) > 0 {
-		local sim_5yr = r(mean) * 100
+		local sim_5yr = r(min) * 100
 		local diff = `sim_5yr' - `bench_5yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -201,9 +204,9 @@ qui forvalues bcr = 1/6 {
 	local bench_3yr = OS_L2_bench[`bcr', 5] * 100
 	
 	qui sts generate surv_temp = s if BCR_L2 == `bcr'
-	qui summarize surv_temp if BCR_L2 == `bcr' & abs(_t - 36) < 0.5
+	qui summarize surv_temp if BCR_L2 == `bcr' & _t <= 36
 	if r(N) > 0 {
-		local sim_3yr = r(mean) * 100
+		local sim_3yr = r(min) * 100
 		local diff = `sim_3yr' - `bench_3yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -225,9 +228,9 @@ qui forvalues bcr = 1/6 {
 	local bench_5yr = OS_L2_bench[`bcr', 7] * 100
 	
 	qui sts generate surv_temp = s if BCR_L2 == `bcr'
-	qui summarize surv_temp if BCR_L2 == `bcr' & abs(_t - 60) < 0.5
+	qui summarize surv_temp if BCR_L2 == `bcr' & _t <= 60
 	qui if r(N) > 0 {
-		local sim_5yr = r(mean) * 100
+		local sim_5yr = r(min) * 100
 		local diff = `sim_5yr' - `bench_5yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -257,9 +260,9 @@ qui forvalues bcr = 1/6 {
 	local bench_3yr = OS_L3_bench[`bcr', 5] * 100
 	
 	qui sts generate surv_temp = s if BCR_L3 == `bcr'
-	qui summarize surv_temp if BCR_L3 == `bcr' & abs(_t - 36) < 0.5
+	qui summarize surv_temp if BCR_L3 == `bcr' & _t <= 36
 	if r(N) > 0 {
-		local sim_3yr = r(mean) * 100
+		local sim_3yr = r(min) * 100
 		local diff = `sim_3yr' - `bench_3yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
@@ -281,9 +284,9 @@ qui forvalues bcr = 1/6 {
 	local bench_5yr = OS_L3_bench[`bcr', 7] * 100
 	
 	qui sts generate surv_temp = s if BCR_L3 == `bcr'
-	qui summarize surv_temp if BCR_L3 == `bcr' & abs(_t - 60) < 0.5
+	qui summarize surv_temp if BCR_L3 == `bcr' & _t <= 60
 	qui if r(N) > 0 {
-		local sim_5yr = r(mean) * 100
+		local sim_5yr = r(min) * 100
 		local diff = `sim_5yr' - `bench_5yr'
 		
 		if abs(`diff') <= `tolerance' * 100 {
