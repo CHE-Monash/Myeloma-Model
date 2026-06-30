@@ -1,13 +1,23 @@
 **********
-* Monash Myeloma Model - Base Model Dispatcher
-* 
-* Purpose: Execute analysis
+* Monash Myeloma Model - base_model: simulate.do (simulation dispatcher)
+*
+* Current-practice projection over the synthetic population (all regimens). Orchestrated by run.do;
+* on the HPC it is sbatch'd directly (it never sources run.do).
+*
+* Point estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples.
 **********
+
+* optional positional args for the bootstrap run, read into locals BEFORE clear all:
+*   do simulate.do            -> point estimate ($boot 0)
+*   do simulate.do 1 1 500    -> bootstrap iterations 1-500 (HPC: pass an array chunk, e.g. 1 101 200)
+local a_boot  `"`1'"'
+local a_minbs `"`2'"'
+local a_maxbs `"`3'"'
 
 clear all
 set more off
 
-if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
+if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
 
 **********
@@ -28,6 +38,9 @@ global max_id       "101212"            // Last patient ID (<= 101,212)
 global boot         "0"                 // Bootstrap flag (0/1)
 global min_bs       ""                  // First bootstrap iteration
 global max_bs       ""                  // Last bootstrap iteration
+if `"`a_boot'"'  != "" global boot   `"`a_boot'"'           // positional args override (for the bootstrap run)
+if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
+if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
 global cost_year	"2025"				// Price year for all costs (AUD)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
 global report       "0"                 // Generate report (0/1)
@@ -89,7 +102,7 @@ else {
 	mata: mata clear 
       
 		// Load coefficients
-		qui mata: mata matuse "$coefficients_path/bootstrap/coefficients_$coeffs_B`b'"
+		qui mata: mata matuse "$coefficients_path/bootstrap/coefficients_${coeffs}_B`b'"
 			
 		// Load utility functions
 		run "core/mata_functions.do"

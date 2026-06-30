@@ -29,7 +29,7 @@ The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). 
 
 There is no `main.do` and no positional-argument entry point. Each analysis ships a dispatcher do-file (`analyses/<name>/<name>.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
 
-The configuration block (canonical form in `analyses/base_model/base_model.do`):
+The configuration block (canonical form in `analyses/base_model/simulate.do`):
 
 | Global | Meaning | Default |
 |---|---|---|
@@ -47,7 +47,7 @@ The configuration block (canonical form in `analyses/base_model/base_model.do`):
 | `$report` | Generate PDF report (0/1) | `0` |
 | `$scenario` | Scenario label (woven into output paths) | `""` |
 
-Two invocation patterns coexist. `base_model.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
+Two invocation patterns coexist. `base_model`'s `simulate.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
 
 > `analyses/vrd_post/vrd_post.do` is a legacy dispatcher still using camel-case globals (`$Int`, `$Line`, `$Boot`, …) and the old `matrix_setup` naming. It is functionally superseded by the `base_model`/`transport_dvd` convention and is a candidate for modernisation.
 
@@ -167,13 +167,13 @@ The definitive method specification, including the exact regression form and the
 
 ## Outputs
 
-`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model.do`.
+`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model`'s `simulate.do`.
 
 `core/generate_report.do` produces a `putpdf` report (titled "Monash Myeloma Model v3.0") when `$report == 1`, covering the patient sample, treatments, overall survival (with figures), lines of therapy, treatment duration, treatment-free interval and economic outcomes.
 
 ## Validation
 
-Validation is described in `docs/validation.md`. In brief: `validation/validate_simulation.do` compares a base-model run against pre-baked MRDR benchmarks in `validation/benchmarks/` across five families (overall survival, response, treatment duration, treatment-free interval and pathways) with documented tolerances; `core/validation.do` runs lighter invariant checks within each simulation; and the `test_*.do` scripts are developer equivalence checks for the vectorised implementation (`validation/validate_vectors.do`, the original matrix-to-vector transition check, is retired to `validation/_archive/`).
+Validation is described in `docs/validation.md`. In brief, three layers: `core/validation.do` runs lighter invariant checks within each simulation; `core/tests/` holds engine-verification tests (the Mata/survival unit checks plus `extreme_value.do` stress testing); and the **out-of-sample (70/30) analysis** in `analyses/oos/` is the mainstay calibration validation — it trains on 70% of MRDR, predicts the held-out 30%, and compares to observed outcomes across five families (overall survival, response, treatment duration, treatment-free interval and pathways) via the shared engine `analyses/oos/validate_outcomes.do` with documented tolerances. (The earlier in-sample registry acceptance test was retired; its debug diagnostics live in `scratch/`.)
 
 ## Performance
 

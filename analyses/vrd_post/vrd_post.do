@@ -10,7 +10,7 @@
 clear all
 set more off
 
-if "$repo_root" != "" cd "$repo_root"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
+if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix
 capture run "config.do"     // machine-specific paths (git-ignored; see config.example.do)
 
 **********

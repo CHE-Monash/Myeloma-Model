@@ -46,7 +46,7 @@ Each analysis is driven by its own dispatcher in `analyses/<name>/`. Configure a
 
 ``` stata
 cd "path/to/myeloma-model"
-do "analyses/base_model/base_model.do"
+do "analyses/base_model/simulate.do"
 ```
 
 #### Configuration
@@ -73,7 +73,7 @@ The dispatcher's configuration block sets the run via globals (there are no posi
 
 | Dispatcher | Focus |
 |---|---|
-| `analyses/base_model/base_model.do` | All regimens — current-practice projections |
+| `analyses/base_model/simulate.do` | All regimens — current-practice projections |
 | `analyses/vrd_post/vrd_post.do` | VRd at LoT 1, post-market impact |
 | `analyses/transport_dvd/transport_dvd.do` | DVd via Calibrated Transport |
 
@@ -102,13 +102,15 @@ Myeloma-Model/
 │   ├── process_data.do      # Post-simulation processing
 │   ├── export_results.do    # Machine-readable CSV exports
 │   ├── generate_report.do   # PDF report
-│   └── outcomes/            # Outcome (risk-equation) modules
+│   ├── outcomes/            # Outcome (risk-equation) modules
+│   └── tests/               # Engine verification: unit tests + extreme-value
 ├── analyses/                # Per-analysis dispatchers, data & results
 │   ├── base_model/          # All regimens (current practice)
 │   ├── vrd_post/            # VRd LoT 1 post-market
-│   └── transport_dvd/       # DVd Calibrated Transport
+│   ├── transport_dvd/       # DVd Calibrated Transport
+│   └── oos/                 # Out-of-sample (70/30) validation — mainstay
 ├── patients/                # Population cohorts (.dta)
-├── validation/              # Test suite & benchmarks
+├── scratch/                 # Retired validation: OS/TFI debug diagnostics
 ├── docs/                    # Technical documentation
 ├── hpc/                     # MASSIVE M3 cluster scripts
 ├── README.md

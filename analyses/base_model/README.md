@@ -28,16 +28,17 @@ Use the base model for:
 
 ## Key Files
 
-- **Dispatcher**: `base_model.do` (sets the run via globals)
+- **Runbook**: `run.do` (risk equations → simulate; deterministic track + bootstrap/HPC record)
+- **Dispatcher**: `simulate.do` (configure via globals; bootstrap via `do simulate.do 1 1 500`)
 - **Coefficients**: `coefficients/coefficients_base_model.mmat` (all regimen effects)
 - **Population**: a cohort from the repo-root `patients/` folder (e.g. `population_1995_2040_1.dta`)
 
 ## Usage
 
-Configure the run by editing the globals at the top of `base_model.do` (`$int`, `$line`, `$data`, `$min_id`/`$max_id`, …), then run it from the repository root:
+Configure the run by editing the globals at the top of `simulate.do` (`$int`, `$line`, `$data`, `$min_id`/`$max_id`, …), then run it from the repository root:
 
 ```stata
-do "analyses/base_model/base_model.do"
+do "analyses/base_model/simulate.do"
 ```
 
 ## Comparison with Other Analyses

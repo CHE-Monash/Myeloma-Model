@@ -1,6 +1,6 @@
 # prep/ — MRDR → model inputs
 
-Builds the model's inputs from the Australia & New Zealand Myeloma and Related Diseases Registry (MRDR). These scripts run against the **restricted** registry data on the shared university drive (located per machine via `$data_dir` in `config.do`) and are kept local (git-ignored) — they can't run without MRDR access. Their **outputs** (the coefficient `.mmat` sets, the population cohorts, and the validation benchmarks) are what the rest of the model consumes and what ship.
+Builds the model's inputs from the Australia & New Zealand Myeloma and Related Diseases Registry (MRDR). These scripts run against the **restricted** registry data on the shared university drive (located per machine via `$data_path` in `config.do`) and are kept local (git-ignored) — they can't run without MRDR access. Their **outputs** (the coefficient `.mmat` sets, the population cohorts, and the validation benchmarks) are what the rest of the model consumes and what ship.
 
 Run everything from the repository root. The data cut is currently fixed by a hardcoded `local Date 251128` (28 Nov 2025) in each script.
 
@@ -12,7 +12,7 @@ multiple_imputation.do  "MRDR Long.dta"                          ->  "MRDR Long 
                                                                      (+ "MRDR Wide MI.dta",
                                                                       + bootstrap/MRDR Long MI B<b>.dta)
     ├─ risk_equations.do       "MRDR Long MI.dta" + txr_<coeffs>.do -> analyses/<a>/coefficients/coefficients_<coeffs>.mmat
-    ├─ generate_benchmarks.do  "MRDR Long MI.dta"                   -> validation/benchmarks/*.csv  (13 files)
+    ├─ generate_benchmarks.do  <in.dta> <out_dir>                  -> 13 target CSVs  (OOS: analyses/oos/targets/)
     └─ population_1995_2040.do  Forecast.xlsx + "MRDR Wide MI.dta"  -> patients/population_1995_2040_1..10.dta
 ```
 
@@ -26,7 +26,7 @@ Steps 1→2 are sequential; once `MRDR Long MI.dta` exists, `risk_equations` / `
 
 **`risk_equations.do`** — fits the ~30 risk equations (OS, ASCT, regimen multinomials, BCR ordered logits, TXD/TFI parametric survival, by line) from `MRDR Long MI.dta` → a Mata coefficient set **`analyses/<analysis>/coefficients/coefficients_<coeffs>.mmat`**. Invoked per analysis from that analysis's `run_prep.do`. Args (7): `analysis`, `coeffs`, `min_year`, `max_year`, `boot`, `min_bs`, `max_bs`. It loads the analysis's **regimen definition** via `do "analyses/$analysis/outcomes/txr_$coeffs.do"` (below).
 
-**`generate_benchmarks.do`** — extracts observed validation targets (OS, BCR, TXD, TFI, pathways) from `MRDR Long MI.dta` → the **13 benchmark CSVs** in `validation/benchmarks/` that `validation/validate_simulation.do` checks the simulation against. No arguments.
+**`generate_benchmarks.do`** — the single source of truth for the validation-target estimators (KM, `M12`/`M24` horizon survival, competing-risks pathways CIF, L1-end-reacher ASCT denominator). Extracts observed outcomes (OS, BCR, TXD, TFI, pathways) from an imputed MRDR dataset → **13 target CSVs**. Takes two positional args (`<in.dta> <out_dir>`); the out-of-sample validator drives it via `analyses/oos/prep/oos_targets.do` to build the held-out 30% targets in `analyses/oos/targets/`, checked by `analyses/oos/validate_outcomes.do`.
 
 **`population_1995_2040.do`** — generates the synthetic incident-MM simulation cohorts (incidence 1995–2020 AIHW + 2021–2040 Daffodil Centre, covariates seeded from `MRDR Wide MI.dta`) → **`patients/population_1995_2040_1..10.dta`**, the cohorts `core/load_patients.do` reads for `$data = population`. No arguments.
 
@@ -45,17 +45,17 @@ Steps 1→2 are sequential; once `MRDR Long MI.dta` exists, `risk_equations` / `
 
 - **Coefficients** (`coefficients_<coeffs>.mmat`) → loaded by each analysis dispatcher via `mata matuse "$coefficients_path/coefficients_$coeffs"` (`base_model`, `vrd_post`, and `transport_dvd`'s `dvd_post`).
 - **Population cohorts** → `core/load_patients.do` (`use "patients/population_1995_2040_<n>.dta"`).
-- **Benchmarks** → `validation/validate_simulation.do` (imports the 13 CSVs as comparison matrices).
+- **Targets** → `analyses/oos/validate_outcomes.do` (imports the 13 CSVs as comparison matrices).
 
 ## Paths & config
 
 All MRDR/machine paths go through the git-ignored `config.do` at the repo root (see `config.example.do`). Each prep script does `capture run "config.do"` and reads:
 
-- **`$data_dir`** — the dated EpiMAP working dir (`MRDR Long.dta`, `MRDR Long MI.dta`, `MRDR Wide MI.dta`, `bootstrap/`). Used by all five scripts.
-- **`$mrdr_raw_dir`** — the raw MRDR registry source (the `tbl_*.dta` tables; a different drive branch). Used by `data_extraction.do` and `sub/TRU/CalcDiagnostics.do`.
-- **`$epimap_dir`** — the EpiMAP project base on the drive (`$data_dir = ${epimap_dir}/Data/${data_cut}`).
-- **`$data_cut`** — the data-cut date (e.g. `251128`); **`$scratch_dir`** — bootstrap/scratch output (HPC).
+- **`$data_path`** — the dated EpiMAP working dir (`MRDR Long.dta`, `MRDR Long MI.dta`, `MRDR Wide MI.dta`, `bootstrap/`). Used by all five scripts.
+- **`$registry_path`** — the raw MRDR registry source (the `tbl_*.dta` tables; a different drive branch). Used by `data_extraction.do` and `sub/TRU/CalcDiagnostics.do`.
+- **`$drive_path`** — the EpiMAP project base on the drive (`$data_path = ${drive_path}/Data/${data_cut}`).
+- **`$data_cut`** — the data-cut date (e.g. `251128`); **`$scratch_path`** — bootstrap/scratch output (HPC).
 
-Run from the repository root. `data_extraction.do` sources the `sub/` helpers from the repo (`prep/sub/…`), not the drive; the stale `cd`s in `generate_benchmarks.do` / `population_1995_2040.do` are gone (outputs resolve relative to the repo root); `CalcDiagnostics.do` now uses `$mrdr_raw_dir` (was pinned to an older `2024/241129` cut); and `multiple_imputation.do`'s working `temp/` is created relative to the current directory.
+Run from the repository root. `data_extraction.do` sources the `sub/` helpers from the repo (`prep/sub/…`), not the drive; the stale `cd`s in `generate_benchmarks.do` / `population_1995_2040.do` are gone (outputs resolve relative to the repo root); `CalcDiagnostics.do` now uses `$registry_path` (was pinned to an older `2024/241129` cut); and `multiple_imputation.do`'s working `temp/` is created relative to the current directory.
 
 > `population_1995_2040.do` reads its incidence inputs from `patients/population_forecast.csv` (Daffodil projections, 2010–2043) and `patients/population_historical.csv` (AIHW, 1995–2020) — both git-ignored. Imported with `case(preserve)` so the `Sex/AgeGroup/Year/Incidence` names survive (the files carry a UTF-8 BOM, which Stata strips on import).

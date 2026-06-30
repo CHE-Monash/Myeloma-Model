@@ -7,18 +7,18 @@
 **********
 
 * Repository root (interactively-run scripts cd here; load config.do once per session):
-global repo_root    "/path/to/repo"
+global repo_path    "/path/to/repo"
 
 * Bootstrap / scratch output:
-global scratch_dir  "/path/to/scratch"
+global scratch_path  "/path/to/scratch"
 
 * MRDR data cut (folder name + filename suffix):
 global data_cut     "251128"
 
 * Restricted MRDR data (request access via the MRDR Steering Committee):
-*   epimap_dir   = the EpiMAP project dir on your data drive
-*   data_dir     = the dated working dir within it (MRDR Long.dta, MRDR Long MI.dta, ...)
-*   mrdr_raw_dir = the raw registry tables (tbl_*.dta)
-global epimap_dir   "/path/to/EpiMAP/Myeloma"
-global data_dir     "${epimap_dir}/Data/${data_cut}"
-global mrdr_raw_dir "/path/to/MRDR/Registry data/MRDR Data/2025/${data_cut}_Data"
+*   drive_path   = the EpiMAP project dir on your data drive
+*   data_path     = the dated working dir within it (MRDR Long.dta, MRDR Long MI.dta, ...)
+*   registry_path = the raw registry tables (tbl_*.dta)
+global drive_path   "/path/to/EpiMAP/Myeloma"
+global data_path     "${drive_path}/Data/${data_cut}"
+global registry_path "/path/to/MRDR/Registry data/MRDR Data/2025/${data_cut}_Data"

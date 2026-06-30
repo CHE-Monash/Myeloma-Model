@@ -18,15 +18,17 @@ program define load_patients
 		global pop_number = 1  // Default population
 	}
 
-	// Determine data source based on $data_type
+	// Determine data source
 	if ("$data_type" == "population") {
 		use "patients/population_1995_2040_${pop_number}.dta", clear
 	}
-	else if ("$data_type" == "predicted") {
-		// $cohort_file lets a caller (e.g. ce_precision) read a different cohort
-		// without overwriting the production file; default is the canonical cohort.
-		if ("$cohort_file" != "") use "$cohort_file", clear
-		else use "$patients_path/patients_${analysis}_${line}.dta", clear
+	else if ("$cohort_file" != "") {
+		// $cohort_file lets a caller (e.g. ce_precision, analyses/oos) read a different cohort
+		// without overwriting the production file -- honoured for any non-population $data.
+		use "$cohort_file", clear
+	}
+	else {
+		use "$patients_path/patients_${analysis}_${line}.dta", clear
 	}
 	
 	// Filters
