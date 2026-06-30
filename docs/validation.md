@@ -35,6 +35,8 @@ do "validation/validate_simulation.do"
 
 `validation/benchmarks/` contains 13 CSVs: `os_l1_noasct.csv`, `os_asct.csv`, `os_l2.csv`, `os_l3.csv`, `bcr.csv`, `txd_l1_noasct.csv`, `txd_l1_asct.csv`, `txd_l2.csv`, `tfi_l1_noasct.csv`, `tfi_l1_asct.csv`, `tfi_l2.csv`, `tfi_l3.csv`, and `pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median and quartiles; pathways carries the ASCT and subsequent-line reach rates.
 
+The survival, treatment-duration and treatment-free-interval benchmarks are all estimated with censoring-aware survival methods (Kaplan–Meier / `stsum`), so they are comparable to the run-to-death simulation despite the registry's incomplete follow-up. The **subsequent-line reach rates** in `pathways.csv` (L2–L8) are estimated as a **competing-risks cumulative incidence** — the Aalen–Johansen probability of reaching each line by end of follow-up, with *death before reaching it* as the competing event and L1 start as the origin. This estimates the lifetime reach probability, which is what the run-to-death simulation reports; a crude "ever reached ÷ total" count would understate it, because recently-diagnosed registry patients who are still alive in an earlier line would usually progress given more follow-up. The ASCT reach rate is left as a crude proportion (transplant is decided during L1 and is observed for essentially every patient, so it is not subject to that cumulative follow-up censoring).
+
 ## Checks and tolerances
 
 `validate_simulation.do` runs five families of checks and counts passes and failures:
@@ -62,3 +64,5 @@ The script ends with a summary of tests run, passed and failed. As a guide: a pa
 ## When to refresh benchmarks
 
 Regenerate the benchmark CSVs (re-run `prep/generate_benchmarks.do`) when the training data are updated, the imputation strategy changes, variable definitions change, or the model structure changes (for example, the response categories). Commit the refreshed benchmarks so model performance can be tracked across versions and regressions detected.
+
+> Note: the pathways benchmark estimator was changed from a crude reach count to a competing-risks cumulative incidence (see *Benchmarks* above) so that the L2–L8 targets reflect lifetime reach probability and are comparable to the run-to-death simulation. The CSV schema is unchanged, so `validate_simulation.do` is unaffected. Re-running `generate_benchmarks.do` is required for the new pathways targets to take effect.

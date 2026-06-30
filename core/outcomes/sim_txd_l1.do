@@ -117,9 +117,19 @@ mata {
 		if (rows(idxNoASCT) > 0) {
 
 			// Patient matrix
-			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
-					       vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT], 
+			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT],
+					       vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT],
 					       vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT])
+
+			// BCR (L1 response) dummies. The NoASCT TXD model is fit with i.BCR
+			// (prep/risk_equations.do L1_TXD_NoASCT), so the six dummies must be inserted
+			// here -- after RISS, before the regimen dummies -- to align with bL1_TXD_NoASCT.
+			// (Without them, treatment duration does not vary by response and the regimen
+			// columns get multiplied by the BCR coefficients, biasing the duration low.)
+			vBCR_NoASCT = mBCR[idxNoASCT, 1]
+			mPat_NoASCT = (mPat_NoASCT,
+					       (vBCR_NoASCT :== 1), (vBCR_NoASCT :== 2), (vBCR_NoASCT :== 3),
+					       (vBCR_NoASCT :== 4), (vBCR_NoASCT :== 5), (vBCR_NoASCT :== 6))
 
 			if (nCR >= 1) {
 				vCR1_NoASCT = (mTXR[idxNoASCT, 1] :== oL1_TXR[1,1])
@@ -156,9 +166,15 @@ mata {
 			if (rows(idxCont) > 0) {
 					
 				// Assemble patient matrix	
+				// BCR (L1 response) dummies: the Continuous (Rd) TXD model is also fit with
+				// i.BCR (prep/risk_equations.do L1_TXD_Cont) and no regimen term, so the six
+				// dummies go after RISS and before the constant to align with bL1_TXD_Cont.
+				vBCR_Cont = mBCR[idxCont, 1]
 				mPat_Cont = (vAge[idxCont], vAge2[idxCont], vMale[idxCont],
-							 vECOG0[idxCont], vECOG1[idxCont], vECOG2[idxCont], 
-							 vRISS1[idxCont], vRISS2[idxCont], vRISS3[idxCont], 
+							 vECOG0[idxCont], vECOG1[idxCont], vECOG2[idxCont],
+							 vRISS1[idxCont], vRISS2[idxCont], vRISS3[idxCont],
+							 (vBCR_Cont :== 1), (vBCR_Cont :== 2), (vBCR_Cont :== 3),
+							 (vBCR_Cont :== 4), (vBCR_Cont :== 5), (vBCR_Cont :== 6),
 							 vCons[idxCont])
 				
 				// Extract coefficients 
