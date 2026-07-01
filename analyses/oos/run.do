@@ -54,40 +54,45 @@ do "analyses/oos/validate_oos.do"
 * The `do ...` lines below are the LOCAL (serial, slow) equivalent. The actual HPC plumbing -- rsync
 * code+data up, sbatch the array jobs, pull results back -- is the /* ... */ shell block at the END of
 * this file: it is a Stata block comment (inert here), so SELECT-AND-RUN those lines in a VS Code
-* TERMINAL (bash). The slurm scripts (hpc/oos_mi.script, hpc/oos_risk_equations.script) are array jobs 1-500.
+* TERMINAL (bash). The slurm scripts (hpc/multiple_imputation.script, hpc/risk_equations.script) are
+* generic array jobs 1-500 -- the per-analysis args ride on the `sbatch --export=` lines below.
 **********
 
 *  (a) TRAIN bootstrap: MI + risk equations -> analyses/oos/coefficients/bootstrap/coefficients_oos_B1..500
 *      LOCAL equivalent (slow, serial):
 * do "prep/multiple_imputation.do" 2 1 1 500 train
 * do "prep/risk_equations.do" oos oos 1995 2040 1 1 500 train
-*      HPC: the two array jobs (oos_mi.script then oos_risk_equations.script) -- see the shell block below.
+*      HPC: the two generic array jobs (multiple_imputation.script then risk_equations.script) -- see the shell block below.
 *
 *  (b) 500 bootstrap simulations of the held-out 30% -> analyses/oos/simulated/bootstrap/
 *      LOCAL:  do "analyses/oos/simulate.do" 1 1 500
-*      HPC: an array job over simulate.do 1 <task> <task> (slurm wrapper mirrors oos_mi.script; not yet created).
+*      HPC: an array job over simulate.do 1 <task> <task> via hpc/simulate.script -- see the shell block below.
 *
 *  (c) Percentile-method PI coverage vs the held-out observed -> analyses/oos/results/  (the headline metric)
 * do "analyses/oos/bootstrap_validation.do" 500
 
 
 /* ================================================================================================
-   HPC plumbing for steps (a)/(b) -- RUN BY HAND IN A VS CODE TERMINAL (bash), NOT in Stata.
+   HPC plumbing for steps (a)-(c) -- RUN BY HAND IN A VS CODE TERMINAL (bash), NOT in Stata.
    (This is a Stata block comment, so it is ignored when you `do` this file; select the lines you
    need and run them in a terminal.) Train-fold MI -> train-fold risk equations on MASSIVE M3 ->
    analyses/oos/coefficients/bootstrap/coefficients_oos_B1..500.
    Prereq (on the Mac, needs the drive): do analyses/oos/prep/oos_split.do -> ${data_path}/oos/oos_split.dta
 
    # FIRST, in this terminal, load the machine-specific paths (git-ignored; sets user/repo_path/hpc/drive_path):
-   source hpc/env.sh
+   source env.sh
    data=251128
    analysis=oos
 
-   # Directories on M3 (data tree + repo tree)
+   # Directories on M3 (mirrors the repo tree + the data tree)
    ssh $hpc "mkdir -p em76/$user/data/$data/oos/bootstrap"
    ssh $hpc "mkdir -p em76/$user/prep"
+   ssh $hpc "mkdir -p em76/$user/hpc"
    ssh $hpc "mkdir -p em76/$user/analyses/$analysis/outcomes"
    ssh $hpc "mkdir -p em76/$user/analyses/$analysis/coefficients/bootstrap"
+   ssh $hpc "mkdir -p em76/$user/analyses/$analysis/patients"
+   ssh $hpc "mkdir -p em76/$user/analyses/$analysis/simulated/bootstrap"
+   ssh $hpc "mkdir -p em76/$user/analyses/$analysis/results"
 
    # Config (HPC paths: sets repo_path, data_path) -> ~/em76/adam/config.do
    rsync -auvzce ssh "$repo_path"/hpc/config.do $hpc:~/em76/$user/config.do
@@ -101,16 +106,44 @@ do "analyses/oos/validate_oos.do"
    rsync -auvzce ssh "$drive_path/data/$data/MRDR Long.dta" $hpc:~/em76/$user/data/$data/
    rsync -auvzce ssh "$drive_path/data/$data/oos/oos_split.dta" $hpc:~/em76/$user/data/$data/oos/
 
-   # Slurm scripts (array jobs 1-500)
-   rsync -auvzce ssh "$repo_path"/hpc/oos_mi.script $hpc:~/em76/$user/
-   rsync -auvzce ssh "$repo_path"/hpc/oos_risk_equations.script $hpc:~/em76/$user/
+   # Slurm scripts -> hpc/ (mirrors the repo; generic array jobs 1-500, per-analysis args via --export at submit)
+   rsync -auvzce ssh "$repo_path"/hpc/multiple_imputation.script $hpc:~/em76/$user/hpc/
+   rsync -auvzce ssh "$repo_path"/hpc/risk_equations.script $hpc:~/em76/$user/hpc/
+   rsync -auvzce ssh "$repo_path"/hpc/simulate.script $hpc:~/em76/$user/hpc/
 
-   # Submit: risk equations starts only after the whole MI array finishes OK
-   ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable oos_mi.script) ; echo MI job \$mi ; sbatch --dependency=afterok:\$mi oos_risk_equations.script"
+   # == Step (a): submit MI + risk equations. Run ONE of [1]/[2], or [3] to chain both. ==
+   #    --export args:  MI needs IMP, SAMPLE  |  risk equations needs ANALYSIS, COEFFS, MINYR, MAXYR, SAMPLE.
+
+   # [1] MI only (the 500-resample bootstrap MI array):
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script"
+
+   # [2] Risk equations only (run after the MI array has finished):
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
+
+   # [3] Both chained -- risk equations waits on the whole MI array (afterok):
+   ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; sbatch --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
 
    # Monitor
    # ssh $hpc "squeue -u $user"
 
-   # Pull the bootstrap coefficients back into the repo
+   # Pull the bootstrap coefficients back into the repo (optional; they are already on M3 for step b)
    rsync -auvzce ssh $hpc:~/em76/$user/analyses/$analysis/coefficients/bootstrap/ "$repo_path"/analyses/$analysis/coefficients/bootstrap/
+
+
+   # == Step (b): 500 bootstrap simulations of the held-out 30% (run after step a's coefficients are on M3) ==
+   # Reads coefficients_oos_B1..500 (already on M3) + the held-out cohort; writes analyses/oos/simulated/bootstrap/.
+   # Needs core/ + simulate.do + the cohort, which the MI/risk phase did not send:
+   rsync -auvzce ssh "$repo_path"/core/ $hpc:~/em76/$user/core/
+   rsync -auvzce ssh "$repo_path"/analyses/$analysis/simulate.do $hpc:~/em76/$user/analyses/$analysis/
+   rsync -auvzce ssh "$repo_path"/analyses/$analysis/patients/oos_cohort.dta $hpc:~/em76/$user/analyses/$analysis/patients/
+
+   # Submit the simulation array (simulate.do 1 <task> <task>; --export picks the analysis):
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,ANALYSIS=oos hpc/simulate.script"
+
+   # == Step (c): PI coverage. Aggregate the 500 sims ON M3 (heavy -- don't pull them); pull only results/. ==
+   # Needs the target CSVs + the validator on M3 (verify bootstrap_validation.do's own file deps on first run):
+   rsync -auvzce ssh "$repo_path"/analyses/$analysis/targets/ $hpc:~/em76/$user/analyses/$analysis/targets/
+   rsync -auvzce ssh "$repo_path"/analyses/$analysis/bootstrap_validation.do $hpc:~/em76/$user/analyses/$analysis/
+   ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --time=0-00:30:00 --wrap=\"module load stata/16u2021 && stata-mp analyses/$analysis/bootstrap_validation.do 500\""
+   rsync -auvzce ssh $hpc:~/em76/$user/analyses/$analysis/results/ "$repo_path"/analyses/$analysis/results/
    ================================================================================================ */

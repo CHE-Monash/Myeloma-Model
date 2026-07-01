@@ -47,7 +47,7 @@ The main prep/validation scripts take optional arguments so they serve both the 
 6. `simulate.do` — simulate the 30% (point estimate).
 7. `validate_oos.do` — compare the point estimate to the observed targets (fixed tolerances).
 
-**Bootstrap prediction intervals (HPC; the headline metric):** train bootstrap MI + risk equations, then `simulate.do 1 1 500` (500 simulations of the held-out 30%), then `bootstrap_validation.do` — 95% percentile interval per outcome, coverage vs the held-out observed. See `run.do` bootstrap steps (a)–(c) for the commands, and the `/* … */` shell block at the end of `run.do` for the cluster transfer/submit — run those lines in a VS Code terminal after `source hpc/env.sh` (git-ignored; supplies the machine-specific paths).
+**Bootstrap prediction intervals (HPC; the headline metric):** train bootstrap MI + risk equations, then `simulate.do 1 1 500` (500 simulations of the held-out 30%), then `bootstrap_validation.do` — 95% percentile interval per outcome, coverage vs the held-out observed. See `run.do` bootstrap steps (a)–(c) for the commands, and the `/* … */` shell block at the end of `run.do` for the cluster transfer/submit — run those lines in a VS Code terminal after `source env.sh` (git-ignored; supplies the machine-specific paths).
 
 ## Open items before a publication-grade run
 - **`oos_cohort.do`** mirrors `population_1995_2040.do`'s cohort schema — verify the column set still matches `core/load_patients.do` / `core/mata_setup.do` against live data.

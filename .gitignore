@@ -20,16 +20,19 @@ analyses/transport_dvd/patients/sample_size/
 # until journal submission, then remove this line and tag a release. Local copy retained.
 analyses/transport_dvd/
 
-# Machine-specific local config (real paths; never committed — see config.example.do)
+# Machine-specific local config (real paths; never committed — see config.example.do / env.example.sh)
 /config.do
+/env.sh
 
 # Data-prep scripts (MRDR → model inputs; run against restricted data, not shipped).
 # The prep/README.md ships; the scripts (incl. sub/ helpers) stay local. Outputs (.mmat) ship.
 prep/*.do
 prep/sub/
 
-# HPC job scripts (machine-specific; not needed on GitHub)
-/hpc/
+# HPC: the generic .script job files under hpc/ ARE committed (collaborators reuse them; per-run args
+# come from run.do + env.sh at submit time). Only the machine-specific cluster Stata config stays out.
+# (hpc/_archive/ and hpc/.DS_Store are already covered by the global rules below.)
+/hpc/config.do
 
 # Large patient cohort & population data (exceed GitHub's 100MB limit; regenerate locally)
 patients/*.dta

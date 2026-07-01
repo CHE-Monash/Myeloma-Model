@@ -1,0 +1,24 @@
+#!/bin/bash
+
+#SBATCH --account=em76
+#SBATCH --job-name=mi
+#SBATCH --ntasks=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem-per-cpu=8000
+#SBATCH --time=0-01:00:00
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --array=1-500
+
+# Generic bootstrap-MI array job (committed -- no machine-specific paths). Per-run values come from
+# the submitting `sbatch --export`, recorded in each analysis's run.do bootstrap block:
+#   IMP    = number of imputations  (e.g. 2 for OOS, 10 for the main model)
+#   SAMPLE = OOS fold "train"/"test", or empty for the main model
+# The job runs in the sbatch SUBMISSION directory -- run.do submits after `cd em76/$user` (your
+# cluster repo root), so no `cd` is needed here. --mail-user is supplied at submit from env.sh;
+# --account defaults to em76 (override at submit with `sbatch --account=...`). boot is fixed at 1.
+
+module load stata/16u2021
+
+stata-mp prep/multiple_imputation.do ${IMP} 1 ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_TASK_ID} ${SAMPLE}

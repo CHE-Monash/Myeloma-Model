@@ -35,8 +35,9 @@ do "analyses/base_model/simulate.do"
 
 **********
 * BOOTSTRAP (prediction intervals) -- HEAVY; runs on the HPC.
-* Left commented: record of the sequence, not executed here. (Per-analysis HPC driver/scripts to be
-* added when this analysis is run on the cluster -- mirror analyses/oos/oos.sh + hpc/oos_*.script.)
+* Left commented: record of the sequence, not executed here. (When this analysis is first run on the
+* cluster, add a /* ... */ HPC shell block like analyses/oos/run.do, submitting the generic
+* hpc/risk_equations.script with `sbatch --export=ALL,ANALYSIS=base_model,COEFFS=base_model,MINYR=1995,MAXYR=2040`.)
 **********
 
 *  (a) Bootstrap risk equations -> analyses/base_model/coefficients/bootstrap/coefficients_base_model_B1..500
