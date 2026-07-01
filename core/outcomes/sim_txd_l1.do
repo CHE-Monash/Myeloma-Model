@@ -53,7 +53,7 @@ mata {
 				vDur_S1 = calcSurvTime(vXB_S1, vRN_ASCT, fbL1_TXD_ASCT_S1, aux_S1)
 			
 				// --- SPLINE 2 (for those beyond Cutoff 1) ---
-					vBeyondC1 = (vDur_S1 :> L1_TXD_ASCT_C1)
+					vBeyondC1 = (vDur_S1 :> (L1_TXD_ASCT_C1/30.4375))   // C1/C2 stored as DAYS (fit exit=Date1+60/120); sim durations are MONTHS (scale 30.4375)
 					idxBeyondC1 = selectindex(vBeyondC1)
 
 					if (rows(idxBeyondC1) > 0) {
@@ -69,7 +69,7 @@ mata {
 						vXB_S2 = mPat_ASCT_C1 * coef_S2
 						
 						// Conditional RN: survive past C1
-						vSurvC1 = exp(-exp(vXB_S2) :* (L1_TXD_ASCT_C1 :^ exp(aux_S2)))
+						vSurvC1 = exp(-exp(vXB_S2) :* ((L1_TXD_ASCT_C1/30.4375) :^ exp(aux_S2)))
 						vRN_S2 = rnDraw(idxASCT[idxBeyondC1], rn_txd_l1(2)) :* vSurvC1
 						
 						// Recalculate duration with Spline 2
@@ -79,7 +79,7 @@ mata {
 						vDur_S1[idxBeyondC1] = vDur_S2
 				
 					// --- SPLINE 3 (for those beyond Cutoff 2) ---
-						vBeyondC2 = (vDur_S2 :> L1_TXD_ASCT_C2)
+						vBeyondC2 = (vDur_S2 :> (L1_TXD_ASCT_C2/30.4375))
 						idxBeyondC2_local = selectindex(vBeyondC2)
 						
 						if (rows(idxBeyondC2_local) > 0) {
@@ -96,7 +96,7 @@ mata {
 							vXB_S3 = mPat_ASCT_C2 * coef_S3
 							
 							// Conditional RN: survive past C2
-							vSurvC2 = exp(-exp(vXB_S3) :* (L1_TXD_ASCT_C2 :^ exp(aux_S3)))
+							vSurvC2 = exp(-exp(vXB_S3) :* ((L1_TXD_ASCT_C2/30.4375) :^ exp(aux_S3)))
 							vRN_S3 = rnDraw(idxASCT[idxBeyondC2], rn_txd_l1(3)) :* vSurvC2
 							
 							// Recalculate duration with Spline 3
