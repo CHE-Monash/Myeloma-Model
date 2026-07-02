@@ -55,6 +55,14 @@ global outcomes_path		"analyses/$analysis/outcomes"
 global patients_path        "analyses/$analysis/patients"
 global simulated_path       "analyses/$analysis/simulated"
 
+// Output partition for the simulated .dta: scenario is an optional subfolder
+// (empty $scenario => simulated_path itself), matching export_results.do.
+// Filename convention, reused across analyses:
+//   <int>_<line>_<data>.dta                  point estimate
+//   bootstrap/<int>_<line>_<data>_B<b>.dta   bootstrap iteration b
+// The patient-ID range is a run setting (recorded in the report), not in the name.
+global sim_out = cond("$scenario" == "", "$simulated_path", "$simulated_path/$scenario")
+
 **********
 * Load Programs
 **********
@@ -85,7 +93,8 @@ if ("$boot" == "0") {
     process_data
     
     // Save results
-    save "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}.dta", replace
+    capture mkdir "$sim_out"
+    save "$sim_out/${int}_${line}_${data}.dta", replace
 	
 	// Validate results
 	run "core/validation.do"
@@ -114,7 +123,9 @@ else {
         process_data
         
         // Save results
-        save "$simulated_path/bootstrap/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}_B`b'.dta", replace
+        capture mkdir "$sim_out"
+        capture mkdir "$sim_out/bootstrap"
+        save "$sim_out/bootstrap/${int}_${line}_${data}_B`b'.dta", replace
         
         di as text "Iteration `b' completed"
     }

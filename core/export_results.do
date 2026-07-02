@@ -20,7 +20,7 @@
 *   bcr_<stub>.csv       BCR distribution at the assessed line ($line)
 *   econ_<stub>.csv      Mean cost / QALY / LY (discounted and undiscounted)
 *   patients_<stub>.csv  Per-patient key outcomes (flat)
-*   where <stub> = ${int}_${line}_${data}_${min_id}_${max_id}
+*   where <stub> = ${int}_${line}_${data}
 *
 * Note: reads the variable names produced by core/process_data.do
 *       (cost_total_d, qaly_total_d, BCR_L#, ...), NOT the older names used in
@@ -37,7 +37,7 @@ program export_results
 	local L = $line
 	local dir "$simulated_path/$scenario"
 	capture mkdir "`dir'"
-	local stub "${int}_${line}_${data}_${min_id}_${max_id}"
+	local stub "${int}_${line}_${data}"
 
 	di as text "Exporting CSV results -> `dir' (`stub')"
 

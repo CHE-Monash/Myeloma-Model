@@ -9,24 +9,15 @@
 
 
 **********
-* Create Output Directory
-capture mkdir "$simulated_path/report"
-local report_dir "$simulated_path/report"
+* Paths — simulated output lives under an optional scenario subfolder (empty
+* $scenario => simulated_path itself), matching simulate.do / export_results.do.
+local sim_out = cond("$scenario" == "", "$simulated_path", "$simulated_path/$scenario")
+capture mkdir "`sim_out'"
+capture mkdir "`sim_out'/report"
+local report_dir "`sim_out'/report"
 
 * Load Data
-* Append the scenario tag only when a scenario is set (an empty $scenario would
-* otherwise leave a dangling underscore). Prefer the scenario-tagged file if it
-* exists, else fall back to the untagged name — simulate.do currently saves the
-* main output without a scenario suffix, so both conventions are handled here.
-local stub "${int}_${line}_${data}_${min_id}_${max_id}"
-local scen_sfx ""
-if ("$scenario" != "") local scen_sfx "_${scenario}"
-
-local infile "$simulated_path/`stub'`scen_sfx'.dta"
-capture confirm file "`infile'"
-if (_rc) local infile "$simulated_path/`stub'.dta"
-
-qui use "`infile'", clear
+qui use "`sim_out'/${int}_${line}_${data}.dta", clear
 
 
 **********
@@ -1410,6 +1401,6 @@ putpdf table riss_econ(4,4) = ("`qaly_riss3'")
 **********
 
 set graphics on
-local output_file "`report_dir'/${int}_${data}`scen_sfx'.pdf"
+local output_file "`report_dir'/${int}_${line}_${data}.pdf"
 putpdf save "`output_file'", replace
 n di as result _n "Report saved at `output_file'."
