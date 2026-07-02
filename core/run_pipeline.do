@@ -17,8 +17,16 @@
 
 capture program drop run_pipeline
 program define run_pipeline
-	run "core/mata_functions.do"
-	run "core/rng_slots.do"
+	// Compile the persistent Mata utility functions once per (cleared) Mata
+	// state. The definition files error ("... already exists") if re-run while
+	// their functions are still compiled, so load them only when absent: true on
+	// a fresh session and again after the bootstrap loop's `mata clear`, but a
+	// no-op if run_pipeline is called repeatedly within one live Mata state.
+	capture mata: _rp_probe = &get_txr_coef()
+	if (_rc) {
+		run "core/mata_functions.do"
+		run "core/rng_slots.do"
+	}
 	load_patients
 	mata_setup
 	simulation

@@ -138,18 +138,13 @@ cap mata: mata drop mRN
 	forval l = `L'/`maxL' {
 		qui gen cost_tx_L`l' = 0
 		
-		* L1-specific regimens with cycle caps
-		if `l' == 1 {
-			qui replace cost_tx_L1 = `cVCd' * min(4, TXD_L1 * 30.4375 / 21) if TXR_L1 == 4
-			qui replace cost_tx_L1 = `cVRd' * min(5, TXD_L1 * 30.4375 / 21) if TXR_L1 == 31
-		}
-		
-		* Standard regimens (all lines)
+		qui replace cost_tx_L`l' = `cVCd' * min(4, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 4
+		qui replace cost_tx_L`l' = `cVRd' * min(5, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 31
 		qui replace cost_tx_L`l' = `cRd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 7
 		qui replace cost_tx_L`l' = `cKd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 49
 		qui replace cost_tx_L`l' = `cDVd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 80
 		qui replace cost_tx_L`l' = `cPd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 56
-		qui replace cost_tx_L`l' = `cVd' * min(8, TXD_L2 * 30.4375 / 21) if TXR_L`l' == 5
+		qui replace cost_tx_L`l' = `cVd' * min(8, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 5
 		qui replace cost_tx_L`l' = `cOther' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 0
 	}
 
