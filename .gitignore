@@ -24,10 +24,11 @@ analyses/transport_dvd/
 /config.do
 /env.sh
 
-# Data-prep scripts (MRDR → model inputs; run against restricted data, not shipped).
-# The prep/README.md ships; the scripts (incl. sub/ helpers) stay local. Outputs (.mmat) ship.
-prep/*.do
+# Data-prep scripts (MRDR → model inputs). The model-input scripts, README and outputs (.mmat) are
+# tracked. Scripts that operate on RAW MRDR data stay out of the repo (data-governance): the sub/
+# helpers and data_extraction.do; plus restricted DATA and machine-specific paths (config.do).
 prep/sub/
+prep/data_extraction.do
 
 # HPC: the generic .script job files under hpc/ ARE committed (collaborators reuse them; per-run args
 # come from run.do + env.sh at submit time). Only the machine-specific cluster Stata config stays out.
