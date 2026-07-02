@@ -1,6 +1,6 @@
 **********
 * Test Survival Time Calculation Functions
-* Tests calcSurvivalTime() against old formulas
+* Tests calcSurvTime() against old formulas
 **********
 
 clear all
@@ -33,7 +33,7 @@ mata:
 old_exp = ln(RN) :/ -exp(XB)
 
 // NEW function
-new_exp = calcSurvivalTime(XB, RN, "exponential")
+new_exp = calcSurvTime(XB, RN, "exponential")
 
 // Compare
 maxDiff_exp = max(abs(old_exp - new_exp))
@@ -59,7 +59,7 @@ mata:
 old_weib = ((ln(RN) :/ -exp(XB)) :^ (1 :/ exp(aux)))
 
 // NEW function
-new_weib = calcSurvivalTime(XB, RN, "weibull", aux)
+new_weib = calcSurvTime(XB, RN, "weibull", aux)
 
 // Compare
 maxDiff_weib = max(abs(old_weib - new_weib))
@@ -85,7 +85,7 @@ mata:
 old_gomp = (ln(1 :- ((aux :* ln(RN)) :/ exp(XB))) :/ aux)
 
 // NEW function
-new_gomp = calcSurvivalTime(XB, RN, "gompertz", aux)
+new_gomp = calcSurvTime(XB, RN, "gompertz", aux)
 
 // Compare
 maxDiff_gomp = max(abs(old_gomp - new_gomp))
@@ -107,7 +107,7 @@ end
 // TEST 4: Test "ereg" alias for exponential
 //=============================================================================
 mata:
-new_ereg = calcSurvivalTime(XB, RN, "ereg", aux)
+new_ereg = calcSurvTime(XB, RN, "ereg", aux)
 maxDiff_ereg = max(abs(new_exp - new_ereg))
 
 printf("Maximum difference: %e\n", maxDiff_ereg)
@@ -124,9 +124,14 @@ end
 //=============================================================================
 // TEST 5: Error handling for invalid distribution
 //=============================================================================
-mata:
-bad_result = calcSurvivalTime(XB, RN, "invalid_dist", aux)
-end
+// Wrapped in capture so the intended exit(198) does not abort a batch run.
+capture mata: bad_result = calcSurvTime(XB, RN, "invalid_dist", aux)
+if (_rc) {
+	di "{result}PASS: invalid distribution correctly raised an error (rc=`=_rc')"
+}
+else {
+	di "{error}FAIL: invalid distribution did not raise an error"
+}
 
 //=============================================================================
 // TEST 6: Vectorisation check (different sized vectors)
@@ -140,7 +145,7 @@ for (i = 1; i <= cols(sizes); i++) {
     XB_test = rnormal(n, 1, 0, 1)
     RN_test = runiform(n, 1)
     
-    result = calcSurvivalTime(XB_test, RN_test, "weibull", 0.5)
+    result = calcSurvTime(XB_test, RN_test, "weibull", 0.5)
     
     if (rows(result) == n) {
         printf("  n=%5.0f: ✓ Correct output size\n", n)
@@ -164,7 +169,7 @@ XB_test = J(nTest, 1, 0)  // XB = 0 means lambda = 1
 RN_test = runiform(nTest, 1)
 aux_test = 1.0  // Shape = e^1 ≈ 2.718
 
-result_test = calcSurvivalTime(XB_test, RN_test, "weibull", aux_test)
+result_test = calcSurvTime(XB_test, RN_test, "weibull", aux_test)
 
 printf("\nWeibull with XB=0 (lambda=1), shape=e^1:\n")
 printf("  Mean:   %8.4f\n", mean(result_test))

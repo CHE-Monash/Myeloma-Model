@@ -6,7 +6,7 @@ clear all
 quietly do "core/mata_functions.do"
 
 mata:
-    // Test 1: calcSurvivalTime() matches old formula
+    // Test 1: calcSurvTime() matches old formula
     printf("\n{hline 80}\n")
     printf("TEST 1: Weibull survival calculation\n")
     printf("{hline 80}\n")
@@ -16,13 +16,13 @@ mata:
     auxParam = 0.5
     
     // OLD formula
-    old = ((ln(RN) :/ -exp(XB)) :^ (1 :/ exp(auxParam)))
-    
-    // NEW function
-    new = calcSurvivalTime(XB, RN, "weibull", auxParam)
-    
+    oldval = ((ln(RN) :/ -exp(XB)) :^ (1 :/ exp(auxParam)))
+
+    // NEW function (new is a reserved word in Mata -> use newval)
+    newval = calcSurvTime(XB, RN, "weibull", auxParam)
+
     // Compare
-    maxDiff = max(abs(old - new))
+    maxDiff = max(abs(oldval - newval))
     printf("Maximum difference: %f\n", maxDiff)
     if (maxDiff < 1e-10) {
         printf("{result}PASS: Results match perfectly\n")
@@ -42,8 +42,8 @@ mata:
     cutPoints = (0.5, 1.5)
     
     // Calculate using functions
-    probs = calcOrderedLogitProbs(XB, cutPoints)
-    outcome = assignOrderedOutcome(RN, probs, (1, 3, 5))
+    probs = calcOrdLogitProbs(XB, cutPoints)
+    outcome = assignOrdOutcome(RN, probs, (1, 3, 5))
     
     // Validate all outcomes are valid
     validateOutcomes(outcome, (1, 3, 5), "BCR Test")
@@ -66,8 +66,8 @@ mata:
     
     curtailed = curtailValues(values, maxVal)
     
-    printf("Before: "), values'
-    printf("After (max=350): "), curtailed'
+    printf("Before:          %g %g %g %g %g\n", values[1], values[2], values[3], values[4], values[5])
+    printf("After (max=350): %g %g %g %g %g\n", curtailed[1], curtailed[2], curtailed[3], curtailed[4], curtailed[5])
     
     if (max(curtailed) <= maxVal) {
         printf("{result}PASS: All values <= maximum\n")
