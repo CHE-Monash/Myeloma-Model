@@ -4,10 +4,23 @@
 * Purpose: Determine which patients have died
 * Outcome: Binary (0 = Alive, 1 = Dead)
 *
-* Design principle: 
+* Design principle:
 *   - mTNE/mTSD are NEVER modified at death (preserves audit trail of simulated times)
 *   - mTFI/mTXD ARE curtailed at death (reflects actual time experienced)
 *   - Use mTFI/mTXD (not mTNE/mTSD) when calculating results post-simulation
+*
+* mMOR encoding (per column = per event) and the invariant it relies on:
+*   0       = alive at the end of this event
+*   1       = died DURING this event (a one-off spike, set once)
+*   missing = died during a PREVIOUS event (never overwritten thereafter)
+*   Death is a single 1 in the death column; it is NOT carried forward. Eligibility
+*   below only inspects the immediately-preceding column (mMOR[.,OMC-1] == 0), which
+*   correctly distinguishes "alive" (0) from both "just died" and "died earlier".
+*   This works ONLY because a dead patient's later columns stay missing (we write 0
+*   solely to survivors): missing != 0, so the dead are never re-made eligible.
+*   REQUIRED: the input MOR_* columns must be initialised to missing, not 0. If they
+*   were 0, a patient who died at event k would test alive again at event k+2 and OS
+*   would silently inflate. (Verified: post-death columns are all missing in practice.)
 **********
 mata {
 	// Filters
@@ -19,7 +32,6 @@ mata {
 	// Patient dies if cumulative time at end of this OMC >= their OS
 	// mTSD[.,OMC+1] should already be set (= mTSD[.,OMC] + mTNE[.,OMC])
 	vDies = (mTSD[.,OMC+1] :>= mOS[.,OMC]) :& vEligible
-	vLives = (mTSD[.,OMC+1] :< mOS[.,OMC]) :& vEligible
 	
 	// Get indices
 	idxEligible = selectindex(vEligible)

@@ -10,7 +10,6 @@ mata {
 	// Filters
 	vStateValid = (mState[.,1] :<= OMC)
 	vWasAlive = (OMC == 1 ? J(rows(mMOR), 1, 1) : (mMOR[.,OMC-1] :== 0))
-	vWasDead = (OMC == 1 ? J(rows(mMOR), 1, 0) : (mMOR[.,OMC-1] :== 1))
 	vEligible = vStateValid :& vWasAlive
 	
 	// Get indices
