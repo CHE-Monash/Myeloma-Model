@@ -43,7 +43,7 @@ if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
 if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
 global cost_year	"2025"				// Price year for all costs (AUD)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
-global report       "0"                 // Generate report (0/1)
+global report       "1"                 // Generate report (0/1)
 global scenario     ""           		// Scenario
 
 **********
