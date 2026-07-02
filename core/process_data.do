@@ -21,21 +21,15 @@ local maxL = 9
 di as text "Processing Simulated Data (Starting Line: `L')"
 
 * Free the CRN matrix - all draws are done by end of simulation; not needed here,
-*   and process_data is the peak-memory stage (mSum -> st_matrix -> svmat).
+*   and process_data is the peak-memory stage (mSum assembly + getmata).
 cap mata: mata drop mRN
 
 * Create mSum in Mata
 	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCM , vCKD , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , /// 
 			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
-* Convert mSum to stSum
-	mata: st_matrix("stSum", mSum)
-	drop _all
-		
-* Convert stSum to variables
-	svmat double stSum
-	
-* Name variables
+* Column names for mSum, in assembly order below.
+* (getmata errors on a name/column count mismatch, which guards this alignment.)
 	local varnames ID Male ECOGcc RISS ISS CMc CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT ///
 		Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
 		OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
@@ -49,12 +43,13 @@ cap mata: mata drop mRN
 		TFI_DN TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 /// 
 		State DateDN ///
 				
-	local varlength : word count `varnames'
-		
-	forvalues i = 1/`varlength'{
-		local currentvar : word `i' of `varnames'
-		rename stSum`i' `currentvar'
-	}		
+
+* Write the Mata matrix straight to named variables. getmata reads mSum
+* directly, bypassing the st_matrix()/svmat round-trip that dominated runtime
+* (st_matrix on the full ~101k x 148 matrix was ~60s; getmata is < 1s).
+	drop _all
+	getmata (`varnames') = mSum, double
+	cap mata: mata drop mSum
 	
 	format DateDN %td
 	order ID Male ECOGcc RISS CMc SCT_L1 MNT CM_CKD
