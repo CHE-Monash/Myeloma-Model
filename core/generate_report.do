@@ -14,7 +14,20 @@ capture mkdir "$simulated_path/report"
 local report_dir "$simulated_path/report"
 
 * Load Data
-qui use "$simulated_path/${int}_${line}_${data}_${min_id}_${max_id}_${scenario}.dta", clear
+* Append the scenario tag only when a scenario is set (an empty $scenario would
+* otherwise leave a dangling underscore). Prefer the scenario-tagged file if it
+* exists, else fall back to the untagged name — simulate.do currently saves the
+* main output without a scenario suffix, so both conventions are handled here.
+local stub "${int}_${line}_${data}_${min_id}_${max_id}"
+local scen_sfx ""
+if ("$scenario" != "") local scen_sfx "_${scenario}"
+
+local infile "$simulated_path/`stub'`scen_sfx'.dta"
+capture confirm file "`infile'"
+if (_rc) local infile "$simulated_path/`stub'.dta"
+
+qui use "`infile'", clear
+
 
 **********
 * Start PDF
@@ -1084,7 +1097,7 @@ putpdf paragraph
 putpdf text ("Costs (Discounted at `drate_pct'%)"), bold font(,14)
 
 // Total Costs Summary
-quietly summarize cTotald, detail
+quietly summarize cost_total_d, detail
 local n_cost = string(r(N), "%9.0fc")
 local mean_cost = string(r(mean), "%12.0fc")
 local sd_cost = string(r(sd), "%12.0fc")
@@ -1107,13 +1120,13 @@ putpdf table cost_sum(3,2) = ("$`median_cost' [$`p25_cost' - $`p75_cost']")
 putpdf paragraph
 putpdf text ("Cost Components (Mean)"), bold
 
-quietly summarize cTXd
+quietly summarize cost_tx_d
 local mean_tx = string(r(mean), "%12.0fc")
-quietly summarize cNTd
+quietly summarize cost_nt_d
 local mean_nt = string(r(mean), "%12.0fc")
 
 // ASCT costs (recipients only)
-quietly summarize cTX_ASCTd if SCT_L1 == 1
+quietly summarize cost_tx_asct_d if SCT_L1 == 1
 if r(N) > 0 {
 	local mean_asct = string(r(mean), "%12.0fc")
 	local n_asct = string(r(N), "%9.0fc")
@@ -1124,7 +1137,7 @@ else {
 }
 
 // Maintenance costs (recipients only)
-quietly summarize cTX_MNTd if MNT == 1
+quietly summarize cost_tx_mnt_d if MNT == 1
 if r(N) > 0 {
 	local mean_mnt = string(r(mean), "%12.0fc")
 	local n_mnt = string(r(N), "%9.0fc")
@@ -1134,15 +1147,11 @@ else {
 	local n_mnt = "0"
 }
 
-// Non-treatment cost components
-quietly summarize cNT_Hospd
-local mean_hosp = string(r(mean), "%12.0fc")
-quietly summarize cNT_Commd
-local mean_comm = string(r(mean), "%12.0fc")
-quietly summarize cNT_Emerd
-local mean_emer = string(r(mean), "%12.0fc")
+// Non-treatment costs: process_data.do applies a single blended per-month rate
+// (hospitalisation + community + emergency) and stores only the combined
+// cost_nt_d, so report it as one line rather than an artificial component split.
 
-putpdf table cost_comp = (8, 2), border(all)
+putpdf table cost_comp = (5, 2), border(all)
 putpdf table cost_comp(1,1) = ("Component"), bold
 putpdf table cost_comp(1,2) = ("Mean (AUD)"), bold
 putpdf table cost_comp(2,1) = ("Treatment Costs (Total)")
@@ -1153,12 +1162,6 @@ putpdf table cost_comp(4,1) = ("  Maintenance (n=`n_mnt')")
 putpdf table cost_comp(4,2) = ("$`mean_mnt'")
 putpdf table cost_comp(5,1) = ("Non-Treatment Costs (Total)")
 putpdf table cost_comp(5,2) = ("$`mean_nt'")
-putpdf table cost_comp(6,1) = ("  Hospitalisation")
-putpdf table cost_comp(6,2) = ("$`mean_hosp'")
-putpdf table cost_comp(7,1) = ("  Community Care")
-putpdf table cost_comp(7,2) = ("$`mean_comm'")
-putpdf table cost_comp(8,1) = ("  Emergency")
-putpdf table cost_comp(8,2) = ("$`mean_emer'")
 
 // Treatment Costs by Line of Therapy
 putpdf paragraph
@@ -1167,7 +1170,7 @@ putpdf text ("Treatment Costs by Line of Therapy"), bold
 // Count rows needed (only include lines with patients)
 local n_lines = 0
 forval l = 1/9 {
-	quietly count if cTX_L`l'd != . & cTX_L`l'd > 0
+	quietly count if cost_tx_L`l'_d != . & cost_tx_L`l'_d > 0
 	if r(N) > 0 local n_lines = `l'
 }
 
@@ -1180,9 +1183,9 @@ putpdf table cost_line(1,3) = ("Mean Cost (AUD)"), bold
 
 local row = 2
 forval l = 1/`n_lines' {
-	quietly count if cTX_L`l'd != . & cTX_L`l'd > 0
+	quietly count if cost_tx_L`l'_d != . & cost_tx_L`l'_d > 0
 	local n_l = string(r(N), "%9.0fc")
-	quietly summarize cTX_L`l'd if cTX_L`l'd > 0
+	quietly summarize cost_tx_L`l'_d if cost_tx_L`l'_d > 0
 	if r(N) > 0 {
 		local mean_l = string(r(mean), "%12.0fc")
 	}
@@ -1205,7 +1208,7 @@ putpdf paragraph
 putpdf text ("Quality-Adjusted Life Years (Discounted at `drate_pct'%)"), bold font(,14)
 
 // Total QALYs Summary
-quietly summarize qTotald, detail
+quietly summarize qaly_total_d, detail
 local n_qaly = string(r(N), "%9.0fc")
 local mean_qaly = string(r(mean), "%5.2f")
 local sd_qaly = string(r(sd), "%5.2f")
@@ -1228,15 +1231,15 @@ putpdf table qaly_sum(3,2) = ("`median_qaly' [`p25_qaly' - `p75_qaly']")
 putpdf paragraph
 putpdf text ("QALYs by Health State (Mean)"), bold
 
-quietly summarize qTFI_DNd
+quietly summarize qaly_tfi_DN_d
 local q_tfi_dn = string(r(mean), "%5.3f")
-quietly summarize qTXD_L1d
+quietly summarize qaly_txd_L1_d
 local q_txd_l1 = string(r(mean), "%5.3f")
-quietly summarize qTFI_L1d
+quietly summarize qaly_tfi_L1_d
 local q_tfi_l1 = string(r(mean), "%5.3f")
-quietly summarize qTXD_L2d
+quietly summarize qaly_txd_L2_d
 local q_txd_l2 = string(r(mean), "%5.3f")
-quietly summarize qPostL2d
+quietly summarize qaly_post_L2_d
 local q_post = string(r(mean), "%5.3f")
 
 putpdf table qaly_comp = (6, 3), border(all)
@@ -1267,14 +1270,14 @@ putpdf paragraph
 putpdf text ("Discounted vs Undiscounted Comparison"), bold font(,14)
 
 // Get undiscounted values
-quietly summarize cTotal
+quietly summarize cost_total
 local mean_cost_undisc = string(r(mean), "%12.0fc")
-quietly summarize cTotald
+quietly summarize cost_total_d
 local mean_cost_disc = string(r(mean), "%12.0fc")
 
-quietly summarize qTotal
+quietly summarize qaly_total
 local mean_qaly_undisc = string(r(mean), "%5.2f")
-quietly summarize qTotald
+quietly summarize qaly_total_d
 local mean_qaly_disc = string(r(mean), "%5.2f")
 
 putpdf table disc_comp = (3, 3), border(all)
@@ -1299,16 +1302,16 @@ putpdf text ("Economic Outcomes by Subgroup"), bold font(,14)
 putpdf paragraph
 putpdf text ("By ASCT Status"), bold
 
-quietly summarize cTotald if SCT_L1 == 0
+quietly summarize cost_total_d if SCT_L1 == 0
 local cost_noasct = string(r(mean), "%12.0fc")
-quietly summarize qTotald if SCT_L1 == 0
+quietly summarize qaly_total_d if SCT_L1 == 0
 local qaly_noasct = string(r(mean), "%5.2f")
 quietly count if SCT_L1 == 0
 local n_noasct = string(r(N), "%9.0fc")
 
-quietly summarize cTotald if SCT_L1 == 1
+quietly summarize cost_total_d if SCT_L1 == 1
 local cost_asct = string(r(mean), "%12.0fc")
-quietly summarize qTotald if SCT_L1 == 1
+quietly summarize qaly_total_d if SCT_L1 == 1
 local qaly_asct = string(r(mean), "%5.2f")
 quietly count if SCT_L1 == 1
 local n_asct = string(r(N), "%9.0fc")
@@ -1347,9 +1350,9 @@ forval a = 1/3 {
 	
 	quietly count if `age_cond'
 	local n_age`a' = string(r(N), "%9.0fc")
-	quietly summarize cTotald if `age_cond'
+	quietly summarize cost_total_d if `age_cond'
 	local cost_age`a' = string(r(mean), "%12.0fc")
-	quietly summarize qTotald if `age_cond'
+	quietly summarize qaly_total_d if `age_cond'
 	local qaly_age`a' = string(r(mean), "%5.2f")
 }
 
@@ -1378,9 +1381,9 @@ putpdf text ("By R-ISS Stage"), bold
 forval r = 1/3 {
 	quietly count if RISS == `r'
 	local n_riss`r' = string(r(N), "%9.0fc")
-	quietly summarize cTotald if RISS == `r'
+	quietly summarize cost_total_d if RISS == `r'
 	local cost_riss`r' = string(r(mean), "%12.0fc")
-	quietly summarize qTotald if RISS == `r'
+	quietly summarize qaly_total_d if RISS == `r'
 	local qaly_riss`r' = string(r(mean), "%5.2f")
 }
 
@@ -1407,6 +1410,6 @@ putpdf table riss_econ(4,4) = ("`qaly_riss3'")
 **********
 
 set graphics on
-local output_file "`report_dir'/${int}_${data}_${scenario}.pdf"
+local output_file "`report_dir'/${int}_${data}`scen_sfx'.pdf"
 putpdf save "`output_file'", replace
-n di as result _n "Report saved at $simulated_path/report/${int}_${data}_${scenario}.pdf."
+n di as result _n "Report saved at `output_file'."
