@@ -34,7 +34,7 @@ global min_id       "1"                 // First patient ID (>= 1)
 global max_id       "101212"            // Last patient ID (<= 101,212)
 global cost_year	"2025"				// Cost year (AUD)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
-global report       "1"                 // Generate report (0/1)
+global report       "0"                 // Generate report (0/1)
 global scenario     ""           		// Scenario
 
 // Bootstrap settings
