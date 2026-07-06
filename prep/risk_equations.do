@@ -78,6 +78,20 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
+cap program drop gen_txr
+program define gen_txr
+	// Build TXR_L1..L9 from the per-line regimen code lists in $TXR_L1..$TXR_L9 (declared by the
+	// analysis's outcomes/txr_<coeffs>.do). Any regimen not listed for a line falls into 0 ('other').
+	forval l = 1/9 {
+		cap drop TXR_L`l'
+		gen TXR_L`l' = 0 if Event0 == `l'0
+		foreach r of global TXR_L`l' {
+			replace TXR_L`l' = `r' if Event0 == `l'0 & Regimen == `r'
+		}
+		bysort ID (TXR_L`l'): replace TXR_L`l' = TXR_L`l'[_n-1] if TXR_L`l' == .
+	}
+end
+
 cap program drop risk_equations
 program define risk_equations
 	
@@ -92,8 +106,13 @@ program define risk_equations
 	// scratch/tfi_family_check.do + prevdur_check.do). Engine calcSurvTime/Prob handle "lnormal".
 	global dTFI = "lognormal"
 			
-	// Pick up list of regimens by line
+	// Per-line regimen code lists ($TXR_L1..L9) from the analysis spec, then build TXR_L* generically.
+	// Clear first so a prior analysis's lists cannot leak within the same Stata session.
+	forval l = 1/9 {
+		global TXR_L`l' ""
+	}
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
+	gen_txr
 		
 	// Reset global
 	global Coeffs
