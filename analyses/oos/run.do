@@ -75,7 +75,7 @@ do "analyses/oos/validate_oos.do"
 /* ================================================================================================
    HPC plumbing for steps (a)-(c) -- RUN BY HAND IN A VS CODE TERMINAL (bash), NOT in Stata.
    (This is a Stata block comment, so it is ignored when you `do` this file; select the lines you
-   need and run them in a terminal.) Train-fold MI -> train-fold risk equations on MASSIVE M3 ->
+   need and run them in a terminal.) Train-fold MI -> train-fold risk equations on MASSIVE hpc ->
    analyses/oos/coefficients/bootstrap/coefficients_oos_B1..500.
    Prereq (on the Mac, needs the drive): do analyses/oos/prep/oos_split.do -> ${data_path}/oos/oos_split.dta
 
@@ -84,7 +84,7 @@ do "analyses/oos/validate_oos.do"
    data=251128
    analysis=oos
 
-   # Directories on M3 (mirrors the repo tree + the data tree)
+   # Directories on hpc (mirrors the repo tree + the data tree)
    ssh $hpc "mkdir -p em76/$user/data/$data/oos/bootstrap"
    ssh $hpc "mkdir -p em76/$user/prep"
    ssh $hpc "mkdir -p em76/$user/hpc"
@@ -123,21 +123,11 @@ do "analyses/oos/validate_oos.do"
    # [3] Both chained -- risk equations waits on the whole MI array (afterok):
    ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; sbatch --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
 
-   # [4] All three chained -- MI array -> risk equations (afterok whole MI array) -> simulation (afterok risk equations).
-   #     PREREQ: the simulation task runs core/ + simulate.do against the held-out cohort, which the MI/risk phase
-   #     does NOT send -- so do the Step (b) file transfers below (core/, simulate.do, oos_cohort.dta -> M3) FIRST,
-   #     then submit this. Nothing else changes: each stage starts only once the previous whole array succeeds.
-   ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; re=\$(sbatch --parsable --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script) ; echo RE job \$re ; sim=\$(sbatch --parsable --mail-user=$hpc_email --dependency=afterok:\$re --export=ALL,ANALYSIS=oos hpc/simulate.script) ; echo SIM job \$sim"
-
-   # Monitor
-   # ssh $hpc "squeue -u $user"
-
-   # Pull the bootstrap coefficients back into the repo (optional; they are already on M3 for step b)
+   # Pull the bootstrap coefficients back into the repo (optional; they are already on hpc for step b)
    rsync -auvzce ssh $hpc:~/em76/$user/analyses/$analysis/coefficients/bootstrap/ "$repo_path"/analyses/$analysis/coefficients/bootstrap/
-
-
-   # == Step (b): 500 bootstrap simulations of the held-out 30% (run after step a's coefficients are on M3) ==
-   # Reads coefficients_oos_B1..500 (already on M3) + the held-out cohort; writes analyses/oos/simulated/bootstrap/.
+   
+   # == Step (b): 500 bootstrap simulations of the held-out 30% (run after step a's coefficients are on hpc) ==
+   # Reads coefficients_oos_B1..500 (already on hpc) + the held-out cohort; writes analyses/oos/simulated/bootstrap/.
    # Needs core/ + simulate.do + the cohort, which the MI/risk phase did not send:
    rsync -auvzce ssh "$repo_path"/core/ $hpc:~/em76/$user/core/
    rsync -auvzce ssh "$repo_path"/analyses/$analysis/simulate.do $hpc:~/em76/$user/analyses/$analysis/
@@ -146,8 +136,8 @@ do "analyses/oos/validate_oos.do"
    # Submit the simulation array (simulate.do 1 <task> <task>; --export picks the analysis):
    ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --export=ALL,ANALYSIS=oos hpc/simulate.script"
 
-   # == Step (c): PI coverage. Aggregate the 500 sims ON M3 (heavy -- don't pull them); pull only results/. ==
-   # Needs the target CSVs + the validator on M3 (verify bootstrap_validation.do's own file deps on first run):
+   # == Step (c): PI coverage. Aggregate the 500 sims on hpc (heavy -- don't pull them); pull only results/. ==
+   # Needs the target CSVs + the validator on hpc (verify bootstrap_validation.do's own file deps on first run):
    rsync -auvzce ssh "$repo_path"/analyses/$analysis/targets/ $hpc:~/em76/$user/analyses/$analysis/targets/
    rsync -auvzce ssh "$repo_path"/analyses/$analysis/bootstrap_validation.do $hpc:~/em76/$user/analyses/$analysis/
    ssh $hpc "cd em76/$user ; sbatch --mail-user=$hpc_email --time=0-00:30:00 --wrap=\"module load stata/16u2021 && stata-mp analyses/$analysis/bootstrap_validation.do 500\""
