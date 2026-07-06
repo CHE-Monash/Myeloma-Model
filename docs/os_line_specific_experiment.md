@@ -550,3 +550,29 @@ Related unrelated lever (for residual over-progression, not this issue): a per-l
 treatment" / discontinuation** off-ramp — `tfi_plateau_check.do` found **no clean cure plateau**, so a
 finite-mixture is not identifiable; a calibrated discontinuation probability is the remaining option
 (not implemented).
+
+### 7d. Branch `os-per-line` — per-line OS on the new engine (2026-07-06, pending validation)
+Acting on §7c (the over-prediction is the engine's from-diagnosis `mTSD` conditioning, not the OS
+shape), branch `os-per-line` (off the post-calibration `main`) replaces the single from-diagnosis
+`OS#BCR` model with **one fitted OS model per pathway stage, each clocked from that stage's own entry
+event** — so the engine draws survival on the line clock (`vElapsed = 0` at a line's first stage →
+**unconditional**, no accumulated-time lift). This is the §2/§4 per-line design **re-applied on the new
+engine**, now re-motivated to *remove* over-prediction (not the old under-prediction), and it keeps the
+four comorbidity flags.
+- `prep/risk_equations.do`: the OS block is now 13 stage models — `OS_DN`, `OS_L1`, `OS_L1_NoASCT`,
+  `OS_L1_ASCT`, `OS_L2`, `OS_L2_End`, `OS_L3`, `OS_L3_End`, `OS_L4`, `OS_L4_End`, `OS_L5`, `OS_L5_End`,
+  `OS_L6plus` — each `origin()`/`exit()` window-censored to its stage, `streg … CM_CKD CM_CRD CM_PLM
+  CM_DBT i.BCR_L<n>, d($dOS)`, saved via `save_coefs` (→ `$Coeffs` → matsave). L6+ is a single
+  conditional model from L6 start (sparse deep tail).
+- `core/outcomes/sim_os.do`: per-stage firing map; design matrix = Age, Age2, Male, ECOG(0,1,2),
+  RISS(1,2,3), the four comorbidity flags, BCR block (width read as `cols(vCoef) − 15`), cons; draws on
+  the line clock and stores on the diagnosis clock (`originTSD + residual`) for `sim_mort`.
+- `core/tests/extreme_value.do`: OS crank routed through `xv_bump_os(d)` (bumps every stage intercept
+  at `cols−1`) since there is no single `bOS` anymore.
+- Unchanged: `mata_setup.do` already loads the full ECOG/RISS dummies + comorbidity vectors; downstream
+  (`process_data`, `sim_mort`, validators) unaffected (OS still lands on the diagnosis clock).
+
+**To evaluate:** re-run `prep/risk_equations.do` (regenerates the per-stage coefficients — the old
+single-`bOS` file will NOT work), then `analyses/oos/simulate.do` and `validate_oos.do`; compare the
+per-BCR OS over-prediction (esp. L1 non-ASCT weak responders) against `main`. If it helps, merge to
+`main`; if not, fall back to `main` and try the cheaper §7c option (b) `mTSD`-cap instead.

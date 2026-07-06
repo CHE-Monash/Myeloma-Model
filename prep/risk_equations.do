@@ -102,16 +102,94 @@ program define risk_equations
 	
 	di "Overall Survival"
 
-	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 3) scale(30.4375)
-	// Shared Weibull shape (NO ancillary), NO prev_dur frailty (removed -- testing whether the
-	// heavier-tailed TXD/TFI now carry the progression-pace signal on their own), + 4 baseline
-	// comorbidities. Trailing covariates in bOS: CM_CKD=58, CM_CRD=59, CM_PLM=60, CM_DBT=61, _cons=62
-	// (see sim_os.do coefCols); the shared Weibull log-shape is the last column of bOS (aux).
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS b0.OS#b5.BCR CM_CKD CM_CRD CM_PLM CM_DBT, d($dOS)
+	// PER-LINE OS (branch os-per-line): one fitted model per pathway stage, each clocked from
+	// that stage's own entry event, so the engine draws a fresh survival from the line clock
+	// (no from-diagnosis mTSD conditioning -- removes the heavy-TFI OS lift; see
+	// docs/os_line_specific_experiment.md sec 7c). Each carries the four baseline comorbidities
+	// (CM_CKD/CRD/PLM/DBT) inserted before the BCR block, matching sim_os.do's design matrix.
+	//
+	// WINDOW-CENSORING: each start->end model is exit()-censored at the NEXT stage's origin event
+	// (its window closes when the patient enters the next stage), symmetric with the next model's
+	// origin(). L6+ is a single model from L6 start (no exit) -- it conditions forward like the old
+	// single-equation OS, acceptable in the sparse deep tail. DN has no BCR.
 
-	save_coefs OS
+	// OS_DN: diagnosis -> L1 start
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 3) exit(Event1 == 10) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT, d($dOS)
+	save_coefs OS_DN
+	mata: _matrix_list(bOS_DN, rbOS_DN, cbOS_DN)
 
-	mata: _matrix_list(bOS, rbOS, cbOS)
+	// OS_L1: L1 start -> L1 end
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 10) exit(Event1 == 11) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L1, d($dOS)
+	save_coefs OS_L1
+	mata: _matrix_list(bOS_L1, rbOS_L1, cbOS_L1)
+
+	// OS_L1_NoASCT: L1 end -> L2 start, non-transplant
+	mi stset Date1 if(F_OS != 1 & SCT == 0), id(ID_BS) failure(Event1 == 104) origin(Event1 == 11) exit(Event1 == 20) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L1, d($dOS)
+	save_coefs OS_L1_NoASCT
+	mata: _matrix_list(bOS_L1_NoASCT, rbOS_L1_NoASCT, cbOS_L1_NoASCT)
+
+	// OS_L1_ASCT: L1 end -> L2 start, transplant (BCR_SCT, 4 levels)
+	mi stset Date1 if(F_OS != 1 & SCT == 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 11) exit(Event1 == 20) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_SCT, d($dOS)
+	save_coefs OS_L1_ASCT
+	mata: _matrix_list(bOS_L1_ASCT, rbOS_L1_ASCT, cbOS_L1_ASCT)
+
+	// OS_L2: L2 start -> L2 end
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 20) exit(Event1 == 21) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
+	save_coefs OS_L2
+	mata: _matrix_list(bOS_L2, rbOS_L2, cbOS_L2)
+
+	// OS_L2_End: L2 end -> L3 start
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 21) exit(Event1 == 30) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
+	save_coefs OS_L2_End
+	mata: _matrix_list(bOS_L2_End, rbOS_L2_End, cbOS_L2_End)
+
+	// OS_L3: L3 start -> L3 end
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 30) exit(Event1 == 31) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
+	save_coefs OS_L3
+	mata: _matrix_list(bOS_L3, rbOS_L3, cbOS_L3)
+
+	// OS_L3_End: L3 end -> L4 start
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 31) exit(Event1 == 40) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
+	save_coefs OS_L3_End
+	mata: _matrix_list(bOS_L3_End, rbOS_L3_End, cbOS_L3_End)
+
+	// OS_L4: L4 start -> L4 end
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 40) exit(Event1 == 41) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
+	save_coefs OS_L4
+	mata: _matrix_list(bOS_L4, rbOS_L4, cbOS_L4)
+
+	// OS_L4_End: L4 end -> L5 start
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 41) exit(Event1 == 50) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
+	save_coefs OS_L4_End
+	mata: _matrix_list(bOS_L4_End, rbOS_L4_End, cbOS_L4_End)
+
+	// OS_L5: L5 start -> L5 end
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 50) exit(Event1 == 51) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
+	save_coefs OS_L5
+	mata: _matrix_list(bOS_L5, rbOS_L5, cbOS_L5)
+
+	// OS_L5_End: L5 end -> L6 start
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 51) exit(Event1 == 60) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
+	save_coefs OS_L5_End
+	mata: _matrix_list(bOS_L5_End, rbOS_L5_End, cbOS_L5_End)
+
+	// OS_L6plus: L6 start onward (single conditional model for the sparse deep tail; running BCR)
+	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 60) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR, d($dOS)
+	save_coefs OS_L6plus
+	mata: _matrix_list(bOS_L6plus, rbOS_L6plus, cbOS_L6plus)
 
 	di "Diagnosis"
 	

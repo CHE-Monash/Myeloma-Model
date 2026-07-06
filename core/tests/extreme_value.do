@@ -103,19 +103,46 @@ di _n as text "Baseline:  median OS = " %5.1f `base_os' " mo |  ASCT = " %4.1f `
 di ""
 
 **********
+* Per-line OS: the intercept lives in EACH stage's own coefficient matrix (bOS_DN, bOS_L1, ...);
+* the constant is always the second-to-last column (cons; the last column is the ancillary /ln_p).
+* xv_bump_os shifts every stage's intercept together, so cranking hazard up/down moves survival at
+* every pathway point (matching the old single-bOS crank).
+**********
+mata:
+void xv_bump_os(real scalar d)
+{
+	external bOS_DN, bOS_L1, bOS_L1_NoASCT, bOS_L1_ASCT, bOS_L2, bOS_L2_End
+	external bOS_L3, bOS_L3_End, bOS_L4, bOS_L4_End, bOS_L5, bOS_L5_End, bOS_L6plus
+	bOS_DN[1, cols(bOS_DN)-1]               = bOS_DN[1, cols(bOS_DN)-1] + d
+	bOS_L1[1, cols(bOS_L1)-1]               = bOS_L1[1, cols(bOS_L1)-1] + d
+	bOS_L1_NoASCT[1, cols(bOS_L1_NoASCT)-1] = bOS_L1_NoASCT[1, cols(bOS_L1_NoASCT)-1] + d
+	bOS_L1_ASCT[1, cols(bOS_L1_ASCT)-1]     = bOS_L1_ASCT[1, cols(bOS_L1_ASCT)-1] + d
+	bOS_L2[1, cols(bOS_L2)-1]               = bOS_L2[1, cols(bOS_L2)-1] + d
+	bOS_L2_End[1, cols(bOS_L2_End)-1]       = bOS_L2_End[1, cols(bOS_L2_End)-1] + d
+	bOS_L3[1, cols(bOS_L3)-1]               = bOS_L3[1, cols(bOS_L3)-1] + d
+	bOS_L3_End[1, cols(bOS_L3_End)-1]       = bOS_L3_End[1, cols(bOS_L3_End)-1] + d
+	bOS_L4[1, cols(bOS_L4)-1]               = bOS_L4[1, cols(bOS_L4)-1] + d
+	bOS_L4_End[1, cols(bOS_L4_End)-1]       = bOS_L4_End[1, cols(bOS_L4_End)-1] + d
+	bOS_L5[1, cols(bOS_L5)-1]               = bOS_L5[1, cols(bOS_L5)-1] + d
+	bOS_L5_End[1, cols(bOS_L5_End)-1]       = bOS_L5_End[1, cols(bOS_L5_End)-1] + d
+	bOS_L6plus[1, cols(bOS_L6plus)-1]       = bOS_L6plus[1, cols(bOS_L6plus)-1] + d
+}
+end
+
+**********
 * Boundary scenarios
 **********
 
 * --- OS: crank hazard up -> everyone dies almost immediately ---
 qui mata: mata matuse "`coeffile'", replace
-mata: bOS[1,62] = bOS[1,62] + 20
+mata: xv_bump_os(20)
 xv_sim
 qui summarize OC_TIME, detail
 xv_assert "OS hazard -> infinity : median OS (mo)" r(p50) "<" 6
 
 * --- OS: crank hazard down -> everyone survives to the age limit ---
 qui mata: mata matuse "`coeffile'", replace
-mata: bOS[1,62] = bOS[1,62] - 20
+mata: xv_bump_os(-20)
 xv_sim
 qui summarize OC_TIME, detail
 xv_assert "OS hazard -> 0 : median OS (mo)" r(p50) ">" 200
@@ -160,7 +187,7 @@ local prev = .
 local mono = 1
 foreach d in -2 -1.5 -1 -0.5 0 0.5 1 {
 	qui mata: mata matuse "`coeffile'", replace
-	mata: bOS[1,62] = bOS[1,62] + `d'
+	mata: xv_bump_os(`d')
 	capture xv_sim
 	if _rc continue
 	qui summarize OC_TIME, detail
