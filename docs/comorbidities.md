@@ -22,21 +22,22 @@ lets `CMc` be retired.
 ## Where they now enter (this pass — three equations)
 
 Fitted in `prep/risk_equations.do`:
-- **OS** (`streg … b0.OS#b5.BCR CM_CKD CM_CRD CM_PLM CM_DBT`) — the four **added** (OS never used `CMc`).
-  In-sample, all four are significant and correctly signed (HR ≈ 1.19–1.32), and `CM_CKD` survives
-  conditional on `RISS`. (An earlier variant also carried a `prev_dur` frailty term ahead of the four
-  flags; `prev_dur` was later removed — see `os_line_specific_experiment.md` §7 — so it is **not** in
-  the current OS equation and the `bOS` layout below reflects its absence.)
+- **OS** — the four flags **added** (OS never used `CMc`). In-sample all four are significant and
+  correctly signed (HR ≈ 1.19–1.32), and `CM_CKD` survives conditional on `RISS`. They ride along
+  through the OS rework: OS is now **per-line** (one Weibull per pathway stage, `… CM_CKD CM_CRD CM_PLM
+  CM_DBT i.BCR_L<n>`), so the flags sit in each stage model's design between RISS and the BCR block —
+  see `os_line_specific_experiment.md` §5.
 - **ASCT at diagnosis** (`DN_SCT` logit) — `i.CMc` **replaced** by the four flags.
 - **ASCT at L1 end** (`L1_SCT` logit) — `i.CMc` **replaced** by the four flags.
 
 Engine plumbing (so the simulation runs with the four flags):
 - `core/mata_setup.do` — loads `vCRD`/`vPLM`/`vDBT` alongside the existing `vCKD`.
-- `core/outcomes/sim_os.do` — `coefCols`/design matrix: `CM_CKD`=58, `CM_CRD`=59, `CM_PLM`=60,
-  `CM_DBT`=61, `_cons`=62 (`bOS` now 1×63 incl. `ln_p` at 63; `aux = bOS[1, cols(bOS)]`).
+- `core/outcomes/sim_os.do` — the four flags are inserted after RISS and before the BCR block in each
+  per-line stage model's design matrix (`vCKD`/`vCRD`/`vPLM`/`vDBT`); column positions are derived per
+  stage, not hard-coded (see §5).
 - `core/outcomes/sim_asct_dn.do`, `sim_asct_l1.do` — design matrix swaps the four `CMc` dummies for the
   four flags (coefficient-vector column counts unchanged: 16 and 21, so `extreme_value.do`'s SCT column
-  is unchanged; the OS `_cons` crank is column **62** — see `core/tests/extreme_value.do`).
+  is unchanged).
 - `core/process_data.do` — carries `CM_CRD/PLM/DBT` into the simulated output (enables
   comorbidity-stratified validation).
 
