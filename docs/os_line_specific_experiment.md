@@ -572,7 +572,26 @@ four comorbidity flags.
 - Unchanged: `mata_setup.do` already loads the full ECOG/RISS dummies + comorbidity vectors; downstream
   (`process_data`, `sim_mort`, validators) unaffected (OS still lands on the diagnosis clock).
 
-**To evaluate:** re-run `prep/risk_equations.do` (regenerates the per-stage coefficients — the old
-single-`bOS` file will NOT work), then `analyses/oos/simulate.do` and `validate_oos.do`; compare the
-per-BCR OS over-prediction (esp. L1 non-ASCT weak responders) against `main`. If it helps, merge to
-`main`; if not, fall back to `main` and try the cheaper §7c option (b) `mTSD`-cap instead.
+**Outcome — ADOPTED (merged to `main`).** Deterministic OOS **143/172 (76.7%→83.1%, +11 tests)**.
+Whole-population OS preserved (74.6/59.0/30.1 vs obs 74.7/58.4/30.6, all pass), and the weak-responder
+over-prediction is largely resolved: L1 No ASCT PR/MR/SD move from +15…+17pp over to within tolerance;
+L2/L3 similarly. The over-prediction was the engine's `mTSD`/heavy-TFI coupling (§7c), and clocking each
+stage from its own line start removes it. **Residual:** L1 No ASCT **CR now UNDER-predicts** (−8.0/−11.8),
+and L2 SD swings under (−12/−17, partly the §3 SMM artefact) — the mirror of the old problem, the CR lift
+having been removed. Per §7c the CR miss is ~half a 70→30 **transport** artefact (train CR ran below test
+CR — should shrink in the full-data fit) and ~half **plateau fragmentation** (no single stage sees a CR
+patient's multi-year plateau). Non-OS fails (TXD, TFI, pathways) are unchanged and pre-existing.
+
+**Stale coefficients note:** a structural OS change invalidates the tracked coefficient files — after
+merging, `analyses/*/coefficients/coefficients_*.mmat` must be **regenerated** (`risk_equations.do`) on
+the drive before any sim runs; the committed single-`bOS` files will error in the per-line `sim_os.do`.
+
+### 7e. `ancillary(i.BCR)` on L1-L3 — TRIED, no gain, NOT adopted (2026-07-06)
+To lift the L1 No ASCT CR under-prediction (§7d), the shape was freed by response via `ancillary(i.BCR)`
+on the L1-L3 OS models (`sim_os.do` split into a main equation + a per-patient log-shape block). **It was
+a wash: OOS unchanged at 143/172, CR unmoved (−7.7/−11.4), the CR<VGPR inversion persisting** (sim CR
+74.7 < VGPR 77.6), while L1 VGPR tipped FAIL and L3 CR tipped PASS — net zero. Confirms the §7c `SHAPE(MB)`
+probe: the L1 CR miss is **not** a per-stage shape/PH problem — it is transportability + plateau
+fragmentation, which a shape parameter cannot fix. **Reverted** (branch reset to the plain per-line).
+Don't re-try per-BCR shape for this; if CR proves miscalibrated *in-sample* (validate `base_model`), the
+lever is an AFT family (log-normal) on the L1 stages, not `ancillary`.
