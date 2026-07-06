@@ -214,7 +214,7 @@ program define risk_equations
 	
 		// ASCT
 	
-		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes) replace the i.CMc composite.
+		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
 		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event0 == 3)
 		save_coefs DN_SCT
 		
@@ -329,7 +329,7 @@ program define risk_equations
 
 		// ASCT
 		
-		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes) replace the i.CMc composite.
+		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
 		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
 		save_coefs L1_SCT
 		

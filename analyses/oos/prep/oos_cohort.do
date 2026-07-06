@@ -65,7 +65,7 @@ foreach s of local State {
 replace Age_DN = Age
 drop Age
 
-order ID YearDN DateDN State Male ECOGcc RISS ISS CMc CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT Age* TSD* TNE* TXR* TXD* TFI_DN TFI* BCR* MOR*
+order ID YearDN DateDN State Male ECOGcc RISS ISS CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT Age* TSD* TNE* TXR* TXD* TFI_DN TFI* BCR* MOR*
 
 gen Sample = 1
 label data "OOS held-out 30% simulation cohort (imputation `use_imp')"

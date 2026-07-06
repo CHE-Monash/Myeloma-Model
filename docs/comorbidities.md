@@ -69,10 +69,13 @@ numbers and the wider OOS state are in `os_line_specific_experiment.md` §7.
 
 ## Outstanding
 
-- **Remove `CMc`.** It is now unused by any equation but is still *derived* in the pipeline
-  (`prep/multiple_imputation.do`, `prep/population_1995_2040.do`) and carried through the engine. Strip
-  it out in a later pass (MI derivation + carryforward + reshape lists + `mata_setup` `vCM*` +
-  `process_data`). Deferred so this pass stays reviewable.
+- **`CMc` removed (done).** The composite `CMc` and its intermediate count `CM` are no longer derived or
+  carried anywhere: dropped from `prep/multiple_imputation.do` (derivation + carryforward + keep/drop +
+  reshape/rename lists + wide order), `prep/population_1995_2040.do` (derivation + order),
+  `analyses/oos/prep/oos_cohort.do` (order), `core/mata_setup.do` (`CMc0-3` dummies + `vCM`/`vCM0-3`
+  vectors), and `core/process_data.do` (`mSum` + varnames + output order). The four individual flags are
+  the only comorbidity terms now. (Prep data must be regenerated on the drive to drop the `CMc` column
+  from the stored files; the engine no longer reads it either way.)
 - **May extend comorbidities to other risk equations.** This pass covers OS + the two ASCT logits only.
   The same four flags could plausibly inform TXD/TFI/TXR or maintenance — to be assessed, not assumed.
 - **Validation done (adopted).** The OOS harness was run: whole-population OS did not degrade, and the

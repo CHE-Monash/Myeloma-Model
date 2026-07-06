@@ -297,10 +297,6 @@ program define mata_setup
 		cap gen ISS1 = (ISS == 1)
 		cap gen ISS2 = (ISS == 2)
 		cap gen ISS3 = (ISS == 3)
-		cap gen CMc0 = (CMc == 0)
-		cap gen CMc1 = (CMc == 1)
-		cap gen CMc2 = (CMc == 2)
-		cap gen CMc3 = (CMc == 3)
 		cap gen Cons = 1
 	
 	*Vectors
@@ -325,11 +321,6 @@ program define mata_setup
 
 		vAge70 = st_data(., "Age70")              // Age >= 70 indicator
 		vAge75 = st_data(., "Age75")              // Age >= 75 indicator
-		vCM = st_data(., "CMc")                   // Original Comorbidity score (0, 1, 2, 3+)
-		vCM0 = st_data(., "CMc0")                 // CM = 0 (no comorbidities)
-		vCM1 = st_data(., "CMc1")                 // CM = 1 (1 comorbidity)
-		vCM2 = st_data(., "CMc2")                 // CM = 2 (2 comorbidities)
-		vCM3 = st_data(., "CMc3")                 // CM = 3 (3+ comorbidities)
 		vCKD = st_data(., "CM_CKD")				  // Chronic Kidney Disease
 		vCRD = st_data(., "CM_CRD")				  // Moderate-to-severe cardiac disease
 		vPLM = st_data(., "CM_PLM")				  // Moderate-to-severe chronic lung disease

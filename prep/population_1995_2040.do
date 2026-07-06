@@ -117,7 +117,7 @@ program define population
 		
 		*Append and impute remaining variables
 			append using "${data_path}/MRDR Wide MI.dta"
-			order MRDR ID Year AgeGroup Age Male ECOGcc RISS ISS LDHRisk FISHRisk CMc
+			order MRDR ID Year AgeGroup Age Male ECOGcc RISS ISS LDHRisk FISHRisk
 			replace ID = _n if ID == .
 			
 		*AgeGroup
@@ -153,7 +153,7 @@ program define population
 			
 		*MI set
 			mi set wide
-			*mi register imputed Age ECOGcc RISS CMc CM_CKD
+			*mi register imputed Age ECOGcc RISS CM_CKD
 			mi register imputed Age ECOGcc ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_LVR CM_PNR CM_MLG
 			mi register regular AgeGroup Male Age_lower Age_upper
 			mi describe
@@ -186,12 +186,7 @@ program define population
 			replace RISS = 3 if ISS == 3 & (LDHRisk == 1 | FISHRisk == 1)
 			replace RISS = 2 if RISS == .
 			
-		*Create CM Score
-			gen CM = CM_CKD + CM_CRD + CM_PLM + CM_DBT + CM_LVR + CM_PNR + CM_MLG
-			gen CMc = CM
-			replace CMc = 3 if CMc == 4 | CMc == 5 | CMc == 6
-			
-		*Allocate DateDN 
+		*Allocate DateDN
 			sort Year AgeGroup Male
 			replace ID = _n	// Create ID sorted on YearN
 			gen DateDN = .
@@ -247,7 +242,7 @@ program define population
 			replace Age_DN = Age
 			drop Age
 			
-		order ID YearDN DateDN State Male ECOGcc RISS ISS CMc CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT Age* TSD* TNE* TXR* TXD* TFI_DN TFI* BCR* MOR*
+		order ID YearDN DateDN State Male ECOGcc RISS ISS CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT Age* TSD* TNE* TXR* TXD* TFI_DN TFI* BCR* MOR*
 
 end
 

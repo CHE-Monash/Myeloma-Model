@@ -154,13 +154,8 @@ program define multiple_imputation
 		qui mi passive: replace CM_CKD = 0 if CM_CKD == . & Event0 == 3
 		label variable CM_CKD "Chronic Kidney Disease"
 
-		// CM Score
-		qui mi passive: gen CM = CM_CKD + CM_CRD + CM_PLM + CM_DBT + CM_MLG
-		qui mi passive: gen CMc = CM
-		qui mi passive: replace CMc = 3 if CMc == 4 | CMc == 5
-
 		// Carryforward (LOCF within patient by Date0). Sort once; direct-column fills (no mi xeq).
-		local vars "Male ECOGcc ISS CMc CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG"
+		local vars "Male ECOGcc ISS CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG"
 		sort ID_BS Date0
 		foreach v of local vars {
 			_cf `v'
@@ -282,7 +277,7 @@ if "$boot" == "0" {
 	keep if Event0 == 3
 
 		// Convert _1_var to var_1
-		foreach v in Male ECOGcc RISS ISS LDHRisk FISHRisk CMc CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG {
+		foreach v in Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG {
 			forvalues i = 1/$imp {
 				gen `v'_`i' = _`i'_`v'
 				drop _`i'_`v'
@@ -290,19 +285,18 @@ if "$boot" == "0" {
 		}
 
 		// Drop non-MI variables
-		keep ID Event0 Date0 Age Male* ECOGc* RISS* ISS* LDHRisk* FISHRisk* CMc* CM_* _mi_miss
-		drop Male ECOGcc RISS ISS LDHRisk FISHRisk CMc CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
+		keep ID Event0 Date0 Age Male* ECOGc* RISS* ISS* LDHRisk* FISHRisk* CM_* _mi_miss
+		drop Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
 
 		// Turn MI imps into rows
 		mi unset
-		reshape long Male_ ECOGcc_ RISS_ ISS_ LDHRisk_ FISHRisk_ CMc_ CM_CKD_ CM_CRD_ CM_PLM_ CM_DBT_ CM_MLG_, i(ID) j(Imp)
+		reshape long Male_ ECOGcc_ RISS_ ISS_ LDHRisk_ FISHRisk_ CM_CKD_ CM_CRD_ CM_PLM_ CM_DBT_ CM_MLG_, i(ID) j(Imp)
 		rename Male_ Male
 		rename ECOGcc_ ECOGcc
 		rename RISS_ RISS
 		rename ISS_ ISS
 		rename LDHRisk_ LDHRisk
 		rename FISHRisk_ FISHRisk
-		rename CMc_ CMc
 		rename CM_CKD_ CM_CKD
 		rename CM_CRD_ CM_CRD
 		rename CM_PLM_ CM_PLM
@@ -312,7 +306,7 @@ if "$boot" == "0" {
 
 		// Save Wide MI
 		gen MRDR = 1
-		order MRDR ID Imp Event0 Date0 Age Male ECOGcc RISS ISS LDHRisk FISHRisk CMc CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
+		order MRDR ID Imp Event0 Date0 Age Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
 		save "${data_path}/${mi_outdir}MRDR Wide MI${mi_outtag}.dta", replace
 
 	// Return to the repo root, then delete temp folder
