@@ -80,6 +80,10 @@ ehthumbs.db
 *.do~
 *.ado~
 
+# R session history (stray artifact; not repo content)
+.Rhistory
+**/.Rhistory
+
 # Local editor/assistant config (machine-specific; not repo content)
 .claude/settings.local.json
 
