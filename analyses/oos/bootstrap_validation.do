@@ -54,7 +54,7 @@ capture run "config.do"                  // machine-specific paths (git-ignored;
 **********
 global bv_targets "analyses/oos/targets"                      // observed-target CSVs (movable to HPC)
 global bv_simpath  "analyses/oos/simulated/bootstrap"          // the 500 bootstrap sims (live on HPC)
-global bv_stub    "all_0_oos_1_101212"                        // file = <stub>_B<b>.dta
+global bv_stub    "all_0_oos"                                 // file = <stub>_B<b>.dta
 global bv_minbs   "1"
 global bv_maxbs   "500"
 global bv_out     "analyses/oos/results"
@@ -82,12 +82,35 @@ import delimited "${bv_targets}/os_l2.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L2_bench)
 import delimited "${bv_targets}/os_l3.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L3_bench)
+* Whole-population OS from diagnosis (3/5/10yr); optional so older target sets still run.
+capture confirm file "${bv_targets}/os_wholepop.csv"
+local have_all = (_rc == 0)
+if `have_all' {
+	import delimited "${bv_targets}/os_wholepop.csv", clear case(preserve)
+	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_All_bench)
+}
+* Whole-population OS by comorbidity burden (0/1/2+); optional, rows CM0/CM1/CM2+.
+capture confirm file "${bv_targets}/os_wholepop_cm.csv"
+local have_cm = (_rc == 0)
+if `have_cm' {
+	import delimited "${bv_targets}/os_wholepop_cm.csv", clear case(preserve)
+	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_CM_bench)
+}
 import delimited "${bv_targets}/bcr.csv", clear case(preserve)
 mkmat N CR VG PR MR SD PD, matrix(BCR_bench)
 import delimited "${bv_targets}/txd_l1_noasct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_NoASCT_bench)
 import delimited "${bv_targets}/txd_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_ASCT_bench)
+* L2-L4 TXD 12/24-mo on-treatment (optional -- older target sets without them still run)
+foreach L in 2 3 4 {
+	capture confirm file "${bv_targets}/txd_l`L'.csv"
+	local have_txd_l`L' = (_rc == 0)
+	if `have_txd_l`L'' {
+		import delimited "${bv_targets}/txd_l`L'.csv", clear case(preserve)
+		mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L`L'_bench)
+	}
+}
 import delimited "${bv_targets}/tfi_l1_noasct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TFI_L1_NoASCT_bench)
 import delimited "${bv_targets}/tfi_l1_asct.csv", clear case(preserve)
@@ -126,6 +149,54 @@ program define bv_os
             capture drop _osv
         }
     }
+end
+
+* OS whole-population: KM survival at 3/5/10 yr from diagnosis (OC_TIME), no line/BCR split.
+* Columns in the OS bench matrix: Y3=5, Y5=7, Y10=11.
+cap program drop bv_os_all
+program define bv_os_all
+    args h b bench
+    capture drop _ostime
+    qui gen double _ostime = OC_TIME
+    qui stset _ostime, failure(OC_MORT==1) id(ID)
+    capture drop _osv
+    qui sts generate _osv = s
+    foreach yr in 3 5 10 {
+        local col = cond(`yr'==3, 5, cond(`yr'==5, 7, 11))
+        local mo  = `yr' * 12
+        local obs = `bench'[1, `col'] * 100
+        qui summarize _osv if _t <= `mo'
+        if r(N) > 0 & !missing(`obs') post `h' (`b') ("OS") ("OS/ALL/`yr'yr") (`obs') (`=r(min)*100')
+    }
+    capture drop _osv _ostime
+end
+
+* OS whole-population stratified by baseline comorbidity burden (CKD+CRD+PLM+DBT: 0/1/2+).
+* bench matrix OS_CM_bench: row 1=CM0, 2=CM1, 3=CM2+; cols Y3=5, Y5=7, Y10=11.
+cap program drop bv_os_cm
+program define bv_os_cm
+    args h b bench
+    foreach v in CM_CKD CM_CRD CM_PLM CM_DBT {   // need all four; a stale sim missing any -> skip OS/CM
+        capture confirm variable `v'
+        if _rc exit
+    }
+    capture drop _cmn _cmg _ostime _osv
+    qui gen byte _cmn = CM_CKD + CM_CRD + CM_PLM + CM_DBT
+    qui gen byte _cmg = cond(_cmn==0, 0, cond(_cmn==1, 1, 2))
+    qui gen double _ostime = OC_TIME
+    qui stset _ostime, failure(OC_MORT==1) id(ID)
+    forvalues g = 0/2 {
+        capture drop _osv
+        qui sts generate _osv = s if _cmg == `g'
+        foreach yr in 3 5 10 {
+            local col = cond(`yr'==3, 5, cond(`yr'==5, 7, 11))
+            local mo  = `yr' * 12
+            local obs = `bench'[`=`g'+1', `col'] * 100
+            qui summarize _osv if _t <= `mo' & _cmg == `g'
+            if r(N) > 0 & !missing(`obs') post `h' (`b') ("OS") ("OS/CM`g'/`yr'yr") (`obs') (`=r(min)*100')
+        }
+    }
+    capture drop _osv _ostime _cmn _cmg
 end
 
 * Horizon survival (TXD/TFI): % still on-treatment / treatment-free at 12 & 24 mo, by BCR group.
@@ -182,11 +253,13 @@ forvalues b = $bv_minbs/$bv_maxbs {
     }
     local ++nfiles
 
-    // OS (4 lines)
+    // OS (4 lines) + whole-population (from diagnosis, 3/5/10yr)
     bv_os `pf' `b' TSD_L1S BCR_L1  6 OS_L1_NoASCT_bench L1NA 0
     bv_os `pf' `b' TSD_L1E BCR_SCT 4 OS_ASCT_bench      ASCT none
     bv_os `pf' `b' TSD_L2S BCR_L2  6 OS_L2_bench        L2   none
     bv_os `pf' `b' TSD_L3S BCR_L3  6 OS_L3_bench        L3   none
+    if `have_all' bv_os_all `pf' `b' OS_All_bench
+    if `have_cm'  bv_os_cm  `pf' `b' OS_CM_bench
 
     // BCR distribution (4 lines)
     bv_bcr `pf' `b' BCR_L1  6 1 L1
@@ -197,13 +270,16 @@ forvalues b = $bv_minbs/$bv_maxbs {
     // TXD (% on treatment) -- L1 NoASCT & ASCT share stset TXD_L1, failure(MOR_L1S==0)
     bv_hz `pf' `b' TXD TXD_L1 MOR_L1S==0 BCR_L1  6 TXD_L1_NoASCT_bench L1NA 0
     bv_hz `pf' `b' TXD TXD_L1 MOR_L1S==0 BCR_SCT 4 TXD_L1_ASCT_bench   L1AS 1
+    if `have_txd_l2' bv_hz `pf' `b' TXD TXD_L2 MOR_L2S==0 BCR_L2 6 TXD_L2_bench L2 none
+    if `have_txd_l3' bv_hz `pf' `b' TXD TXD_L3 MOR_L3S==0 BCR_L3 6 TXD_L3_bench L3 none
+    if `have_txd_l4' bv_hz `pf' `b' TXD TXD_L4 MOR_L4S==0 BCR_L4 6 TXD_L4_bench L4 none
 
     // TFI (% treatment-free)
     bv_hz `pf' `b' TFI TFI_L1 MOR_L1E==0 BCR_L1  6 TFI_L1_NoASCT_bench L1NA 0
     bv_hz `pf' `b' TFI TFI_L1 MOR_L1E==0 BCR_SCT 4 TFI_L1_ASCT_bench   L1AS 1
     bv_hz `pf' `b' TFI TFI_L2 MOR_L2E==0 BCR_L2  6 TFI_L2_bench        L2   none
 
-    // PATHWAYS -- ASCT among L1-end reachers; L2-L5 reach among all
+    // PATHWAYS -- ASCT among L1-end reachers; line progression as CONDITIONAL per-transition rates
     qui count if OC_TIME > TSD_L1E & !missing(TSD_L1E)
     local nl1e = r(N)
     qui count if SCT_L1 == 1
@@ -212,13 +288,15 @@ forvalues b = $bv_minbs/$bv_maxbs {
         local obs = Pathways_bench[1, 2]
         post `pf' (`b') ("PATH") ("PATH/ASCT") (`obs') (`=`sct_n'/`nl1e'*100')
     }
-    qui count
-    local nt = r(N)
+    // P(reach L | reached L-1): denominator = patients who reached the previous line (BCR_L{prev}
+    // non-missing); L2's previous line is L1. Matches the observed per-transition AJ CIF.
     forvalues line = 2/5 {
+        local prev = `line' - 1
+        qui count if !missing(BCR_L`prev')
+        local denom = r(N)
         qui count if !missing(BCR_L`line')
-        local sim = r(N) / `nt' * 100
         local obs = Pathways_bench[1, `line'+1]
-        post `pf' (`b') ("PATH") ("PATH/L`line'reach") (`obs') (`sim')
+        if `denom' > 0 & !missing(`obs') post `pf' (`b') ("PATH") ("PATH/L`prev'toL`line'") (`obs') (`=r(N)/`denom'*100')
     }
 
     if (`b' == $bv_minbs | mod(`b', 50) == 0) di as text "  ... processed resample `b'"

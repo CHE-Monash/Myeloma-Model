@@ -311,50 +311,81 @@ forvalues bcr = 1/4 {
 // TXD_L2 by BCR_L2
 stset Date1, id(ID_BS) origin(Event1 == 20) failure(Event1 == 21) scale(30.4375)
 
-matrix TXD_L2 = J(6, 6, .)
-matrix colnames TXD_L2 = "N" "Mean" "Median" "P25" "P75" "Censored"
+matrix TXD_L2 = J(6, 8, .)
+matrix colnames TXD_L2 = "N" "Mean" "Median" "P25" "P75" "Censored" "M12" "M24"
 matrix rownames TXD_L2 = "CR" "VG" "PR" "MR" "SD" "PD"
 
 forvalues bcr = 1/6 {
 	quietly count if BCR_L2 == `bcr' & !missing(BCR_L2) & _t0 == 0
 	matrix TXD_L2[`bcr', 1] = r(N)
-	
+
 	if r(N) > 0 {
 		quietly stci if BCR_L2 == `bcr', rmean
 		matrix TXD_L2[`bcr', 2] = r(rmean)
-		
+
 		quietly stsum if BCR_L2 == `bcr'
 		matrix TXD_L2[`bcr', 3] = r(p50)
 		matrix TXD_L2[`bcr', 4] = r(p25)
 		matrix TXD_L2[`bcr', 5] = r(p75)
-		
+
 		quietly count if BCR_L2 == `bcr' & _d == 0
 		matrix TXD_L2[`bcr', 6] = r(N) / TXD_L2[`bcr', 1] * 100
+
+		bench_horizons TXD_L2 `bcr' "BCR_L2 == `bcr'"
 	}
 }
 
 // TXD_L3 by BCR_L3
 stset Date1, id(ID_BS) origin(Event1 == 30) failure(Event1 == 31) scale(30.4375)
 
-matrix TXD_L3 = J(6, 6, .)
-matrix colnames TXD_L3 = "N" "Mean" "Median" "P25" "P75" "Censored"
+matrix TXD_L3 = J(6, 8, .)
+matrix colnames TXD_L3 = "N" "Mean" "Median" "P25" "P75" "Censored" "M12" "M24"
 matrix rownames TXD_L3 = "CR" "VG" "PR" "MR" "SD" "PD"
 
 forvalues bcr = 1/6 {
 	quietly count if BCR_L3 == `bcr' & !missing(BCR_L3) & _t0 == 0
 	matrix TXD_L3[`bcr', 1] = r(N)
-	
+
 	if r(N) > 0 {
 		quietly stci if BCR_L3 == `bcr', rmean
 		matrix TXD_L3[`bcr', 2] = r(rmean)
-		
+
 		quietly stsum if BCR_L3 == `bcr'
 		matrix TXD_L3[`bcr', 3] = r(p50)
 		matrix TXD_L3[`bcr', 4] = r(p25)
 		matrix TXD_L3[`bcr', 5] = r(p75)
-		
+
 		quietly count if BCR_L3 == `bcr' & _d == 0
 		matrix TXD_L3[`bcr', 6] = r(N) / TXD_L3[`bcr', 1] * 100
+
+		bench_horizons TXD_L3 `bcr' "BCR_L3 == `bcr'"
+	}
+}
+
+// TXD_L4 by BCR_L4
+stset Date1, id(ID_BS) origin(Event1 == 40) failure(Event1 == 41) scale(30.4375)
+
+matrix TXD_L4 = J(6, 8, .)
+matrix colnames TXD_L4 = "N" "Mean" "Median" "P25" "P75" "Censored" "M12" "M24"
+matrix rownames TXD_L4 = "CR" "VG" "PR" "MR" "SD" "PD"
+
+forvalues bcr = 1/6 {
+	quietly count if BCR_L4 == `bcr' & !missing(BCR_L4) & _t0 == 0
+	matrix TXD_L4[`bcr', 1] = r(N)
+
+	if r(N) > 0 {
+		quietly stci if BCR_L4 == `bcr', rmean
+		matrix TXD_L4[`bcr', 2] = r(rmean)
+
+		quietly stsum if BCR_L4 == `bcr'
+		matrix TXD_L4[`bcr', 3] = r(p50)
+		matrix TXD_L4[`bcr', 4] = r(p25)
+		matrix TXD_L4[`bcr', 5] = r(p75)
+
+		quietly count if BCR_L4 == `bcr' & _d == 0
+		matrix TXD_L4[`bcr', 6] = r(N) / TXD_L4[`bcr', 1] * 100
+
+		bench_horizons TXD_L4 `bcr' "BCR_L4 == `bcr'"
 	}
 }
 **********
@@ -470,12 +501,12 @@ forvalues bcr = 1/6 {
 **********
 //
 // The registry has incomplete follow-up, so a crude "ever reached / total" count understates the
-// LIFETIME probability of reaching a later line: a recently-diagnosed patient still alive in an
-// earlier line sits in the denominator but, given more follow-up, would usually progress. For each
-// line we therefore estimate the Aalen-Johansen cumulative incidence of reaching it, with *death
-// before reaching it* as a competing event and origin = L1 start. Evaluated at the end of follow-up
-// this estimates P(ever reach line k). The run-to-death simulation has complete follow-up, so its
-// crude reach rate already equals this lifetime CIF -- validate_simulation.do needs no change.
+// CONDITIONAL per-transition progression: P(reach line L | reached line L-1). For each line we
+// estimate the Aalen-Johansen cumulative incidence of reaching it with *death before reaching it* as
+// a competing event, but with origin = the date the PREVIOUS line was reached and the risk set
+// restricted to patients who reached that previous line. This isolates each L-1 -> L step instead of
+// the cumulative-from-L1 reach, so errors don't compound line by line and the follow-up truncation is
+// far milder. The simulation posts the matching ratio (reached L / reached L-1) per resample.
 //
 // ASCT is left as a crude proportion: transplant is decided during L1, so it is observed for
 // essentially every patient and is not subject to the cumulative follow-up censoring above.
@@ -562,11 +593,18 @@ forvalues line = 2/8 {
 // Collapse to one record per patient
 keep if first_record == 1
 
-// Lines 2-8: Aalen-Johansen cumulative incidence (death competing), origin = L1 start
+// Lines 2-8: CONDITIONAL per-transition progression -- P(reach L | reached L-1), Aalen-Johansen
+// cumulative incidence with death competing. Origin = the date the PREVIOUS line was reached, and the
+// risk set is patients who reached that previous line (prevdate non-missing). L2's previous line is L1
+// (origin cr_origin), so L2 is unchanged; L3+ are now conditioned on the prior line rather than
+// cumulative from L1 -- isolates each transition and removes the cumulative-cascade artefact.
 forvalues line = 2/8 {
+	local prev = `line' - 1
+	if (`prev' == 1) local prevdate cr_origin
+	else             local prevdate cr_reach`prev'
 	tempvar status time
-	gen byte   `status' = cond(!missing(cr_reach`line'), 1, cond(!missing(cr_death), 2, 0))
-	gen double `time'   = cond(`status'==1, cr_reach`line', cond(`status'==2, cr_death, cr_lastfu)) - cr_origin
+	gen byte   `status' = cond(!missing(cr_reach`line'), 1, cond(!missing(cr_death), 2, 0)) if !missing(`prevdate')
+	gen double `time'   = (cond(`status'==1, cr_reach`line', cond(`status'==2, cr_death, cr_lastfu)) - `prevdate') if !missing(`prevdate')
 	replace    `time'   = 0 if `time' < 0     // guard rare same-day / ordering artefacts
 	mata: st_numscalar("cr_cif", aj_cif(st_data(., "`time'"), st_data(., "`status'")))
 	matrix Pathways[1, `line'+1] = cr_cif * 100
@@ -574,6 +612,78 @@ forvalues line = 2/8 {
 }
 
 restore
+
+// Whole-population OS from diagnosis (all patients; the aggregate check the per-line/BCR OS lacks).
+// Same estimators as the stratified OS above, but clocked from diagnosis (origin = Event1==3) with
+// no line/BCR filter -> the overall survival curve at 3/5/10 yr for the whole cohort.
+stset Date1 if(F_OS != 1), id(ID_BS) origin(Event1 == 3) failure(Event1 == 104) scale(30.4375)
+matrix OS_All = J(1, 12, .)
+matrix colnames OS_All = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "Y8" "Y10" "Censored"
+matrix rownames OS_All = "All"
+quietly count if first_record == 1
+local n = r(N)
+matrix OS_All[1, 1] = `n'
+if `n' > 0 {
+	quietly stsum
+	matrix OS_All[1, 2] = r(p50)
+	quietly sts generate surv_temp = s
+	quietly summarize _t
+	local tmax = r(max)
+	local col = 3
+	foreach tp of global timepoints {
+		quietly summarize surv_temp if _t <= `tp'
+		if r(N) > 0 & `tp' <= `tmax' matrix OS_All[1, `col'] = r(min)
+		local ++col
+	}
+	drop surv_temp
+	quietly count if _d == 0 & last_record == 1
+	matrix OS_All[1, 12] = r(N) / `n' * 100
+}
+
+// Whole-population OS stratified by baseline comorbidity burden (CKD+CRD+PLM+DBT: 0 / 1 / 2+).
+// Mirrors OS_All. Adding the four comorbidities to OS leaves the aggregate ~unchanged (it only
+// redistributes hazard), so THIS stratified target is what tests whether the model's comorbidity
+// differentiation is calibrated out-of-sample.
+local have_cm = 0
+capture confirm variable CM_CKD
+if _rc == 0 {
+	local have_cm = 1
+	capture drop _cmn _cmnp _cmg
+	quietly gen byte _cmn = CM_CKD + CM_CRD + CM_PLM + CM_DBT
+	// Patient-level burden. The flags are carried FORWARD from diagnosis, so pre-diagnosis rows
+	// (e.g. the DOB record = first_record) are missing; a row-wise group would then dump every
+	// patient into "2+". CM_* are constant per patient from diagnosis, so max over the patient
+	// recovers that value; patients with no non-missing flag stay missing (excluded).
+	bysort ID_BS: egen byte _cmnp = max(_cmn)
+	quietly gen byte _cmg = cond(_cmnp == 0, 0, cond(_cmnp == 1, 1, 2)) if !missing(_cmnp)
+	matrix OS_CM = J(3, 12, .)
+	matrix colnames OS_CM = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "Y8" "Y10" "Censored"
+	matrix rownames OS_CM = "CM0" "CM1" "CM2plus"
+	forvalues g = 0/2 {
+		local r = `g' + 1
+		stset Date1 if(F_OS != 1 & _cmg == `g'), id(ID_BS) origin(Event1 == 3) failure(Event1 == 104) scale(30.4375)
+		quietly count if first_record == 1 & _cmg == `g'
+		local n = r(N)
+		matrix OS_CM[`r', 1] = `n'
+		if `n' > 0 {
+			quietly stsum
+			matrix OS_CM[`r', 2] = r(p50)
+			quietly sts generate surv_temp = s
+			quietly summarize _t
+			local tmax = r(max)
+			local col = 3
+			foreach tp of global timepoints {
+				quietly summarize surv_temp if _t <= `tp'
+				if r(N) > 0 & `tp' <= `tmax' matrix OS_CM[`r', `col'] = r(min)
+				local ++col
+			}
+			drop surv_temp
+			quietly count if _d == 0 & last_record == 1 & _cmg == `g'
+			matrix OS_CM[`r', 12] = r(N) / `n' * 100
+		}
+	}
+	drop _cmn _cmnp _cmg
+}
 
 **********
 // 6. EXPORT TO CSV
@@ -605,6 +715,21 @@ svmat OS_L3, names(col)
 gen BCR = _n
 order BCR
 export delimited using "`bench_out'/os_l3.csv", replace
+
+clear
+svmat OS_All, names(col)
+gen BCR = _n
+order BCR
+export delimited using "`bench_out'/os_wholepop.csv", replace
+
+// Whole-population OS by comorbidity burden (0 / 1 / 2+); rows CM0/CM1/CM2plus
+if `have_cm' {
+	clear
+	svmat OS_CM, names(col)
+	gen CM = _n - 1
+	order CM
+	export delimited using "`bench_out'/os_wholepop_cm.csv", replace
+}
 
 // TFI benchmarks
 clear
@@ -649,6 +774,18 @@ svmat TXD_L2, names(col)
 gen BCR = _n
 order BCR
 export delimited using "`bench_out'/txd_l2.csv", replace
+
+clear
+svmat TXD_L3, names(col)
+gen BCR = _n
+order BCR
+export delimited using "`bench_out'/txd_l3.csv", replace
+
+clear
+svmat TXD_L4, names(col)
+gen BCR = _n
+order BCR
+export delimited using "`bench_out'/txd_l4.csv", replace
 
 // BCR distributions
 clear

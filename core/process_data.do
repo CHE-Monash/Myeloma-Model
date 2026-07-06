@@ -25,12 +25,12 @@ di as text "Processing Simulated Data (Starting Line: `L')"
 cap mata: mata drop mRN
 
 * Create mSum in Mata
-	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCM , vCKD , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , /// 
+	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCM , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , ///
 			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
 * Column names for mSum, in assembly order below.
 * (getmata errors on a name/column count mismatch, which guards this alignment.)
-	local varnames ID Male ECOGcc RISS ISS CMc CM_CKD Age70 Age75 SCT_DN SCT_L1 MNT ///
+	local varnames ID Male ECOGcc RISS ISS CMc CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT ///
 		Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
 		OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
 		TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E ///

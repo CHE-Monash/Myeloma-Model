@@ -73,7 +73,7 @@ end
 cap program drop save_max
 program define save_max
 	args mat
-	
+
 	mata: max`mat' = st_numscalar("r(max)")
 	global Coeffs $Coeffs max`mat'
 end
@@ -87,8 +87,10 @@ program define risk_equations
 	// TXD distribution
 	global dTXD "w"
 		
-	// TFI distribution
-	global dTFI = "w"
+	// TFI distribution -- log-normal (heavier tail than Weibull to fix the thin-tail over-progression,
+	// but FINITE variance so simulated draws don't blow out prev_dur like log-logistic did; see
+	// scratch/tfi_family_check.do + prevdur_check.do). Engine calcSurvTime/Prob handle "lnormal".
+	global dTFI = "lognormal"
 			
 	// Pick up list of regimens by line
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
@@ -101,7 +103,12 @@ program define risk_equations
 	di "Overall Survival"
 
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 3) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS b0.OS#b5.BCR, d($dOS)
+	// Shared Weibull shape (NO ancillary), NO prev_dur frailty (removed -- testing whether the
+	// heavier-tailed TXD/TFI now carry the progression-pace signal on their own), + 4 baseline
+	// comorbidities. Trailing covariates in bOS: CM_CKD=58, CM_CRD=59, CM_PLM=60, CM_DBT=61, _cons=62
+	// (see sim_os.do coefCols); the shared Weibull log-shape is the last column of bOS (aux).
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS b0.OS#b5.BCR CM_CKD CM_CRD CM_PLM CM_DBT, d($dOS)
+
 	save_coefs OS
 
 	mata: _matrix_list(bOS, rbOS, cbOS)
@@ -110,7 +117,8 @@ program define risk_equations
 	
 		// ASCT
 	
-		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS Age70 Age75 i.CMc if(Event0 == 3)
+		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes) replace the i.CMc composite.
+		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event0 == 3)
 		save_coefs DN_SCT
 		
 		mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
@@ -129,8 +137,10 @@ program define risk_equations
 	
 		qui tab TXR_L1 // Check if modelling specific regimens
 		if `r(r)' > 1 {
-			mi estimate: mlogit TXR_L1 Age Age2 Male i.ECOGcc i.RISS SCT if(Event0 == 10 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
-			*ASCT covariate, could separate by ASCT in the future
+			// Regimen choice is availability-driven; only Age (+ transplant status, which gates some
+			// regimens) carried signal - Male/ECOG/RISS did not (see scratch/txr_predictor_check.do).
+			// Simplified to Age Age2 SCT. Engine design mPat in core/outcomes/sim_txr.do must match.
+			mi estimate: mlogit TXR_L1 Age Age2 SCT if(Event0 == 10 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 			save_coefs L1_TXR	
 			
 			mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)	
@@ -163,7 +173,7 @@ program define risk_equations
 				
 				// Spline 1
 				gen S1_exit = Date1 + `=L1_TXD_ASCT_C1'
-				mi stset Date1 if(F_L1 != 1 & CN_L1 != 1 & Duration < 730 & TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) exit(S1_exit) scale(30.4375)
+				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) exit(S1_exit) scale(30.4375)
 				
 				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD) 
 				save_coefs L1_TXD_ASCT_S1	
@@ -174,7 +184,7 @@ program define risk_equations
 				gen S2_enter = S1_exit + 1
 				gen S2_exit = Date1 + `=L1_TXD_ASCT_C2'
 					
-				mi stset Date1 if(F_L1 != 1 & CN_L1 != 1 & Duration < 730 & TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S2_enter) exit(S2_exit) scale(30.4375)
+				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S2_enter) exit(S2_exit) scale(30.4375)
 				
 				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
 				save_coefs L1_TXD_ASCT_S2		
@@ -183,7 +193,7 @@ program define risk_equations
 				
 				// Spline 3
 				gen S3_enter = S2_exit + 1
-				mi stset Date1 if(F_L1 != 1 & CN_L1 != 1 & Duration < 730 & TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S3_enter) scale(30.4375)
+				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S3_enter) scale(30.4375)
 				
 				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
 				save_coefs L1_TXD_ASCT_S3	
@@ -193,7 +203,7 @@ program define risk_equations
 						
 			// Fixed w/o SCT  - L1_TXD_NoASCT 
 			
-			mi stset Date1 if(F_L1 != 1 & CN_L1 != 1 & Duration < 730 & TXR_L1 != 7 & SCT == 0), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
+			mi stset Date1 if(TXR_L1 != 7 & SCT == 0), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
 			
 			mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR i.TXR_L1, d($dTXD)
 			save_coefs L1_TXD_NoASCT
@@ -204,7 +214,7 @@ program define risk_equations
 			
 			count if(TXR_L1 == 7)
 			if r(N) > 0 { // If Rd is included
-				mi stset Date1 if(F_L1 != 1 & CN_L1 != 1 & TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
+				mi stset Date1 if(TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
 				save_max L1_TXD_Cont
 				
 				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
@@ -222,8 +232,9 @@ program define risk_equations
 
 		// ASCT
 		
-		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 i.CMc if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
-		save_coefs L1_SCT	
+		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes) replace the i.CMc composite.
+		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
+		save_coefs L1_SCT
 		
 		mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 				
@@ -274,7 +285,9 @@ program define risk_equations
 	
 		qui tab TXR_L2 // Check if modelling specific regimens
 		if `r(r)' > 1 {
-			mi estimate: mlogit TXR_L2 Age Age2 Male i.ECOGcc i.RISS i.pBCR if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+			// Simplified to Age only (see scratch/txr_predictor_check.do): Male/ECOG/RISS/prior-BCR
+			// carried no signal for regimen choice (availability-driven). Engine mPat must match.
+			mi estimate: mlogit TXR_L2 Age Age2 if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 			save_coefs L2_TXR
 			
 			mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
@@ -293,7 +306,7 @@ program define risk_equations
 			
 		// Treatment Duration
 
-		mi stset Date1 if(F_L2 != 1 & CN_L2 != 1), id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
 		save_max L2_TXD
 		
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L2, d($dTXD)
@@ -317,7 +330,8 @@ program define risk_equations
 
 		qui tab TXR_L3 // Check if modelling specific regimens
 		if `r(r)' > 1 {
-			mi estimate: mlogit TXR_L3 Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+			// Simplified to Age only (see L2 note / scratch/txr_predictor_check.do). Engine mPat must match.
+			mi estimate: mlogit TXR_L3 Age Age2 if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 			save_coefs L3_TXR
 			
 			mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
@@ -336,7 +350,7 @@ program define risk_equations
 			
 		// Treatment Duration
 
-		mi stset Date1 if(F_L3 != 1 & CN_L3 != 1), id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
 		save_max L3_TXD
 			
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L3, d($dTXD)
@@ -360,7 +374,8 @@ program define risk_equations
 
 		qui tab TXR_L4 // Check if modelling specific regimens
 		if `r(r)' > 1 {
-			mi estimate: mlogit TXR_L4 Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+			// Simplified to Age only (see L2 note / scratch/txr_predictor_check.do). Engine mPat must match.
+			mi estimate: mlogit TXR_L4 Age Age2 if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 			save_coefs L4_TXR
 				
 			mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
@@ -379,7 +394,7 @@ program define risk_equations
 		
 		// Treatment Duration
 
-		mi stset Date1 if(F_L4 != 1 & CN_L4 != 1), id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
 		save_max L4_TXD	
 			
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 i.TXR_L4, d($dTXD)
@@ -408,7 +423,7 @@ program define risk_equations
 		
 		// Treatment Duration
 
-		mi stset Date1 if(F_L5 != 1 & CN_L5 != 1), id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
 		save_max L5_TXD	
 			
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTXD)
@@ -437,7 +452,7 @@ program define risk_equations
 		
 		// Treatment Duration
 
-		mi stset Date1 if(F_L6 != 1 & CN_L6 != 1), id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
 		save_max L6_TXD	
 			
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
@@ -471,7 +486,7 @@ program define risk_equations
 		qui replace fail = 0 if(Event1 == 60 | Event1 == 70 | Event1 == 80 | Event1 == 90)
 		qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
 		
-		mi stset Date1 if(F_L7 != 1 & F_L8 != 1 & F_L9 != 1), id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
+		mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
 		save_max LX_TXD	
 		
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)

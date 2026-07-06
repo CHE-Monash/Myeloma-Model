@@ -108,14 +108,14 @@ di ""
 
 * --- OS: crank hazard up -> everyone dies almost immediately ---
 qui mata: mata matuse "`coeffile'", replace
-mata: bOS[1,58] = bOS[1,58] + 20
+mata: bOS[1,62] = bOS[1,62] + 20
 xv_sim
 qui summarize OC_TIME, detail
 xv_assert "OS hazard -> infinity : median OS (mo)" r(p50) "<" 6
 
 * --- OS: crank hazard down -> everyone survives to the age limit ---
 qui mata: mata matuse "`coeffile'", replace
-mata: bOS[1,58] = bOS[1,58] - 20
+mata: bOS[1,62] = bOS[1,62] - 20
 xv_sim
 qui summarize OC_TIME, detail
 xv_assert "OS hazard -> 0 : median OS (mo)" r(p50) ">" 200
@@ -160,7 +160,7 @@ local prev = .
 local mono = 1
 foreach d in -2 -1.5 -1 -0.5 0 0.5 1 {
 	qui mata: mata matuse "`coeffile'", replace
-	mata: bOS[1,58] = bOS[1,58] + `d'
+	mata: bOS[1,62] = bOS[1,62] + `d'
 	capture xv_sim
 	if _rc continue
 	qui summarize OC_TIME, detail

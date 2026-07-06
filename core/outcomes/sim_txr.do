@@ -27,13 +27,11 @@ mata {
 			vXB3 = J(rows(idx), 1, 0)
 			vXB4 = J(rows(idx), 1, 0)
 			
-			// Assemble patient matrix (L1)
+			// Assemble patient matrix (L1) - Age + transplant status (SCT gates some regimens).
+			// Must match the fit in prep/risk_equations.do: mlogit TXR_L1 Age Age2 SCT.
 			if (Line == 1) {
-				mPat = (vAge[idx], vAge2[idx], vMale[idx], 
-						vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-						vRISS1[idx], vRISS2[idx], vRISS3[idx], 
-						vSCT_DN[idx], vCons[idx])
-				
+				mPat = (vAge[idx], vAge2[idx], vSCT_DN[idx], vCons[idx])
+
 				nPredictors = cols(mPat)
 
 				if (nRegimens >= 2) {
@@ -52,22 +50,11 @@ mata {
 				}
 			}
 			
-			// Build patient matrix (L2+)
+			// Build patient matrix (L2+) - Age only (regimen choice is availability-driven).
+			// Must match the fit in prep/risk_equations.do: mlogit TXR_L{2..4} Age Age2.
 			else if (Line >= 2) {
-				vBCR = mBCR[idx, Line-1]
-				vBCR_1 = (vBCR :== 1)
-				vBCR_2 = (vBCR :== 2)
-				vBCR_3 = (vBCR :== 3)
-				vBCR_4 = (vBCR :== 4)
-				vBCR_5 = (vBCR :== 5)
-				vBCR_6 = (vBCR :== 6)
-				
-				mPat = (vAge[idx], vAge2[idx], vMale[idx], 
-						vECOG0[idx], vECOG1[idx], vECOG2[idx], 
-						vRISS1[idx], vRISS2[idx], vRISS3[idx],  
-						vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6, 
-						vCons[idx])
-				
+				mPat = (vAge[idx], vAge2[idx], vCons[idx])
+
 				nPredictors = cols(mPat)
 
 				if (nRegimens >= 2) {

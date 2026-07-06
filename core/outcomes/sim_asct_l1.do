@@ -27,7 +27,7 @@ mata {
 				vRISS1[idx], vRISS2[idx], vRISS3[idx], 
 				vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5,
 				vAge70[idx], vAge75[idx], 
-				vCM0[idx], vCM1[idx], vCM2[idx], vCM3[idx], 
+				vCKD[idx], vCRD[idx], vPLM[idx], vDBT[idx],
 				vCons[idx])
 
 		// Extract coefficients

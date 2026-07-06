@@ -17,7 +17,7 @@ capture run "config.do"
 
 * Point the shared validator at the OOS targets + the OOS simulated dataset
 global val_targets "analyses/oos/targets"
-global val_simfile "analyses/oos/simulated/all_0_oos_1_101212.dta"
+global val_simfile "analyses/oos/simulated/all_0_oos.dta"
 
 do "analyses/oos/validate_outcomes.do"
 

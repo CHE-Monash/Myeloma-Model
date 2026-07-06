@@ -46,6 +46,20 @@ mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L2_bench)
 import delimited "${val_targets}/os_l3.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L3_bench)
 
+// Whole-population OS from diagnosis (optional; older target sets without it still run)
+capture confirm file "${val_targets}/os_wholepop.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/os_wholepop.csv", clear case(preserve)
+	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_All_bench)
+}
+
+// Whole-population OS by comorbidity burden (0/1/2+); optional
+capture confirm file "${val_targets}/os_wholepop_cm.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/os_wholepop_cm.csv", clear case(preserve)
+	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_CM_bench)
+}
+
 // BCR distributions
 import delimited "${val_targets}/bcr.csv", clear case(preserve)
 mkmat N CR VG PR MR SD PD, matrix(BCR_bench)
@@ -57,8 +71,14 @@ mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_NoASCT_bench)
 import delimited "${val_targets}/txd_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_ASCT_bench)
 
-import delimited "${val_targets}/txd_l2.csv", clear case(preserve)
-mkmat N Mean Median P25 P75 Censored, matrix(TXD_L2_bench)
+* L2-L4 TXD (now with M12/M24 on-treatment cols); optional so older target sets still run
+foreach L in 2 3 4 {
+	capture confirm file "${val_targets}/txd_l`L'.csv"
+	if _rc == 0 {
+		import delimited "${val_targets}/txd_l`L'.csv", clear case(preserve)
+		mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L`L'_bench)
+	}
+}
 
 // TFI benchmarks
 import delimited "${val_targets}/tfi_l1_noasct.csv", clear case(preserve)
@@ -95,6 +115,77 @@ local tests_failed = 0
 **********
 
 local tolerance = 0.10
+
+// OS whole-population (from diagnosis, all patients) at 3/5/10yr -- the aggregate check the
+// per-line/BCR breakdown lacks. Only runs if the os_wholepop.csv target is present.
+capture confirm matrix OS_All_bench
+if _rc == 0 {
+	n di "OS WHOLE-POPULATION (from diagnosis)  | Benchmark | Simulated | Diff   | Pass?"
+	qui stset OC_TIME, failure(OC_MORT==1) id(ID)
+	qui sts generate surv_temp = s
+	foreach yr in 3 5 10 {
+		local col = cond(`yr'==3, 5, cond(`yr'==5, 7, 11))
+		local mo  = `yr' * 12
+		local bench = OS_All_bench[1, `col'] * 100
+		qui summarize surv_temp if _t <= `mo'
+		if r(N) > 0 & !missing(`bench') {
+			local sim = r(min) * 100
+			local diff = `sim' - `bench'
+			if abs(`diff') <= `tolerance' * 100 {
+				local status "PASS"
+				local tests_passed = `tests_passed' + 1
+			}
+			else {
+				local status "FAIL"
+				local tests_failed = `tests_failed' + 1
+			}
+			local tests_run = `tests_run' + 1
+			n di "  " %2.0f `yr' "-year (all)                      | " %8.1f `bench' "% | " %8.1f `sim' "% | " %5.1f `diff' "% | `status'"
+		}
+	}
+	drop surv_temp
+	n di _n
+}
+
+// OS whole-population by comorbidity burden (CKD+CRD+PLM+DBT: 0/1/2+) -- tests whether the model's
+// comorbidity differentiation is calibrated (the aggregate check above cannot see this).
+capture confirm matrix OS_CM_bench
+if _rc == 0 {
+	local _cmok = 1
+	foreach v in CM_CKD CM_CRD CM_PLM CM_DBT {
+		capture confirm variable `v'
+		if _rc local _cmok = 0
+	}
+	if `_cmok' {
+		n di "OS BY COMORBIDITY BURDEN (from diagnosis)  | Benchmark | Simulated | Diff   | Pass?"
+		qui capture drop _cmn _cmg
+		qui gen byte _cmn = CM_CKD + CM_CRD + CM_PLM + CM_DBT
+		qui gen byte _cmg = cond(_cmn==0, 0, cond(_cmn==1, 1, 2))
+		qui stset OC_TIME, failure(OC_MORT==1) id(ID)
+		forvalues g = 0/2 {
+			local lbl : word `=`g'+1' of "none" "one " "two+"
+			qui capture drop surv_temp
+			qui sts generate surv_temp = s if _cmg == `g'
+			foreach yr in 3 5 10 {
+				local col = cond(`yr'==3, 5, cond(`yr'==5, 7, 11))
+				local mo  = `yr' * 12
+				local bench = OS_CM_bench[`=`g'+1', `col'] * 100
+				qui summarize surv_temp if _t <= `mo' & _cmg == `g'
+				if r(N) > 0 & !missing(`bench') {
+					local sim = r(min) * 100
+					local diff = `sim' - `bench'
+					local status = cond(abs(`diff') <= `tolerance' * 100, "PASS", "FAIL")
+					if "`status'" == "PASS" local tests_passed = `tests_passed' + 1
+					else                    local tests_failed = `tests_failed' + 1
+					local tests_run = `tests_run' + 1
+					n di "  " %2.0f `yr' "-year (`lbl')                    | " %8.1f `bench' "% | " %8.1f `sim' "% | " %5.1f `diff' "% | `status'"
+				}
+			}
+		}
+		qui drop surv_temp _cmn _cmg
+		n di _n
+	}
+}
 
 // OS by BCR_L1 (NoASCT)
 qui cap gen OC_TIME_L1S = OC_TIME - TSD_L1S
@@ -491,6 +582,38 @@ qui forvalues bcr = 1/4 {
     qui drop surv_h
 }
 
+// TXD_L2 / L3 / L4  (no ASCT split at later lines); optional -- only if the target was generated
+foreach L in 2 3 4 {
+    capture confirm matrix TXD_L`L'_bench
+    if _rc continue
+    qui stset TXD_L`L', failure(MOR_L`L'S==0) id(ID)
+    qui forvalues bcr = 1/6 {
+        capture drop surv_h
+        qui sts generate surv_h = s if BCR_L`L' == `bcr'
+        local c = 7
+        foreach h in 12 24 {
+            local bench = TXD_L`L'_bench[`bcr', `c']
+            qui summarize surv_h if BCR_L`L' == `bcr' & _t <= `h'
+            if r(N) > 0 & !missing(`bench') {
+                local sim = r(min) * 100
+                local diff = `sim' - `bench'
+                if abs(`diff') <= `tol_pp' {
+                    local status "PASS"
+                    local tests_passed = `tests_passed' + 1
+                }
+                else {
+                    local status "FAIL"
+                    local tests_failed = `tests_failed' + 1
+                }
+                local tests_run = `tests_run' + 1
+                n di "L`L'   | " %3.0f `bcr' " |  " %4.0f `h' "mo | " %8.1f `bench' "% | " %8.1f `sim' "% | " %5.1f `diff' " | `status'"
+            }
+            local ++c
+        }
+        qui drop surv_h
+    }
+}
+
 
 **********
 // TFI  --  % still treatment-free at 12 / 24 months vs benchmark (+/- 10 pp)
@@ -648,13 +771,17 @@ local tests_run = `tests_run' + 1
 
 di "ASCT | " %8.1f `pct_bench' "% | " %8.1f `pct_sim' "% | " %5.1f `diff' "% | `status'"
 
-// Lines 2-5
+// Lines 2-5: conditional per-transition progression P(reach L | reached L-1); denominator = patients
+// who reached the previous line (BCR_L{prev}). Matches the benchmark's per-transition AJ CIF.
 qui forvalues line = 2/5 {
+	local prev = `line' - 1
+	qui count if !missing(BCR_L`prev')
+	local denom = r(N)
 	qui count if !missing(BCR_L`line')
-	local pct_sim = r(N) / `n_total' * 100
+	local pct_sim = cond(`denom' > 0, r(N) / `denom' * 100, .)
 	local pct_bench = Pathways_bench[1, `line'+1]
 	local diff = `pct_sim' - `pct_bench'
-	
+
 	if abs(`diff') <= `tolerance' {
 		local status "PASS"
 		local tests_passed = `tests_passed' + 1
@@ -663,10 +790,10 @@ qui forvalues line = 2/5 {
 		local status "FAIL"
 		local tests_failed = `tests_failed' + 1
 	}
-	
+
 	local tests_run = `tests_run' + 1
-	
-	n di "L`line'  | " %8.1f `pct_bench' "% | " %8.1f `pct_sim' "% | " %5.1f `diff' "% | `status'"
+
+	n di "L`prev'->L`line'  | " %8.1f `pct_bench' "% | " %8.1f `pct_sim' "% | " %5.1f `diff' "% | `status'"
 }
 
 **********

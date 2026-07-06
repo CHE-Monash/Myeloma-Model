@@ -9,7 +9,7 @@
 mata {
 	// Initialise outcome
 	vOC = J(Obs, 1, .)
-	
+
 	// Determine coefficient segments based on OMC
 	if (OMC <= 2) {  // DN/L1S
 		segments = 0
@@ -55,12 +55,12 @@ mata {
 		
 		// Calculate BCR coefficient start position
 		bcrStart = 10 + segment * 6
-		
-		// Build coefficient column vector
+
+		// Build coefficient column vector (no prev_dur; comorbidities + _cons follow the OS#BCR block)
 		coefCols = (1, 2, 3, 5, 6, 8, 9,				// Base effects
 					bcrStart, bcrStart+1, bcrStart+2,	// BCR 1-3
 					bcrStart+3, bcrStart+4, bcrStart+5,	// BCR 4-6
-					58)                                 // Constant
+					58, 59, 60, 61, 62)                 // CM_CKD/CRD/PLM/DBT, Constant
 		
 		// Determine patients for this segment
 		if (segment == 0) { // DN/L1S
@@ -90,11 +90,12 @@ mata {
 					vRISS2[idx], vRISS3[idx],
 					vBCR_1[idx], vBCR_2[idx], vBCR_3[idx], 
 					vBCR_4[idx], vBCR_5[idx], vBCR_6[idx],
+					vCKD[idx], vCRD[idx], vPLM[idx], vDBT[idx],
 					vCons[idx])
 				
 			// Extract coefficients
 			vCoef = bOS[1, coefCols]'
-			aux =  bOS[1, cols(bOS)]
+			aux =  bOS[1, cols(bOS)]   // single shared Weibull log-shape (last column of bOS)
 				
 			// Calculate XB
 			vXB = pMat * vCoef

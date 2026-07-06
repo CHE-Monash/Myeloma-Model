@@ -25,25 +25,25 @@ mata {
 			vCoef = bL3_TXD
 			dist = fbL3_TXD
 			vTXR = oL3_TXR
-			maxTXD = maxL3_TXD			
+			maxTXD = maxL3_TXD
 		}
 		else if (Line == 4) {
 			vCoef = bL4_TXD
 			dist = fbL4_TXD
 			vTXR = oL4_TXR
-			maxTXD = maxL4_TXD			
+			maxTXD = maxL4_TXD
 		}
 		else if (Line == 5) {
 			vCoef = bL5_TXD
 			dist = fbL4_TXD
 			vTXR = J(1, 0, .)
-			maxTXD = maxL5_TXD			
+			maxTXD = maxL5_TXD
 		}
 		else if (Line >= 6) {
 			vCoef = bLX_TXD
 			dist = fbLX_TXD
 			vTXR = J(1, 0, .)
-			maxTXD = maxLX_TXD			
+			maxTXD = maxLX_TXD
 		}
 		
 		// Assemble patient matrix

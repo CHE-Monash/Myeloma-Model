@@ -331,7 +331,10 @@ program define mata_setup
 		vCM2 = st_data(., "CMc2")                 // CM = 2 (2 comorbidities)
 		vCM3 = st_data(., "CMc3")                 // CM = 3 (3+ comorbidities)
 		vCKD = st_data(., "CM_CKD")				  // Chronic Kidney Disease
-		
+		vCRD = st_data(., "CM_CRD")				  // Moderate-to-severe cardiac disease
+		vPLM = st_data(., "CM_PLM")				  // Moderate-to-severe chronic lung disease
+		vDBT = st_data(., "CM_DBT")				  // Diabetes (insulin / oral hypoglycaemics)
+
 		vCons = st_data(., "Cons")                // Constant vector (all ones)
 
 		vSCT_DN = st_data(., "SCT_DN")            // Intent for ASCT at DN (0/1)

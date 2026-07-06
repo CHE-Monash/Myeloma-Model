@@ -42,7 +42,7 @@ do "analyses/oos/prep/oos_targets.do"
 do "analyses/oos/prep/oos_cohort.do"
 
 * 5. Simulate the 30% with the 70%-trained coefficients ($boot 0)
-*    -> analyses/oos/simulated/all_0_oos_1_101212.dta
+*    -> analyses/oos/simulated/all_0_oos.dta
 do "analyses/oos/simulate.do"
 
 * 6. Validate the point estimate vs the observed targets (fixed tolerances)
@@ -122,6 +122,12 @@ do "analyses/oos/validate_oos.do"
 
    # [3] Both chained -- risk equations waits on the whole MI array (afterok):
    ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; sbatch --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script"
+
+   # [4] All three chained -- MI array -> risk equations (afterok whole MI array) -> simulation (afterok risk equations).
+   #     PREREQ: the simulation task runs core/ + simulate.do against the held-out cohort, which the MI/risk phase
+   #     does NOT send -- so do the Step (b) file transfers below (core/, simulate.do, oos_cohort.dta -> M3) FIRST,
+   #     then submit this. Nothing else changes: each stage starts only once the previous whole array succeeds.
+   ssh $hpc "cd em76/$user ; mi=\$(sbatch --parsable --mail-user=$hpc_email --export=ALL,IMP=2,SAMPLE=train hpc/multiple_imputation.script) ; echo MI job \$mi ; re=\$(sbatch --parsable --mail-user=$hpc_email --dependency=afterok:\$mi --export=ALL,ANALYSIS=oos,COEFFS=oos,MINYR=1995,MAXYR=2040,SAMPLE=train hpc/risk_equations.script) ; echo RE job \$re ; sim=\$(sbatch --parsable --mail-user=$hpc_email --dependency=afterok:\$re --export=ALL,ANALYSIS=oos hpc/simulate.script) ; echo SIM job \$sim"
 
    # Monitor
    # ssh $hpc "squeue -u $user"
