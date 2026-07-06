@@ -29,10 +29,10 @@ The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). 
 
 There is no `main.do` and no positional-argument entry point. Each analysis ships a dispatcher do-file (`analyses/<name>/<name>.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
 
-The configuration block (canonical form in `analyses/base_model/simulate.do`):
+The configuration block (canonical form in `analyses/base_model/base_model.do`):
 
 | Global | Meaning | Default |
-|---|---|---|
+|----|----|----|
 | `$analysis` | Analysis name (also sets the four `*_path` globals) | `base_model` |
 | `$int` | Intervention label (two-arm analyses use `$int1`/`$int0`) | `all` |
 | `$line` | Line of therapy assessed (`0` = full pathway from diagnosis; 1–9) | `0` |
@@ -47,7 +47,7 @@ The configuration block (canonical form in `analyses/base_model/simulate.do`):
 | `$report` | Generate PDF report (0/1) | `0` |
 | `$scenario` | Scenario label (woven into output paths) | `""` |
 
-Two invocation patterns coexist. `base_model`'s `simulate.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
+Two invocation patterns coexist. `base_model.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
 
 > `analyses/vrd_post/vrd_post.do` is a legacy dispatcher still using camel-case globals (`$Int`, `$Line`, `$Boot`, …) and the old `matrix_setup` naming. It is functionally superseded by the `base_model`/`transport_dvd` convention and is a candidate for modernisation.
 
@@ -55,10 +55,10 @@ Two invocation patterns coexist. `base_model`'s `simulate.do` loads the core pro
 
 A typical run proceeds:
 
-1. **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `population_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
-2. **`core/mata_setup.do`** (`mata_setup`) — builds the Mata characteristic vectors and outcome matrices from the Stata data, and constructs the CRN matrix `mRN`. It asserts `ID == _n` (errors otherwise).
-3. **`core/simulation_engine.do`** (`simulation`) — the deterministic event loop. At each of the 19 OMC points it sets the current `OMC` and `Line` and executes the relevant `core/outcomes/sim_*.do` module, filling the outcome matrices.
-4. **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs and discounted QALYs.
+1.  **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `population_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
+2.  **`core/mata_setup.do`** (`mata_setup`) — builds the Mata characteristic vectors and outcome matrices from the Stata data, and constructs the CRN matrix `mRN`. It asserts `ID == _n` (errors otherwise).
+3.  **`core/simulation_engine.do`** (`simulation`) — the deterministic event loop. At each of the 19 OMC points it sets the current `OMC` and `Line` and executes the relevant `core/outcomes/sim_*.do` module, filling the outcome matrices.
+4.  **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs and discounted QALYs.
 
 The dispatcher then saves the dataset, runs the in-run invariant checks in `core/validation.do`, and optionally writes CSV exports and/or a PDF report.
 
@@ -67,7 +67,7 @@ The dispatcher then saves the dataset, runs the in-run invariant checks in `core
 All built in `core/mata_setup.do`. Outcome matrices are `Obs × 19` unless noted, with paired row/column label matrices.
 
 | Matrix | Shape | Contents |
-|---|---|---|
+|----|----|----|
 | `mState` | `Obs×2` | Entry disease state, diagnosis date |
 | `mAge` | `Obs×19` | Age at each pathway point |
 | `mOS` | `Obs×19` | Simulated overall-survival time from diagnosis |
@@ -87,7 +87,7 @@ Fixed characteristics are held as vectors: `vID`, `vAge`/`vAge2` (updated to cur
 The roughly 30 risk equations are organised into self-contained modules under `core/outcomes/`. Each module filters to eligible patients, assembles a design matrix from the characteristic vectors, extracts the relevant coefficient block from an externally loaded Mata matrix, computes a linear predictor, draws a CRN uniform, maps it to an outcome, and writes back into the appropriate matrix. Most carry a design/coefficient dimension guard (`exit(459)` on mismatch).
 
 | Module | Outcome | Method |
-|---|---|---|
+|----|----|----|
 | `sim_asct_dn` | ASCT intent at diagnosis | Logistic |
 | `sim_asct_l1` | ASCT receipt at L1 | Logistic (gated on regimen/response) |
 | `sim_tfi_dn` | TFI diagnosis → L1 | Parametric survival |
@@ -117,7 +117,7 @@ The model uses common random numbers to reduce the variance of incremental (betw
 
 `core/rng_slots.do` is the single source of truth for the column layout of the CRN matrix. It defines a total width `rn_K()` = 74 columns, partitioned into named blocks with per-event accessor functions returning the absolute column for an (event, point) pair — for example `rn_os(omc)` (cols 1–19), `rn_bcr(line)` (cols 20–28), `rn_txr(line)` (cols 30–38), `rn_txd_l1(seg)` (cols 39–43), and a reserved override block `rn_override(1..8)` (cols 67–74). The accessor used throughout the outcome modules is:
 
-```mata
+``` mata
 real colvector rnDraw(real colvector idx, real scalar slot) {
     external real matrix mRN
     return(mRN[idx, slot])
@@ -126,7 +126,7 @@ real colvector rnDraw(real colvector idx, real scalar slot) {
 
 The matrix itself is built in `mata_setup`:
 
-```stata
+``` stata
 if ("$crn_seed_base" == "") global crn_seed_base 20260615
 local _crn_seed = $crn_seed_base + `_b'   // `_b' = bootstrap index (0 if not bootstrapping)
 set seed `_crn_seed'
@@ -167,7 +167,7 @@ The definitive method specification, including the exact regression form and the
 
 ## Outputs
 
-`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model`'s `simulate.do`.
+`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model.do`.
 
 `core/generate_report.do` produces a `putpdf` report (titled "Monash Myeloma Model v3.0") when `$report == 1`, covering the patient sample, treatments, overall survival (with figures), lines of therapy, treatment duration, treatment-free interval and economic outcomes.
 

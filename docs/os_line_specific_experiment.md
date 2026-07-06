@@ -179,6 +179,247 @@ work), confirming the big residual is the telescoped simulation (progression thr
 expected to help but may only *partially* close this simulated gap; whatever remains is the
 telescoping/collapsing (or the §3 tail artefact), to be read off by re-running this table.
 
+### 4b. After: `ancillary(i.BCR)` wired in, re-simulated (branch `os-ancillary`)
+
+Per-BCR Weibull shapes fitted (p): CR 1.47, VGPR 1.38, PR 1.28, SD 1.05, MR 0.86, PD 0.40 — good
+responders get p>1 (lighter tail), weak responders p<1 (heavier tail), as intended. Re-simulated
+`s-b`:
+
+```
+                 3yr                5yr                10yr
+  L1 (No ASCT)   bench sim  s-b     bench sim  s-b     bench sim  s-b
+    1 CR          77.8 81.3 +3       55.8 63.2 +7       22.3 28.2 +6
+    2 VGPR        67.9 75.0 +7       48.7 52.3 +4       17.0 17.3 +0
+    3 PR          66.9 66.9 +0       44.4 41.9 -3       17.8 10.9 -7
+    4 MR          65.7 55.7 -10      49.8 34.1 -16      23.8  8.7 -15
+    5 SD          45.7 51.1 +5       31.2 28.7 -3       16.0  6.3 -10
+    6 PD          39.0 52.9 +14      33.6 31.5 -2          .  7.3  .
+  L1 ASCT
+    1 CR          90.1 93.3 +3       79.7 84.6 +5       58.7 55.2 -4
+    2 VGPR        89.4 90.2 +1       77.7 78.4 +1       39.9 45.7 +6
+    3 PR          89.2 88.5 -1       76.8 75.4 -1       41.1 40.3 -1
+    4 MR          82.2 83.1 +1       72.1 66.8 -5       38.8 31.2 -8
+  L2
+    1 CR          77.0 75.1 -2       65.7 55.0 -11      41.1 21.6 -19
+    2 VGPR        68.2 67.8 +0       50.4 46.0 -4       21.0 14.9 -6
+    3 PR          59.3 58.1 -1       43.7 34.9 -9       18.5  8.6 -10
+    4 MR          53.3 48.4 -5       30.4 26.7 -4          .  5.4  .
+    5 SD          59.2 47.2 -12      42.5 25.7 -17      17.7  5.7 -12
+    6 PD          25.0 34.8 +10      14.7 16.8 +2          .  2.8  .
+  L3
+    1 CR          69.5 64.5 -5       53.3 40.7 -13         .  9.5  .
+    2 VGPR        55.6 54.1 -1       33.4 29.0 -4       10.6  5.5 -5
+    3 PR          46.0 45.8 +0       31.5 23.3 -8        4.7  4.2 +0
+    4 MR          39.8 36.2 -4       20.6 17.2 -3          .  2.7  .
+    5 SD          41.8 36.1 -6       28.0 16.5 -11         .  2.6  .
+    6 PD          18.8 22.3 +3       12.9  9.4 -4          .  1.5  .
+```
+
+**Mean |s-b|: 3 yr 4.05 → 4.27 (slightly worse); 5 yr 7.00 → 6.23 (~11% better).** Verdict: a
+**modest, mixed** improvement, exactly as §4a predicted.
+- *Intended direction confirmed:* every MR/SD cell improved 1–2 pp at 3 and 5 yr — but the gaps stay
+  large (MR/SD still −11…−17 at 5 yr).
+- *Side effects:* PD's extreme shape (p=0.40) now **over**-predicts at 3 yr (L1 PD +5→+14); good-responder
+  CR at L2/L3 worsens slightly at 5 yr (p>1 → lighter tail → lower long survival).
+- *Core problem untouched:* the simulated MAD (~6 pp) stays ~3× the line-start fit MAD (~2 pp), so the
+  dominant residual is the **telescoping**, not the fit. Per-BCR shape shaves only the fit-sized part.
+
+Bottom line: `ancillary(i.BCR)` is a small, defensible refinement in the right direction for weak
+responders, but not the fix for die-too-fast. The remaining lever is structural (the telescoped
+progression) and/or cleaning the §3 SMM-artefact benchmark. If adopted, consider taming the PD
+shape (its p=0.40 over-lifts PD at 3 yr).
+
+### 4d. Tried and NOT adopted: previous-line BCR (`i.prev_BCR`)
+
+On top of §4c, added the previous line's best clinical response as a disease-biology / frailty proxy
+(`i.b5.prev_BCR` main effect; passive, since BCR is imputed and BCR_L*/BCR_SCT are passive). Fitted
+log-hazard effects (base SD): CR **+0.50**, VGPR +0.38, PR +0.21, MR −0.14, PD +0.02 — i.e. a *good*
+prior response predicts a *higher* subsequent hazard. That sign is not wrong: current BCR is already
+in the model, so conditional on current response, a good prior response means the patient *declined*
+to get here (CR→PR = aggressive relapse) while a poor prior response means they *improved*. So
+`prev_BCR` captures response **trajectory (declining vs improving)**, a real but different signal.
+
+Validation (mean |s-b|): 3 yr 3.91 → **4.18** (worse), 5 yr 5.86 → **5.82** (flat, noise). **It does
+not help.** Cause: `prev_BCR` conditional on current BCR only *redistributes* hazard **within** each
+(line, current-BCR) cell; since the sim's within-cell prior-response mix ≈ the registry's, it
+**averages out** against the current-BCR benchmarks (leaving a small Jensen residual that slightly
+hurt the good-responder cells §4c had fixed). `prev_dur` escaped this because it is continuous and
+shifts the tail strongly; a categorical trajectory term conditional on current response does not.
+A line-varying version (`i.OS#i.prev_BCR`) would face the same wash-out per line, so it is not
+pursued. **Verdict: not adopted; §4c (ancillary + prev_dur) remains the best model.** The stubborn
+MR/SD residual is now most plausibly the §3 SMM-artefact benchmark, not a missing OS covariate.
+
+*Fit-level head-to-head* (`scratch/os_predictor_compare.do`, AIC on the diagnosis-clock estimation
+data): base 8868; **+prev_dur −52 (p<0.001)**; +prev_BCR **+1 (p=0.11, NOT a predictor alone)**;
++both −73. So `prev_dur` and `prev_BCR` are **not substitutes** — `prev_dur` is the dominant
+standalone predictor and `prev_BCR` carries no OS signal on its own (a suppression: alone, its
+protective-duration and harmful-decline components cancel; it only turns significant *on top of*
+`prev_dur`, as the residual decline-direction). `both` has the best AIC, but that `prev_BCR`
+increment does not help the sim validation (above). Confirms: **`prev_dur` alone is the right single
+covariate; duration is the fundamental OS signal, response-alone is not.**
+
+### 4e. Tried and NOT adopted: second duration lag (`prev_prev_dur`)
+
+Tested whether *more* of the trajectory helps by adding a second lag — the duration of the line two
+back (`(TXD_{L-2}+TFI_{L-2})/30.4375`; engine `mTSD[.,2·seg-4] - mTSD[.,2·seg-6]`, seg≥4). This is the
+identifiable way to add trajectory beyond one lag, avoiding the clock-collinearity of raw
+time-to-line (which on the diagnosis clock **is** `_t0`). Fitted coefficient **−0.0049**, ~3.5× weaker
+than `prev_dur` (−0.017) — recency dominates, as expected.
+
+Validation (mean |s-b|): 3 yr 3.91 → **4.00** (worse), 5 yr 5.86 → **5.73** (better) — a wash, both
+within noise. Cell-level it's reshuffling, not real gain: the second lag helped the L3 good responders
+it can reach (L3 CR 5-yr −13→−9, VGPR −5→−2), but the joint refit drifted L1 MR worse (−16→−19; L1 has
+no `prev_prev_dur`). **Verdict: not adopted — one lag (`prev_dur`) was enough; the most-recent line's
+pace is where the trajectory signal lives.** §4c remains the committed best.
+
+### 4f. Out-of-sample whole-population OS (pre-§4c baseline)
+
+§4a–4e are in-sample (registry KM = the fit data). The **OOS 70/30 harness** (`analyses/oos`) trains
+on 70%, predicts the held-out 30%. It previously had only per-line×BCR OS targets, so a
+**whole-population OS** target (from diagnosis, all patients, 3/5/10 yr) was added
+(`prep/generate_benchmarks.do` → `os_wholepop.csv`; `analyses/oos/bootstrap_validation.do` →
+`OS/ALL/{3,5,10}yr`; point-estimate block in `validate_outcomes.do`).
+
+Pre-§4c OOS model (whatever was last trained there — **not** ancillary/prev_dur), held-out 30% (N=1888):
+
+| horizon | observed | predicted (median) | bootstrap 95% PI | inside? |
+|---|---|---|---|---|
+| 3 yr  | 74.7 | 72.6 | [70.9, 74.2] | just outside (+0.6) |
+| 5 yr  | 58.4 | 57.3 | [55.3, 59.0] | inside |
+| 10 yr | 30.6 | 28.3 | [26.2, 30.2] | just outside (+0.4) |
+
+Point estimate is within **1–2 pp** at every horizon (all PASS at the 10% tolerance). But observed
+sits *fractionally above* the (very tight, ~3–4 pp wide) aggregate 95% PI at 3 and 10 yr — same
+direction as 5 yr — i.e. a small **systematic ~1.5–2 pp under-prediction**: the die-too-fast,
+quantified at the whole-population level. **So the whole population predicts well in aggregate; the
+wobble is the BCR breakdown** (16% of point tests fail; overall PI coverage 59.5%, OS 63.8%), errors
+both ways that cancel. The tight aggregate PI also suggests the bootstrap PIs are a touch narrow
+(parameter uncertainty only).
+
+**Re-training with §4c made it WORSE, not better** (point estimate matches the bootstrap median, so
+the effect is real, not an artefact):
+
+| horizon | observed | pre-§4c median [PI] | §4c median [PI] |
+|---|---|---|---|
+| 3 yr  | 74.7 | 72.6 [70.9, 74.2] | **68.8 [66.3, 71.1]** |
+| 5 yr  | 58.4 | 57.3 [55.4, 59.0] | **53.7 [51.2, 56.0]** |
+| 10 yr | 30.6 | 28.3 [26.2, 30.2] | **25.8 [23.4, 28.2]** |
+
+§4c pulled whole-population OS ~4 pp **lower** at every horizon — under-prediction tripled (~2 pp →
+~5–6 pp; observed now 3–8 pp *above* the §4c PI) — and coverage fell (overall 59.5% → 55.6%, OS
+63.8% → 53.2%). So **§4c improves the in-sample per-BCR fit but degrades out-of-sample generalisation**
+— an over-fitting / systematic-bias signature. **Mechanism: the ancillary per-BCR shape, not `prev_dur`.**
+Whole-population OS is L1-dominated (`prev_dur = 0` at L1, so only the shape moves it); the ancillary
+gives the good-responder majority p>1 (lighter tail → lower long survival), pulling the aggregate down.
+The shared shape (~1.0) gave a near-perfect aggregate (73.0 vs obs 74.7); spreading the shapes to fit
+each cell broke it. Since population projections (LY/QALY) depend on the aggregate, **§4c may be a net
+negative for the model's primary purpose.** Decomposition underway: **prev_dur-only** (L2+ only,
+expected benign for the aggregate) then **ancillary-only** (the suspected culprit).
+
+**Decomposition — prev_dur-only (shared shape + prev_dur, no ancillary).** Re-trained + re-simulated
+OOS. Whole-population OS, bootstrap median [PI]:
+
+| horizon | observed | pre-§4c | §4c | **prev_dur-only** |
+|---|---|---|---|---|
+| 3 yr  | 74.7 | 72.6 [70.9,74.2] ✗ | 68.8 [66.3,71.1] ✗ | **72.5 [70.9,73.9] ✗**(+0.8) |
+| 5 yr  | 58.4 | 57.3 [55.4,59.0] ✓ | 53.7 [51.2,56.0] ✗ | **57.0 [55.2,58.8] ✓** |
+| 10 yr | 30.6 | 28.3 [26.2,30.2] ✗ | 25.8 [23.4,28.2] ✗ | **29.0 [27.0,31.1] ✓** |
+
+(Deterministic point estimate 72.4/56.7/30.1, matches the median.) **Removing the ancillary restored
+the aggregate** — prev_dur-only is the best of the three (5-yr & 10-yr inside the PI; 3-yr out by
+0.8 pp), and OS coverage recovers to 61.7% (§4c 53.2%, pre-§4c 63.8%; overall 56.3%). So the ancillary
+shape is confirmed as the OOS aggregate-killer, and **`prev_dur` alone is OOS-neutral-to-slightly-positive**
+(≈ pre-§4c at 3/5 yr, slightly better at 10 yr; a defensible keep).
+
+**Decomposition — ancillary-only (per-BCR shape `ancillary(b5.BCR)`, no prev_dur).** Re-trained on the
+70% (`bOS` 1×65, `_cons` col 58, no prev_dur covariate; per-BCR shapes p = CR 1.46, VGPR 1.33, PR 1.31,
+MR 0.97, SD 1.04, PD 0.35) and re-simulated on the held-out 30% (N=1888). Whole-population OS,
+bootstrap median [PI] (498 resamples):
+
+| horizon | observed | pre-§4c | §4c | prev_dur-only | **ancillary-only** |
+|---|---|---|---|---|---|
+| 3 yr  | 74.7 | 72.6 [70.9,74.2] ✗ | 68.8 [66.3,71.1] ✗ | 72.5 [70.9,73.9] ✗ | **69.9 [67.7,72.2] ✗** |
+| 5 yr  | 58.4 | 57.3 [55.4,59.0] ✓ | 53.7 [51.2,56.0] ✗ | 57.0 [55.2,58.8] ✓ | **54.8 [52.3,57.1] ✗** |
+| 10 yr | 30.6 | 28.3 [26.2,30.2] ✗ | 25.8 [23.4,28.2] ✗ | 29.0 [27.0,31.1] ✓ | **25.7 [23.2,28.2] ✗** |
+
+(Deterministic point estimate 69.7/54.3/25.7 matches the median.) **Ancillary-only reproduces the §4c
+degradation almost exactly** — 69.9/54.8/25.7 vs §4c's 68.8/53.7/25.8, within ~1 pp at every horizon and
+~3–5 pp *below* both pre-§4c and prev_dur-only, with the observed value *outside* (above) the interval at
+all three horizons. So the ancillary carries essentially the *entire* §4c whole-population loss on its
+own; adding `prev_dur` on top (→ §4c) barely moves the aggregate (prev_dur is a no-op at L1, which
+dominates the from-diagnosis curve). **This rules out an ancillary×prev_dur interaction** — the two
+covariates act independently on the aggregate: ancillary pulls it down, prev_dur leaves it (at 3/5 yr)
+or nudges it up (10 yr). OS-family coverage falls to **51.1%** (24/47; overall 54.0%) — the lowest of
+the four, confirming the ancillary as the coverage-killer too.
+
+### 4f-conclusion. OOS decomposition — verdict
+
+The four OOS whole-population variants isolate each covariate's effect on the metric that drives the
+model's primary output (LY/QALY projections depend on the aggregate OS curve, not the per-BCR cells).
+Each variant differs only in the OS equation's shape and frailty terms:
+
+| variant (OS-equation spec) | 3/5/10-yr median [PI] | horizons inside PI | OS-family coverage |
+|---|---|---|---|
+| **shared shape** (one Weibull shape for all responses, no frailty — *current production*) | 72.6 / 57.3 / 28.3 | 5-yr only | 63.8% |
+| **shared shape + prior-line-duration frailty** (adds `prev_dur`: slow progressors get lower hazard) | 72.5 / 57.0 / 29.0 | 5- & 10-yr | 61.7% |
+| **per-BCR shape** (each response group its own Weibull shape, no frailty) | 69.9 / 54.8 / 25.7 | none | 51.1% |
+| **per-BCR shape + prior-line-duration frailty** (both; the committed §4c model) | 68.8 / 53.7 / 25.8 | none | 53.2% |
+
+(Observed 74.7 / 58.4 / 30.6; all four rows are bootstrap medians.)
+
+**Conclusion: the per-BCR (ancillary) Weibull shape is the OOS aggregate-killer; the prior-line-duration
+frailty (`prev_dur`) is benign.** Compare the pairs: adding the per-BCR shape (rows 1→3, or 2→4) drops
+whole-population OS ~3–5 pp at every horizon and pushes every horizon *outside* its PI; adding the
+frailty term (rows 1→2, or 3→4) barely moves the aggregate. So the loss is the shape, not the frailty.
+The mechanism (confirmed in §4f above): the whole-population OS-from-diagnosis curve is L1-dominated,
+where `prev_dur = 0`, so only the shape moves it. The shared shape (~1.0) gives a near-perfect
+aggregate; spreading the shapes to fit each in-sample BCR cell gives the good-responder *majority* p>1
+(lighter tail → lower long-horizon survival), which drags the population curve ~4–5 pp below observed
+at every horizon. This is a textbook over-fit: the ancillary buys a ~1 pp improvement in the in-sample
+per-BCR 5-yr MAD (§4b/§4c) at the cost of ~3–5 pp on out-of-sample aggregate OS and a 10 pp drop in OS
+PI coverage (63.8% → 53.2%).
+
+**Recommendation:**
+1. **Drop the ancillary.** Its only benefit (per-BCR in-sample shape) does not generalise and it
+   materially harms the aggregate that population projections depend on. Revert `sim_os.do` /
+   `risk_equations.do` / `extreme_value.do` to the shared-shape OS.
+2. **Keep `prev_dur` (or at least do not fear it).** Alone it is OOS-neutral-to-slightly-positive
+   (≈ pre-§4c at 3/5 yr, best-of-all at 10 yr, coverage ~unchanged) while attacking the telescoping
+   die-too-fast in the later-line good-responder cells in-sample (§4c). It is a defensible keep; if
+   parsimony is preferred, pre-§4c (shared shape, no prev_dur) is the safe fallback and is within
+   1–2 pp of observed at every horizon.
+3. The residual ~2 pp systematic under-prediction that survives in *every* variant (pre-§4c included)
+   is the die-too-fast quantified at the population level; per §3/§5 it is most plausibly the SMM
+   tail artefact in the benchmark, not a missing OS covariate — a benchmark-cleaning problem, not a
+   model-specification one.
+
+### 4c. After: `ancillary(i.BCR)` + `prev_dur` (progression-pace/frailty covariate)
+
+Attacks the telescoping directly: adds the **previous line's start-to-start duration** (`prev_dur =
+TXD_{L-1}+TFI_{L-1}`, months) to the OS regression as an observed-frailty proxy — a patient who
+progressed slowly (long prior line) is robust and gets a lower forward hazard. Wired on branch
+`os-ancillary` (fit `prep/risk_equations.do` by `Line`; engine `core/outcomes/sim_os.do` by OS-level
+segment; both months). Fitted coefficient **−0.0169 per month** (negative = longer prior line lowers
+hazard, as `os_clock_check` predicted; e.g. a 35-mo prior line ⇒ ~45% hazard cut).
+
+Mean |s-b| across 22 cells, vs the earlier steps:
+
+| model | 3-yr | 5-yr |
+|---|---|---|
+| §4a shared shape (production) | 4.05 | 7.00 |
+| §4b + `ancillary(i.BCR)` | 4.27 | 6.23 |
+| **§4c + `ancillary` + `prev_dur`** | **3.91** | **5.86** |
+
+**`prev_dur` is the first change to beat production on BOTH horizons** — it recovers the 3-yr
+regression `ancillary` introduced and pushes 5-yr further down (~16% vs production). The gains land
+exactly where `ancillary` had hurt — **later-line good responders** (long prior line ⇒ robust):
+L2 CR 5-yr −11→−8, L3 CR −13→−11, L2 VGPR −4→−2. The mechanism differentiates *within* each response
+group by pace (fast-progressing PD gets little lift, correctly). L1 is ~unchanged (prev_dur=0 there;
+small drift is the refit). **Not fixed:** weak-responder MR/SD die-too-fast (L2 SD −17→−16, L1 MR
+−16→−18) — fast progressors get little frailty lift, and that residual is most likely the §3 SMM
+tail artefact. Verdict: real, correctly-signed pull that validates the telescoping hypothesis;
+the best combination so far, modest in absolute terms.
+
 ## 5. Open questions / directions to brainstorm
 
 1. **Clean the OS target.** Flag/exclude likely-SMM early-era long survivors (diagnosis era +
@@ -188,9 +429,12 @@ telescoping/collapsing (or the §3 tail artefact), to be read off by re-running 
 2. **Restrict the analysis horizon** (e.g. 5–6 yr) if the far tail stays untrustworthy — but note
    this truncates life-years/QALYs for genuinely long-surviving MM, a modelling decision to document.
 3. **Adopt a per-BCR Weibull shape.** §4 settles this: `ancillary(i.BCR)` wins on AIC/BIC and 5-yr
-   accuracy; `ancillary(i.OS)` (shape by line) and gamma-frailty do not. Remaining work is the
-   engine wiring — fit `ln_p` as a function of BCR in `prep/risk_equations.do` and carry a shape
-   vector indexed by BCR in `core/outcomes/sim_os.do` (currently one shared scalar `aux`).
+   accuracy; `ancillary(i.OS)` (shape by line) and gamma-frailty do not. **Wired on branch
+   `os-ancillary`**: `prep/risk_equations.do` adds `ancillary(i.BCR)` to the OS `streg` and stores a
+   1×6 per-BCR log-shape `bOS_p` (extracted by name from `e(b_mi)`); `core/outcomes/sim_os.do` uses
+   `bOS_p[vBCR]` as the per-patient Weibull shape; `core/mata_functions.do` `calcSurvTime`/`calcSurvProb`
+   accept a colvector `aux`. Pending: regenerate coefficients → re-simulate → re-run
+   `scratch/os_sim_baseline.do` and compare against the §4a baseline.
 4. **Is the weak-responder gap real or artefact?** Disentangling (1) from genuine under-fit is the
    crux; both point at the same cells, so a cleaned benchmark is the enabler.
 
@@ -209,3 +453,100 @@ telescoping/collapsing (or the §3 tail artefact), to be read off by re-running 
   (per-stage sim-vs-model self-consistency, using age-at-stage).
 - Benchmarks: `scratch/benchmarks/os_*.csv` (registry KM by line × BCR), from
   `prep/generate_benchmarks.do`.
+
+## 7. Duration-tail refit → pathway recalibration → prev_dur removal, and the weak-responder OS flip (2026-07-06)
+
+A second OOS push, on top of §4 (comorbidities now in OS + ASCT; see `docs/comorbidities.md`). The
+chain of changes and what each did:
+
+**TXD `Duration < 730` truncation removed.** The L1 TXD `streg`s (ASCT splines + NoASCT) were fit only
+on patients with duration <2yr, starving the tail → the model stopped L1 treatment far too early
+(24-mo on-treatment ≈0% vs observed 8–23%). Dropping the filter (right-censoring the still-on-treatment
+patients instead of excluding them) helped the 12-mo cells but not the 24-mo tail. **Key caveat (data
+quality): the observed TXD target is inflated by missing treatment-END dates** — patients whose
+treatment really ended but whose end date is blank appear "still on treatment", so the target itself is
+unreliable and the model's shorter durations may be closer to truth. TFI is clocked *from* the end date
+so those patients drop out of TFI entirely → TFI is on the clean subset (this is why TFI validates well
+and TXD doesn't). Tried `$dTXD` = Gompertz (worse, shorter); reverted to **Weibull**.
+
+**TFI → log-normal (was Weibull).** Diagnosed the over-progression (per-transition reach too high) as a
+**thin Weibull TFI tail**: it matched 12/24-mo but progressed everyone too soon. `scratch/tfi_family_check.do`
+(refit the TFI quantity per family, fitted-S(t) vs KM at horizons) → **log-logistic and log-normal both
+hug the KM tail** (tail|err| ≈0.005 vs Weibull 0.037) while still matching 12/24-mo; Gompertz plateaus
+and misses the near-term. Loglogistic and lognormal came out **empirically identical** on reach and OS
+(A/B'd), so kept **log-normal** (finite variance; loglogistic γ≈0.56 → infinite variance). Engine:
+added `llogistic` + `lnormal` branches to `calcSurvTime`/`calcSurvProb` in `core/mata_functions.do`
+(both AFT; verified vs `streg predict` to machine precision). `$dTFI = "lognormal"`. This is the change
+that **fixed the reach** (see next).
+
+**Pathway targets made CONDITIONAL per-transition.** Old reach targets were cumulative-from-L1
+Aalen–Johansen CIF (`P(reach L | started L1)`), so errors compounded line-by-line and the sim's
+lifetime reach vs the observed's follow-up-truncated reach inflated the gap. Rewrote to
+**`P(reach L | reached L-1)`** — observed AJ CIF with origin = the previous line's reach date, sim =
+`reached L / reached L-1` — in `prep/generate_benchmarks.do`, `analyses/oos/bootstrap_validation.do`,
+`analyses/oos/validate_outcomes.do`. (ASCT rate unchanged — already conditional on L1-end reachers.)
+
+**`prev_dur` removed entirely.** After the tails changed, OS went from die-too-fast to over-predicting
+the 5–10yr tail (whole-pop +3). Chased `prev_dur` (the (TXD+TFI) frailty covariate): `prevdur_check.do`
+showed the *simulated* `prev_dur` runs 2–3× the observed at every percentile (median 23 vs 12, p90 138
+vs 44 mo), driven by the TFI component — but the observed is **censoring-selected short** (only
+completers-who-progressed are seen), so it's partly a comparison artefact. Tried a p99 cap on
+`vPrevDur` (no effect), then removed `prev_dur` from OS altogether (fit + engine + `extreme_value`
+column). **OS barely moved** → `prev_dur` was NOT the OS lever, and it is now redundant/counter-
+productive (the lift is over-predicting, and it would lift more). **The actual OS-lift channel is the
+engine's stage-conditioning**: OS is resampled conditional on survival to `mTSD` (cumulative time), so
+a heavier TFI → larger `mTSD` at later stages → OS resampled longer. So the OS-tail-over and the
+residual reach-over are **the same coupled effect** (heavy TFI keeps too many patients alive-and-
+progressing late), not a `prev_dur` problem. `prev_dur` confirmed fully redundant; removed.
+
+### 7a. Current model (2026-07-06)
+OS: shared Weibull, `Age Age2 Male i.ECOGcc i.RISS b0.OS#b5.BCR CM_CKD CM_CRD CM_PLM CM_DBT` (NO
+ancillary, NO prev_dur). TFI: **log-normal**. TXD: **Weibull**, no `<730`. ASCT logits: four comorbidity
+flags (not `CMc`). Conditional pathway targets. bOS 1×63 (CKD=58,CRD=59,PLM=60,DBT=61,_cons=62,ln_p=63).
+Deterministic OOS: whole-pop OS 74.4/61.6/34.0 (obs 74.7/58.4/30.6), reach L1→L2/L2→L3/L3→L4/L4→L5 =
+77.9/75.7/74.8/69.3 (obs 71.2/74.4/67.9/61.1; L2→L3 passes). **132/172 tests pass (76.7%).**
+
+### 7b. OPEN ISSUE — weak-responder OS over-predicted per-BCR (the whole-pop masks it)
+The whole-pop OS looks fine (+3), but **OS-by-BCR is badly over-predicted for weak responders**,
+worst at **L1 non-ASCT**: VGPR +14.8/+22.2, PR +16.4/+15.9, SD +17.2/+13.9, PD +17.5/+15.9 (sim−obs,
+3yr/5yr %); only CR is calibrated. L2/L3 show the same in places. This is the **flip of the original
+§4a die-too-fast weak-responder problem** — same cells, opposite sign. It is **not** a `prev_dur`
+artefact (`prev_dur`=0 at L1). This is the **flip of the original §4a die-too-fast weak-responder
+problem** — same cells, opposite sign.
+
+### 7c. RESOLVED — it is the engine coupling, NOT the OS shape (`scratch/os_weakresp_check.do`, 2026-07-06)
+`os_weakresp_check.do` decomposes the per-BCR over-prediction (line-start clock, 3 & 5 yr) into three
+additive layers — **FAMILY** (a shared-shape Weibull refit *in-sample on the test fold* vs the test KM),
+**TRANSPORT** (train-fitted vs test-fitted, both on test covariates → 70→30 generalisation), **ENGINE**
+(the engine's simulated OS vs the line-start fit it samples → the from-diagnosis `mTSD`-conditioning /
+heavy-TFI lift). `SIM − KM = FAMILY + TRANSPORT + ENGINE` (reconciles to ±0.2pp). L1 No-ASCT, 3yr,
+weak-responder averages:
+
+- **FAMILY ≈ 0** (VGPR −1.3, PR −2.6, SD −0.7, MR +0.1). A shared-shape line-start Weibull **already
+  fits the weak-responder KM**, and the **`ancillary(i.bcr)` shape probe (MB) does not improve it**
+  (−1.0/+1.9/−1.6/−1.3). **→ the shared shape is NOT the constraint; the per-BCR/per-line `ancillary`
+  route is a confirmed dead end** — it was never going to buy accuracy, which is why it only damaged the
+  aggregate (§4). Retire it.
+- **ENGINE is the dominant driver** for common weak responders — VGPR/PR/SD ≈ **+13pp** (the engine's
+  OS sits ~13–16pp above the line-start fit). The lift is roughly BCR-independent in absolute pp: it's
+  the **heavy-TFI telescoping** — patients who progress through long TFIs get OS resampled upward at
+  deeper stages (large `mTSD`), and that lands back on the line-start curves. Where the fit already
+  matches KM (weak responders) the lift becomes pure over-prediction; where the fit under-predicts (CR,
+  −11pp) the same lift compensates it back to KM.
+- **TRANSPORT is a real secondary driver** for the rare/noisy cells — **MR/PD ≈ +10–13pp**, with ~0
+  engine contribution. MR/PD are the smallest cells and the §3 SMM-artefact suspects (their held-out KM
+  is likely inflated), so this is partly not-model-error.
+
+**Implication for the fix.** The line-start refit (`FIT_test`) *is* a per-line-from-line-start OS model
+and it tracks KM well → the fix is in **how the engine samples OS**, not the OS equation's shape:
+  - **(a) per-line OS clocked from line start** — the old v4.0 rebuild, now re-motivated to *remove* the
+    over-prediction; principled but a real `sim_os.do` + `risk_equations.do` rework, and whole-pop OS
+    must be re-verified to recompose;
+  - **(b) attenuate/cap the `mTSD` conditioning coupling in `sim_os.do`** — cheap to prototype, isolates
+    the engine lift with one parameter and bounds what (a) would buy. **Recommended next step: prototype
+    (b) first.**
+
+Related unrelated lever (for residual over-progression, not this issue): a per-line **"no further
+treatment" / discontinuation** off-ramp — `tfi_plateau_check.do` found **no clean cure plateau**, so a
+finite-mixture is not identifiable; a calibrated discontinuation probability is the remaining option
+(not implemented).
