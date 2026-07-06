@@ -61,17 +61,19 @@ mata:
  * 
  * @param XB       Linear predictor (vector or scalar)
  * @param RN       Random numbers in (0,1) (vector or scalar)
- * @param dist     Distribution type: "exponential", "ereg", "weibull", "gompertz"
- * @param aux      Auxiliary parameter (shape for Weibull, gamma for Gompertz)
- *                 NOTE: This is always the final column in coefficient matrix
- *                 Extract as: aux = bMatrix[1, cols(bMatrix)]
+ * @param dist     Distribution type: "exponential", "ereg", "weibull", "gompertz", "llogistic", "lnormal"
+ * @param aux      Auxiliary parameter (ln_p for Weibull, gamma for Gompertz, ln_gam for llogistic, ln_sig for lnormal).
+ *                 Usually the final column of the coefficient matrix, extracted as
+ *                 aux = bMatrix[1, cols(bMatrix)] (a single shared shape). May instead
+ *                 be a per-observation colvector if a model varies the shape by covariate.
+ *                 All uses of aux below are elementwise, so a scalar or colvector both work.
  * @return         Survival times
  */
 real colvector calcSurvTime(
     real colvector XB,
     real colvector RN,
     string scalar dist,
-    | real scalar aux 	// Optional parameter
+    | real colvector aux 	// Optional; scalar or per-observation colvector
 ) {
     real colvector outcome
     
@@ -87,12 +89,24 @@ real colvector calcSurvTime(
         // Gompertz: T = (1/gamma) * ln(1 - (gamma * ln(U)) / lambda)
         outcome = (ln(1 :- ((aux :* ln(RN)) :/ exp(XB))) :/ aux)
     }
+    else if (dist == "llogistic") {
+        // Log-logistic (AFT): T = exp(XB) * (1/U - 1)^gamma, gamma = exp(aux) [aux = ln_gam].
+        // exp(XB) is the median/scale; heavier tail than Weibull. Verified against streg to machine
+        // precision. Finite mean but infinite variance (gamma<1) -> very heavy simulated tail.
+        outcome = exp(XB) :* ((1 :/ RN :- 1) :^ exp(aux))
+    }
+    else if (dist == "lnormal") {
+        // Log-normal (AFT): ln(T) ~ N(XB, sigma^2), sigma = exp(aux) [aux = ln_sig]. Invert S(T)=U:
+        // T = exp(XB + sigma*invnormal(1-U)). Heavier-than-Weibull tail but FINITE variance (lighter
+        // extreme tail than log-logistic -- TFI uses this). Verified against streg to machine precision.
+        outcome = exp(XB :+ exp(aux) :* invnormal(1 :- RN))
+    }
     else {
         errprintf("ERROR: Unknown distribution '%s'\n", dist)
-        errprintf("Valid options: 'exponential', 'ereg', 'weibull', 'gompertz'\n")
+        errprintf("Valid options: 'exponential', 'ereg', 'weibull', 'gompertz', 'llogistic', 'lnormal'\n")
         exit(198)
     }
-    
+
     return(outcome)
 }
 
@@ -105,15 +119,16 @@ real colvector calcSurvTime(
  * 
  * @param XB       Linear predictor (vector or scalar)
  * @param TSD      Time since diagnosis - calculate S(TSD)
- * @param dist     Distribution type ("exponential"/"ereg", "weibull", "gompertz")
- * @param aux      Auxiliary parameter (shape/gamma parameter)
+ * @param dist     Distribution type ("exponential"/"ereg", "weibull", "gompertz", "llogistic", "lnormal")
+ * @param aux      Auxiliary parameter (shape/gamma parameter). Scalar, or a per-observation
+ *                 colvector when the shape varies by covariate (OS: per-BCR Weibull shape).
  * @return         Survival probabilities S(TSD)
  */
 real colvector calcSurvProb(
     real colvector XB,
     real colvector TSD,
     string scalar dist,
-    | real scalar aux
+    | real colvector aux
 ) {
     real colvector PR
     
@@ -130,9 +145,17 @@ real colvector calcSurvProb(
         // Gompertz: S(t) = exp(-lambda/gamma * (exp(gamma*t) - 1))
         PR = exp(-exp(XB) :* (1 :/ aux) :* (exp(aux :* TSD) :- 1))
     }
+    else if (dist == "llogistic") {
+        // Log-logistic (AFT): S(t) = 1 / (1 + (t/exp(XB))^(1/gamma)), gamma = exp(aux) [aux = ln_gam].
+        PR = 1 :/ (1 :+ ((TSD :/ exp(XB)) :^ (1 :/ exp(aux))))
+    }
+    else if (dist == "lnormal") {
+        // Log-normal (AFT): S(t) = 1 - Phi((ln t - XB)/sigma) = Phi((XB - ln t)/sigma), sigma = exp(aux)
+        PR = normal((XB :- ln(TSD)) :/ exp(aux))
+    }
     else {
         errprintf("ERROR: Unknown distribution '%s'\n", dist)
-        errprintf("Valid distributions: 'exponential', 'ereg', 'weibull', 'gompertz'\n")
+        errprintf("Valid distributions: 'exponential', 'ereg', 'weibull', 'gompertz', 'llogistic', 'lnormal'\n")
         exit(198)
     }
     
