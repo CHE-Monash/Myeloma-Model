@@ -26,6 +26,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Rebranded** from *EpiMAP Myeloma* to **Monash Myeloma Model**; GitHub repository renamed `CHE-Monash/EpiMAP-Myeloma` → `CHE-Monash/Myeloma-Model` (old URLs auto-redirect). Published papers and DOIs retain the EpiMAP Myeloma name.
 - **Version bump to 3.0**: consolidates the v2.1 vectorised engine with the Calibrated Transport/CRN methods and the July 2026 calibration work (per-line OS + individual comorbidities) into a single major release. From v3.0 onward, major versions increment with each published paper (see Version Naming Convention).
 
+### Licensing
+- **Relicensed to a dual, source-available model from v3.0**: the software is now offered under the **PolyForm Noncommercial License 1.0.0** (free for academic/noncommercial use), with **commercial use — including industry-sponsored regulatory/reimbursement (e.g. PBAC) submissions — by separate licence from Monash University**. Earlier releases remain under **GPLv3** (the change is not retroactive). Registry-derived data and fitted parameters are additionally governed by the MRDR data agreement. See `LICENSING.md`.
+
 ### Incorporated from v2.1
 - Vectorised Mata engine, modular `mata_setup.do`, and the comprehensive validation suite — see the [2.1] entry below for detail.
 

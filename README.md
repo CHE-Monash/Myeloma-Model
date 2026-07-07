@@ -1,6 +1,6 @@
 # Monash Myeloma Model v3.0
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/) [![DOI](https://img.shields.io/badge/DOI-10.1371%2Fjournal.pone.0308812-blue.svg)](https://doi.org/10.1371/journal.pone.0308812)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE) [![Source available](https://img.shields.io/badge/source-available-brightgreen.svg)](LICENSING.md) [![Stata](https://img.shields.io/badge/Stata-15.0%2B-red.svg)](https://www.stata.com/) [![DOI](https://img.shields.io/badge/DOI-10.1371%2Fjournal.pone.0308812-blue.svg)](https://doi.org/10.1371/journal.pone.0308812)
 
 A comprehensive discrete-event simulation model for multiple myeloma disease outcomes and treatment pathways, developed through collaboration between Monash University's Centre for Health Economics and Transfusion Research Unit.
 
@@ -141,7 +141,8 @@ Myeloma-Model/
 ├── hpc/                     # MASSIVE M3 cluster scripts
 ├── README.md
 ├── CHANGELOG.md
-└── LICENSE
+├── LICENSE                  # PolyForm Noncommercial 1.0.0 (source-available)
+└── LICENSING.md             # dual-licence model + commercial enquiries
 ```
 
 ## Performance Improvements in v3.0
@@ -223,7 +224,14 @@ For access to genuine patient data from the Australia and New Zealand Myeloma an
 
 ## Licence
 
-This project is licenced under the GNU General Public Licence v3.0 - see the [LICENSE](LICENSE) file for details.
+**Open-science, source-available, dual-licensed** — following the principle *"as open as possible, as closed as necessary."* The full code and model documentation are public for inspection and reproduction.
+
+- **Noncommercial use** (academic, educational, public-research, government, personal) is free under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+- **Commercial use** — including industry-sponsored regulatory or reimbursement (e.g. PBAC) submissions — requires a separate commercial licence from Monash University.
+- **Prior releases** remain available under the GNU General Public License v3.0; the change applies from v3.0 onward.
+- **Registry-derived data and fitted parameters** are additionally governed by the MRDR data agreement.
+
+See [LICENSING.md](LICENSING.md) for the full model and commercial-licence enquiries. This is **source-available**, not "open source" in the OSI sense (it restricts commercial use).
 
 ## Related Resources
 
