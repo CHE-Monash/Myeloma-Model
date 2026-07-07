@@ -1,9 +1,8 @@
 **********
-* SIM TXD
+* Monash Myeloma Model - Sim TXD
 *
-* Purpose: Calculate treatment duration for L2 onwards
-* Method: Parametric survival analysis
-* Outcome: Continuous time (months)
+* Purpose: Draw treatment duration for L2 onwards via parametric survival. Continuous time in
+*          months.
 **********
 
 mata {

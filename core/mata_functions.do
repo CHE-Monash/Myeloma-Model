@@ -1,14 +1,9 @@
 **********
 * Monash Myeloma Model - Mata Utility Functions
-* 
-* Purpose: Reusable functions for survival calculations, ordered logit,
-*          filtering, and validation
 *
-* Usage: Load once at start of analysis
-*        quietly do "core/mata_functions.do"
-*
-* Author: Monash Myeloma Model Team
-* Date: October 2025
+* Purpose: Reusable Mata functions for survival calculations, ordered logit, patient
+*          filtering, value truncation and validation. Used across the outcome modules.
+* Usage:   Load once per (cleared) Mata state, e.g. run "core/mata_functions.do".
 **********
 
 *Functions for sim_txr.do

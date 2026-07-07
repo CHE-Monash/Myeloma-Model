@@ -1,35 +1,14 @@
 **********
-* Monash Myeloma Model - OOS (70/30): bootstrap prediction-interval validation
+* Monash Myeloma Model - OOS bootstrap validation
 *
-* Purpose: The HEADLINE out-of-sample metric. validate_oos.do checks the POINT estimate (one
-*          70%-trained coefficient set) against the held-out 30%'s observed outcomes with fixed
-*          tolerances. This script instead builds a 95% PREDICTION INTERVAL for each outcome from the
-*          500 bootstrap simulations (each a patient-cluster resample of the 70%, re-imputed + re-fit
-*          + re-simulated on the held-out 30%) and asks, by the PERCENTILE METHOD: does the held-out
-*          OBSERVED value fall inside the bootstrap 95% interval [p2.5, p97.5]? -- the calibration check
-*          used in the 2024 PLOS ONE paper. Coverage (% of targets inside) should approach ~95% if the
-*          model is well-calibrated.
-*
-* Outcomes (identical estimators to validate_outcomes.do, computed per bootstrap):
-*   OS  - KM survival at 3 & 5 yr, by line (L1 no-ASCT, ASCT, L2, L3) and BCR
-*   BCR - response distribution (%) by line
-*   TXD - % still on treatment at 12 & 24 mo, by line and BCR
-*   TFI - % still treatment-free at 12 & 24 mo, by line and BCR
-*   PATH- ASCT rate (among L1-end reachers) and L2-L5 reach rates
-*   (the TFI-L2 response-ORDERING check is a pass/fail, not a target value, so it is not covered here)
-*
-* ---------------------------------------------------------------------------------------------------
-* DESIGNED TO RUN ON THE HPC (the 500 bootstrap .dta live there). To run it there, copy:
-*     analyses/oos/bootstrap_validation.do          (this file)
-*     analyses/oos/targets/                          (the 13 observed-target CSVs -- movable)
-*     analyses/oos/simulated/bootstrap         (the folder of 500 bootstrap _B<n>.dta simulations)
-*   then, from the repository root:  stata -b do analyses/oos/bootstrap_validation.do
-*   Positional args override the paths (see usage below); edit the defaults if you prefer. SANITY-CHECK
-*   FIRST with a small run:  stata -b do analyses/oos/bootstrap_validation.do 5
-*   Pull back:                       analyses/oos/results/oos_bootstrap_validation.md   (review)
-*                                    analyses/oos/results/oos_bootstrap_coverage.csv    (machine-readable)
-* NB: not run locally at authoring time (no bootstrap files present) -- smoke-test with bv_maxbs(5).
-* ---------------------------------------------------------------------------------------------------
+* Purpose: The headline OOS metric. Builds a 95% prediction interval [p2.5, p97.5] per outcome across
+*          the 500 bootstrap sims and checks (percentile method, 2024 PLOS ONE) whether each held-out
+*          observed value falls inside; coverage near ~95% indicates good calibration.
+* Usage:   stata -b do analyses/oos/bootstrap_validation.do [maxbs] [targets] [simdir] [out] [minbs] [stub]
+* Notes:   Designed to run on the HPC where the 500 bootstrap .dta live; smoke-test with maxbs=5.
+*          Same estimators as validate_outcomes.do, per bootstrap (OS/BCR/TXD/TFI/PATH); the TFI-L2
+*          ordering check is pass/fail, not covered here. Outputs oos_bootstrap_validation.md +
+*          oos_bootstrap_coverage.csv to analyses/oos/results/.
 **********
 
 * ---- optional positional args, read into LOCALS before clear all (which would wipe globals) ----

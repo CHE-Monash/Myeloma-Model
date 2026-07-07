@@ -1,11 +1,9 @@
 **********
-* Monash Myeloma Model 
-* Generate Benchmarks
-* 
-* Purpose: Extract validation benchmarks from MRDR data
+* Monash Myeloma Model - Generate Benchmarks
 *
-* Author: Adam Irving
-* Date: January 2026
+* Purpose: Extract validation benchmarks from the MRDR MI data (in-sample by default, or held-out
+*          OOS targets when passed input/output args).
+* Usage:   do generate_benchmarks.do [input_MI.dta] [output_dir]   (no args -> in-sample defaults)
 **********
 
 * Optional positional args (read into locals, which survive clear all) let this script build either

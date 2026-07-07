@@ -1,39 +1,36 @@
 **********
-* SIM OS
+* Monash Myeloma Model - Sim OS
 *
-* Purpose: Overall Survival for the current pathway stage (OMC)
-* Method:  Stage-specific parametric survival. Each pathway point has its own fitted
-*          model (own shape, own demographic effects, own comorbidity + BCR effects),
-*          clocked from that stage's own entry event, so the draw is a fresh survival
+* Purpose: Draw stage-specific parametric Overall Survival for the current pathway stage (OMC).
+*          Each stage has its own fitted model (own shape, demographic, comorbidity + BCR
+*          effects) clocked from that stage's own entry event, so the draw is fresh survival
 *          from that clock (elapsed = 0 at a line's first stage -> UNCONDITIONAL: no
-*          from-diagnosis mTSD conditioning, which is what removed the heavy-TFI OS lift
-*          that over-predicted weak responders -- see docs/os_line_specific_experiment.md
-*          sec 7c). Result is stored on the DIAGNOSIS clock (originTSD + residual) so
-*          sim_mort compares like-for-like. (L6+ is the one exception: a single model
-*          clocked once from L6 start, so its later stages condition on survival since L6.)
-* Outcome: Continuous time from diagnosis (months), written to mOS[.,OMC]
-*
-* Covariates (per stage): Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT + BCR.
-*   Design uses FULL factor levels (base levels carry 0 coefficients). The four comorbidity
-*   flags are single 0/1 columns inserted AFTER RISS and BEFORE the BCR block, matching the
-*   streg varlist order in prep/risk_equations.do.
-*
+*          from-diagnosis mTSD conditioning, which removed the heavy-TFI OS lift that
+*          over-predicted weak responders). Stored on the DIAGNOSIS clock (originTSD +
+*          residual) so sim_mort compares like-for-like. Continuous months to mOS[.,OMC].
+* Notes:   L6+ is the exception: one model clocked once from L6 start, so its later stages
+*          condition on survival since L6. Covariates per stage: Age Age2 Male i.ECOGcc i.RISS
+*          CM_CKD CM_CRD CM_PLM CM_DBT + BCR, FULL factor levels (base levels carry 0 coeffs);
+*          the four comorbidity flags are single 0/1 columns after RISS and before the BCR
+*          block, matching the streg varlist order in prep/risk_equations.do. Firing map below.
+**********
+
 * Firing map (which fitted model, clock origin and BCR source fire at each OMC):
 *
 *   OMC  Stage         Model            origin mTSD col   BCR mBCR col
 *   ---  ------------  ---------------  ---------------  ----------------
 *    1   DN            OS_DN            1  (=0)          none
-*    2   L1S           OS_L1            2  (TSD_L1S)     1  (BCR_L1)
-*    3   L1E No-ASCT   OS_L1_NoASCT     3  (TSD_L1E)     1  (BCR_L1)
-*    3   L1E ASCT      OS_L1_ASCT       3  (TSD_L1E)     10 (BCR_SCT)
-*    4   L2S           OS_L2            4  (TSD_L2S)     2  (BCR_L2)
-*    5   L2E           OS_L2_End        5  (TSD_L2E)     2  (BCR_L2)
-*    6   L3S           OS_L3            6  (TSD_L3S)     3  (BCR_L3)
-*    7   L3E           OS_L3_End        7  (TSD_L3E)     3  (BCR_L3)
-*    8   L4S           OS_L4            8  (TSD_L4S)     4  (BCR_L4)
-*    9   L4E           OS_L4_End        9  (TSD_L4E)     4  (BCR_L4)
-*   10   L5S           OS_L5            10 (TSD_L5S)     5  (BCR_L5)
-*   11   L5E           OS_L5_End        11 (TSD_L5E)     5  (BCR_L5)
+*    2   L1S           OS_L1S           2  (TSD_L1S)     1  (BCR_L1)
+*    3   L1E No-ASCT   OS_L1E_NoASCT    3  (TSD_L1E)     1  (BCR_L1)
+*    3   L1E ASCT      OS_L1E_ASCT      3  (TSD_L1E)     10 (BCR_SCT)
+*    4   L2S           OS_L2S           4  (TSD_L2S)     2  (BCR_L2)
+*    5   L2E           OS_L2E           5  (TSD_L2E)     2  (BCR_L2)
+*    6   L3S           OS_L3S           6  (TSD_L3S)     3  (BCR_L3)
+*    7   L3E           OS_L3E           7  (TSD_L3E)     3  (BCR_L3)
+*    8   L4S           OS_L4S           8  (TSD_L4S)     4  (BCR_L4)
+*    9   L4E           OS_L4E           9  (TSD_L4E)     4  (BCR_L4)
+*   10   L5S           OS_L5S           10 (TSD_L5S)     5  (BCR_L5)
+*   11   L5E           OS_L5E           11 (TSD_L5E)     5  (BCR_L5)
 * 12-19  L6S .. L9E    OS_L6plus        12 (TSD_L6S)     Line (running BCR)
 *
 * Pattern: origin col = OMC (each stage's own clock, elapsed = 0 -> unconditional),
@@ -41,7 +38,6 @@
 * (all clocked from L6 start col 12 -> conditional, current line's running BCR).
 * BCR_SCT has 4 levels (1-4) not 6; the BCR block width is read from each coefficient
 * matrix (nBCR = cols - 15), so a 4- or 6-level block is handled automatically.
-**********
 
 mata {
 	// Alive-and-eligible filter (no alive-check at DN, where mMOR[.,OMC-1] does not exist)
@@ -70,51 +66,51 @@ mata {
 			dist  = fbOS_DN
 		}
 		else if (OMC == 2) {
-			vCoef = bOS_L1
-			dist  = fbOS_L1
+			vCoef = bOS_L1S
+			dist  = fbOS_L1S
 		}
 		else if (OMC == 3 & s == 1) {
-			vCoef = bOS_L1_NoASCT
-			dist  = fbOS_L1_NoASCT
+			vCoef = bOS_L1E_NoASCT
+			dist  = fbOS_L1E_NoASCT
 			sctFilter = (vSCT_L1 :== 0)
 		}
 		else if (OMC == 3 & s == 2) {
-			vCoef = bOS_L1_ASCT
-			dist  = fbOS_L1_ASCT
+			vCoef = bOS_L1E_ASCT
+			dist  = fbOS_L1E_ASCT
 			bcrCol = 10
 			sctFilter = (vSCT_L1 :== 1)
 		}
 		else if (OMC == 4) {
-			vCoef = bOS_L2
-			dist  = fbOS_L2
+			vCoef = bOS_L2S
+			dist  = fbOS_L2S
 		}
 		else if (OMC == 5) {
-			vCoef = bOS_L2_End
-			dist  = fbOS_L2_End
+			vCoef = bOS_L2E
+			dist  = fbOS_L2E
 		}
 		else if (OMC == 6) {
-			vCoef = bOS_L3
-			dist  = fbOS_L3
+			vCoef = bOS_L3S
+			dist  = fbOS_L3S
 		}
 		else if (OMC == 7) {
-			vCoef = bOS_L3_End
-			dist  = fbOS_L3_End
+			vCoef = bOS_L3E
+			dist  = fbOS_L3E
 		}
 		else if (OMC == 8) {
-			vCoef = bOS_L4
-			dist  = fbOS_L4
+			vCoef = bOS_L4S
+			dist  = fbOS_L4S
 		}
 		else if (OMC == 9) {
-			vCoef = bOS_L4_End
-			dist  = fbOS_L4_End
+			vCoef = bOS_L4E
+			dist  = fbOS_L4E
 		}
 		else if (OMC == 10) {
-			vCoef = bOS_L5
-			dist  = fbOS_L5
+			vCoef = bOS_L5S
+			dist  = fbOS_L5S
 		}
 		else if (OMC == 11) {
-			vCoef = bOS_L5_End
-			dist  = fbOS_L5_End
+			vCoef = bOS_L5E
+			dist  = fbOS_L5E
 		}
 		else {
 			vCoef = bOS_L6plus

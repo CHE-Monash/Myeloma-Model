@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive testing framework for the Monash Myeloma Model discrete event simulation model. The testing suite is designed to validate model logic across all 30 risk equations, ensure data integrity throughout the simulation, and verify the accuracy of treatment pathway modelling and clinical outcome predictions.
+This document outlines a comprehensive testing framework for the Monash Myeloma Model discrete event simulation model. The testing suite is designed to validate model logic across all 50 risk equations, ensure data integrity throughout the simulation, and verify the accuracy of treatment pathway modelling and clinical outcome predictions.
 
 The test suite is organised into seven major categories covering:
 1. Input validation
@@ -182,7 +182,7 @@ These tests ensure that patient input data meets all requirements before simulat
 ## 2. Risk Equation Accuracy Tests
 
 ### Overview
-These tests validate the 30 risk equations that form the core of the simulation model, ensuring coefficients are correctly applied and predictions match expected values.
+These tests validate the 50 risk equations that form the core of the simulation model, ensuring coefficients are correctly applied and predictions match expected values.
 
 ---
 
@@ -214,7 +214,7 @@ These tests validate the 30 risk equations that form the core of the simulation 
 - Check ASCT vs non-ASCT pathway coefficients where relevant
 
 **Expected Outcome:** 
-- All 30 risk equation coefficient sets load without errors
+- All 50 risk equation coefficient sets load without errors
 - Coefficients match documented parameter values exactly
 - Analysis-specific modifications apply correctly
 - No warning messages during matrix operations
@@ -1593,7 +1593,7 @@ These tests ensure the model is reproducible, well-documented, and accessible to
 - All command-line arguments explained
 
 **Technical Specification:**
-- All 30 risk equations documented with covariates
+- All 50 risk equations documented with covariates
 - Parametric distributions specified for survival models
 - Coefficient matrices described
 

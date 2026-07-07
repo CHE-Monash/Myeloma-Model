@@ -1,8 +1,9 @@
 **********
 * Monash Myeloma Model - Validation
 *
-* Purpose: Run systematic validation checks after simulation completes
-* Usage: Run after simulation_engine.do
+* Purpose: Run systematic post-simulation checks (mortality consistency, timing, outcome
+*          ranges) and report error/warning counts.
+* Usage:   Run after simulation_engine.do.
 **********
 
 qui {

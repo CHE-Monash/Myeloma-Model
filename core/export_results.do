@@ -1,31 +1,15 @@
 **********
 * Monash Myeloma Model - Export Results (CSV)
 *
-* Purpose: Engine-level export of machine-readable CSV results for downstream
-*          access (post-processing, dashboards, manuscript drafting). This is
-*          the standard hand-off format for results going forward.
-*
-*          Model-wide: produces the CSVs common to EVERY analysis from a single
-*          run. Analysis-specific CSVs and cross-scenario aggregation live under
-*          analyses/<name>/ instead (no single run can see other scenarios).
-*
-* Behaviour:
-*   - Runs on the in-memory processed dataset, immediately after process_data,
-*     once per arm. Does NOT modify the data in memory (file write +
-*     preserve/restore), so the dispatcher's subsequent save is unaffected.
-*   - Point-estimate runs only; bootstrap is aggregated downstream (Tier 3),
-*     so this exits early when $boot == 1.
-*
-* Output: $simulated_path/$scenario/
-*   bcr_<stub>.csv       BCR distribution at the assessed line ($line)
-*   econ_<stub>.csv      Mean cost / QALY / LY (discounted and undiscounted)
-*   patients_<stub>.csv  Per-patient key outcomes (flat)
-*   where <stub> = ${int}_${line}_${data}
-*
-* Note: reads the variable names produced by core/process_data.do
-*       (cost_total_d, qaly_total_d, BCR_L#, ...), NOT the older names used in
-*       core/generate_report.do (cTotald, qTotald). Keep this aligned with
-*       process_data.do if those variables are renamed.
+* Purpose: Export the model-wide machine-readable CSVs common to every analysis from a
+*          single run, straight after process_data (once per arm). Runs on the in-memory
+*          dataset without modifying it (write + preserve/restore); point-estimate only
+*          (exits when $boot == 1). Writes to $simulated_path/$scenario/: bcr_<stub>.csv
+*          (BCR at line $line), econ_<stub>.csv (mean cost/QALY/LY, disc + undisc),
+*          patients_<stub>.csv (per-patient outcomes); <stub> = ${int}_${line}_${data}.
+* Notes:   Reads process_data.do variable names (cost_total_d, qaly_total_d, BCR_L#, ...),
+*          NOT the older generate_report.do names - keep aligned if those are renamed.
+*          Analysis-specific CSVs and cross-scenario aggregation live under analyses/<name>/.
 **********
 
 capture program drop export_results

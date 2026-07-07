@@ -1,23 +1,21 @@
 **********
-* Monash Myeloma Model - OOS (70/30): simulate.do (simulation dispatcher)
+* Monash Myeloma Model - OOS simulate
 *
-* Simulates the held-out 30% patients using coefficients trained on the 70%, then compared to their
-* observed outcomes with validate_oos.do. Orchestrated by run.do; on the HPC it is sbatch'd directly
-* (it never sources run.do). Mirrors analyses/base_model/simulate.do, but:
-*   - the input cohort is the real held-out patients (analyses/oos/patients/oos_cohort.dta) via
-*     $cohort_file, not the synthetic population; and
-*   - coefficients come from analyses/oos/coefficients/ (trained on the 70%).
-*
-* Point estimate: $boot 0. Prediction intervals: $boot 1 with $min_bs/$max_bs over the 70% bootstrap
-* coefficient sets (one simulated dataset per resample; validate_oos/bootstrap_validation aggregate).
+* Purpose: Simulation dispatcher -- simulates the held-out 30% patients (cohort $cohort_file =
+*          analyses/oos/patients/oos_cohort.dta) using coefficients trained on the 70%
+*          (analyses/oos/coefficients/). Mirrors analyses/base_model/simulate.do but on real test
+*          patients, not the synthetic population.
+* Notes:   Orchestrated by run.do; on the HPC it is sbatch'd directly (never sources run.do). Point
+*          estimate $boot 0; prediction intervals $boot 1 with $min_bs/$max_bs over the 70% bootstrap
+*          coefficient sets (one dataset per resample; aggregated by validate_oos/bootstrap_validation).
 **********
 
 * Optional positional args for the bootstrap run, read into locals BEFORE clear all:
 *   do simulate.do            -> point estimate ($boot 0)
 *   do simulate.do 1 1 500    -> bootstrap sims 1-500 (HPC: pass an array chunk, e.g. 1 101 200)
-local a_boot  `"`1'"'
-local a_minbs `"`2'"'
-local a_maxbs `"`3'"'
+local a_boot  `1'
+local a_minbs `2'
+local a_maxbs `3'
 
 clear all
 set more off
@@ -47,9 +45,9 @@ global scenario     ""                                      // Scenario
 
 // Bootstrap settings
 global boot         "0"                                     // Bootstrap flag (0/1)
-if `"`a_boot'"'  != "" global boot   `"`a_boot'"'
-if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
-if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
+if "`a_boot'"  != "" global boot   "`a_boot'"
+if "`a_minbs'" != "" global min_bs "`a_minbs'"
+if "`a_maxbs'" != "" global max_bs "`a_maxbs'"
 
 **********
 * Set Paths

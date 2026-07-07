@@ -1,9 +1,8 @@
 **********
-* SIM ASCT DN
-* 
-* Purpose: Determine ASCT eligibility at diagnosis
-* Method: Logistic regression
-* Outcome: Binary (0 = Not eligible, 1 = Eligible)
+* Monash Myeloma Model - Sim ASCT DN
+*
+* Purpose: Determine ASCT eligibility at diagnosis via logistic regression. Binary outcome
+*          (0 = not eligible, 1 = eligible).
 **********
 	
 mata {

@@ -1,9 +1,8 @@
 **********
-* SIM MNT
+* Monash Myeloma Model - Sim MNT
 *
-* Purpose: Determine receipt of Maintenance Therapy
-* Method: Logistic regression
-* Outcome: Binary (1 = MNT / 0 = No MNT)
+* Purpose: Determine receipt of Maintenance Therapy via logistic regression. Binary outcome
+*          (0 = no MNT, 1 = MNT).
 **********
 
 mata {

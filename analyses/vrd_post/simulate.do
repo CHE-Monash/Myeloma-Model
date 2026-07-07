@@ -1,19 +1,19 @@
 **********
-* Monash Myeloma Model - vrd_post: simulate.do (simulation dispatcher)
+* Monash Myeloma Model - Simulate (vrd_post dispatcher)
 *
-* VRd at line 1, post-market impact. Uses a coefficient set in which VRd is excluded from the
-* risk equations; $int toggles the comparison (SoC = VRd-eligible patients receive historical
-* alternatives; VRd = VRd available). Orchestrated by run.do; on the HPC it is sbatch'd directly.
-*
-* Point estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples.
-* Optional positional args (used by run.do / HPC arrays): boot min_bs max_bs [int-arm].
+* Purpose: simulation dispatcher for VRd at line 1, post-market impact. Uses a coefficient set in which
+*          VRd is excluded from the risk equations; $int toggles the comparison (SoC = VRd-eligible
+*          patients receive historical alternatives; VRd = VRd available).
+* Usage:   orchestrated by run.do; on the HPC it is sbatch'd directly. Point estimate: $boot 0.
+*          Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples. Optional positional
+*          args (run.do / HPC arrays): boot min_bs max_bs [int-arm].
 **********
 
 * Optional positional args, read into locals BEFORE clear all:
-local a_boot  `"`1'"'
-local a_minbs `"`2'"'
-local a_maxbs `"`3'"'
-local a_int   `"`4'"'   // arm override (SoC / VRd); default set below
+local a_boot  `1'
+local a_minbs `2'
+local a_maxbs `3'
+local a_int   `4'   // arm override (SoC / VRd); default set below
 
 clear all
 set more off
@@ -44,10 +44,10 @@ global report       "0"                 // Generate report (0/1)
 global scenario     ""                  // Scenario
 
 // Positional-arg overrides (run.do / HPC arrays): boot/min_bs/max_bs and the intervention arm
-if `"`a_boot'"'  != "" global boot   `"`a_boot'"'
-if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
-if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
-if `"`a_int'"'   != "" global int    `"`a_int'"'   // SoC / VRd (run.do loops both arms)
+if "`a_boot'"  != "" global boot   "`a_boot'"
+if "`a_minbs'" != "" global min_bs "`a_minbs'"
+if "`a_maxbs'" != "" global max_bs "`a_maxbs'"
+if "`a_int'"   != "" global int    "`a_int'"   // SoC / VRd (run.do loops both arms)
 
 **********
 * Set Paths

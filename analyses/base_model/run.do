@@ -1,19 +1,14 @@
 **********
-* Monash Myeloma Model - base_model: run.do (analysis runbook)
+* Monash Myeloma Model - Run (base_model runbook)
 *
-* Current-practice projection over the synthetic population (all regimens), in order:
-* risk equations -> simulate. Run from the repository root. MRDR data via $data_path (config.do).
-* simulate.do is the simulation dispatcher.
-*
-* Depends on the SHARED prep outputs (built once by prep/, not per-analysis):
-*   - ${data_path}/MRDR Long MI.dta            (prep/multiple_imputation.do 10 0)  -- risk-equation input
-*   - patients/population_1995_2040_*.dta     (prep/population_1995_2040.do)       -- the simulation cohort
-*
-* Two tracks:
-*   DETERMINISTIC (point estimate)  -- light; runs locally, top to bottom (the live `do` lines).
-*   BOOTSTRAP (prediction intervals) -- HEAVY. The risk-equation and 500-replicate simulation steps run
-*       on the HPC. This file is NOT run on the HPC -- the bootstrap section below is the canonical
-*       record of the sequence (left commented), with the equivalent sbatch commands.
+* Purpose: runbook for the current-practice projection over the synthetic population (all regimens):
+*          risk equations -> simulate. Deterministic track runs locally top to bottom; the bootstrap
+*          section (prediction intervals, HEAVY, HPC) is left commented as the canonical record with the
+*          equivalent sbatch commands.
+* Usage:   run from the repository root; MRDR data via $data_path (config.do); simulate.do is the
+*          dispatcher. Needs shared prep outputs: ${data_path}/MRDR Long MI.dta
+*          (prep/multiple_imputation.do 10 0) and patients/population_1995_2040_*.dta
+*          (prep/population_1995_2040.do).
 **********
 
 if "$repo_path" != "" cd "$repo_path"

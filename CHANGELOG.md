@@ -10,11 +10,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Integration with R for post-processing analysis
 - Extended documentation for health economic applications
 
-## [3.0] - 2026-06-24
+## [3.0] - 2026-07-07
 
 ### Added
 - **Calibrated Transport methods** (`analyses/transport_dvd/`): out-of-trial outcome prediction (e.g. DVd at L2) with a common-random-number engine, sample-size workflow, and cohort pipeline.
 - **Common Random Numbers (CRN)**: aligned RNG across treatment arms via an `mRN` slot registry (`core/rng_slots.do`) and `rnDraw` migration, for variance-reduced cost-effectiveness comparisons.
+- **Per-line overall survival**: OS re-specified as a separate parametric model per line/stage of therapy, each clocked from that line's own start (`OS_DN`, `OS_L1`/`_NoASCT`/`_ASCT`, `OS_L2..L5` (+`_End`), `OS_L6plus`), replacing the single from-diagnosis survival curve — removes an accumulated-time bias that inflated survival for poor responders at later lines. Engine: `core/outcomes/sim_os.do` (per-stage firing map, diagnosis-clock storage).
+- **Individual comorbidity covariates**: the OS and both ASCT-eligibility equations now carry four individual comorbidity flags — renal impairment (`CM_CKD`, derived from imputed eGFR), cardiac (`CM_CRD`), pulmonary (`CM_PLM`) and diabetes (`CM_DBT`) — replacing the earlier single ordinal comorbidity score (`CMc`). Engine plumbing in `core/mata_setup.do`, `sim_os.do`, `sim_asct_*.do`, `process_data.do`.
 - **Consolidated pipeline**: dispatchers unified onto `core/run_pipeline.do`; added `analyses/transport_dvd/ce_sample_size.do`.
 - **Standardised CSV result exports**: machine-readable results for downstream/programmatic access (R/Python post-processing, dashboards, assistant-driven manuscript drafting) instead of manual copy-to-Excel.
   - **`core/export_results.do`**: engine-level export of CSVs common to every analysis (per-patient summary, BCR distribution, mean cost/QALY/LY). Runs by default as part of the simulation pipeline (immediately after `process_data`, once per arm; skipped during bootstrap), reading `core/process_data.do` outputs into `simulated/<scenario>/`. First adopted by the `dvd_method` dispatcher.
@@ -22,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Changed
 - **Rebranded** from *EpiMAP Myeloma* to **Monash Myeloma Model**; GitHub repository renamed `CHE-Monash/EpiMAP-Myeloma` → `CHE-Monash/Myeloma-Model` (old URLs auto-redirect). Published papers and DOIs retain the EpiMAP Myeloma name.
-- **Version bump to 3.0**: consolidates the v2.1 vectorised engine with the Calibrated Transport/CRN methods into a single major release. From v3.0 onward, major versions increment with each published paper (see Version Naming Convention).
+- **Version bump to 3.0**: consolidates the v2.1 vectorised engine with the Calibrated Transport/CRN methods and the July 2026 calibration work (per-line OS + individual comorbidities) into a single major release. From v3.0 onward, major versions increment with each published paper (see Version Naming Convention).
 
 ### Incorporated from v2.1
 - Vectorised Mata engine, modular `mata_setup.do`, and the comprehensive validation suite — see the [2.1] entry below for detail.

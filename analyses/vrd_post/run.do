@@ -1,24 +1,15 @@
 **********
-* Monash Myeloma Model - vrd_post (VRd LoT 1 post-market): run.do (analysis runbook)
+* Monash Myeloma Model - Run (vrd_post runbook, VRd LoT 1 post-market)
 *
-* Impact of VRd at line 1 vs historical practice, over the VRd-eligible predicted cohort, in order:
-* risk equations -> simulate (x2 arms) -> validate. Run from the repository root. MRDR data via
-* $data_path (config.do). simulate.do is the simulation dispatcher.
-*
-* Two arms, both simulated the same way (the dispatcher's $int, overridable as its 4th positional arg):
-*   SoC   VRd-eligible patients receive their historical alternatives (VRd excluded)
-*   VRd   VRd is available          -> the SoC-vs-VRd contrast is the post-market impact
-*
-* Depends on the SHARED prep outputs (built once by prep/, not per-analysis):
-*   - ${data_path}/MRDR Long MI.dta            (prep/multiple_imputation.do 10 0)  -- risk-equation input
-*   - analyses/vrd_post/patients/patients_vrd_l1_post.dta  -- the VRd-eligible L1 simulation cohort
-*
-* Two tracks:
-*   DETERMINISTIC (point estimate)  -- light; runs locally, top to bottom (the live `do` lines).
-*   BOOTSTRAP (prediction intervals) -- HEAVY. The risk-equation and 2x500-replicate simulation steps
-*       run on the HPC. This file is NOT run on the HPC -- the bootstrap section below is the canonical
-*       record of the sequence (left commented), with the equivalent sbatch commands and the
-*       rsync/submit/pull plumbing in a /* ... */ shell block at the end.
+* Purpose: runbook for the impact of VRd at line 1 vs historical practice, over the VRd-eligible
+*          predicted cohort: risk equations -> simulate (x2 arms) -> validate. Two arms via the
+*          dispatcher's $int -- SoC (VRd excluded; historical alternatives) and VRd (VRd available); the
+*          SoC-vs-VRd contrast is the post-market impact. Deterministic track runs locally; the bootstrap
+*          section (HEAVY, HPC) is left commented, with the rsync/submit/pull plumbing in the /* ... */
+*          shell block at the end.
+* Usage:   run from the repository root; MRDR data via $data_path (config.do); simulate.do is the
+*          dispatcher. Needs shared prep outputs: ${data_path}/MRDR Long MI.dta
+*          (prep/multiple_imputation.do 10 0) and analyses/vrd_post/patients/patients_vrd_l1_post.dta.
 **********
 
 if "$repo_path" != "" cd "$repo_path"

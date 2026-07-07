@@ -1,16 +1,12 @@
 **********
-* Monash Myeloma Model - Extreme-value (stress) verification
+* Monash Myeloma Model - Extreme-value verification
 *
-* Purpose: VERIFICATION (not calibration). Push individual risk-equation coefficients to extreme
-*          values and confirm the engine responds in the correct direction and stays bounded --
-*          a standard model-verification / face-validity step. Needs NO MRDR data: it runs the
-*          engine on the (in-repo) population cohort with the base coefficient set, perturbed.
-*
-* Method:  For each scenario, reload the base coefficients, overwrite ONE intercept in Mata, run the
-*          engine on a small cohort, and assert a summary output crosses an expected bound. Plus one
-*          monotonicity sweep (raising the OS intercept must monotonically lower median survival).
-*
-* Run from the repository root.  No drive required.
+* Purpose: Verification (not calibration). Push individual risk-equation coefficients to extreme
+*          values and confirm the engine responds in the correct direction and stays bounded. Each
+*          scenario reloads the base coefficients, overwrites ONE intercept in Mata, runs the engine
+*          on a small cohort and asserts an output crosses an expected bound; plus a monotonicity
+*          sweep (raising the OS intercept must monotonically lower median survival).
+* Usage:   Run from the repository root. No MRDR drive required (uses the in-repo population cohort).
 **********
 
 clear all
@@ -103,7 +99,7 @@ di _n as text "Baseline:  median OS = " %5.1f `base_os' " mo |  ASCT = " %4.1f `
 di ""
 
 **********
-* Per-line OS: the intercept lives in EACH stage's own coefficient matrix (bOS_DN, bOS_L1, ...);
+* Per-line OS: the intercept lives in EACH stage's own coefficient matrix (bOS_DN, bOS_L1S, ...);
 * the constant is always the second-to-last column (cons; the last column is the ancillary /ln_p).
 * xv_bump_os shifts every stage's intercept together, so cranking hazard up/down moves survival at
 * every pathway point (matching the old single-bOS crank).
@@ -111,21 +107,21 @@ di ""
 mata:
 void xv_bump_os(real scalar d)
 {
-	external bOS_DN, bOS_L1, bOS_L1_NoASCT, bOS_L1_ASCT, bOS_L2, bOS_L2_End
-	external bOS_L3, bOS_L3_End, bOS_L4, bOS_L4_End, bOS_L5, bOS_L5_End, bOS_L6plus
-	bOS_DN[1, cols(bOS_DN)-1]               = bOS_DN[1, cols(bOS_DN)-1] + d
-	bOS_L1[1, cols(bOS_L1)-1]               = bOS_L1[1, cols(bOS_L1)-1] + d
-	bOS_L1_NoASCT[1, cols(bOS_L1_NoASCT)-1] = bOS_L1_NoASCT[1, cols(bOS_L1_NoASCT)-1] + d
-	bOS_L1_ASCT[1, cols(bOS_L1_ASCT)-1]     = bOS_L1_ASCT[1, cols(bOS_L1_ASCT)-1] + d
-	bOS_L2[1, cols(bOS_L2)-1]               = bOS_L2[1, cols(bOS_L2)-1] + d
-	bOS_L2_End[1, cols(bOS_L2_End)-1]       = bOS_L2_End[1, cols(bOS_L2_End)-1] + d
-	bOS_L3[1, cols(bOS_L3)-1]               = bOS_L3[1, cols(bOS_L3)-1] + d
-	bOS_L3_End[1, cols(bOS_L3_End)-1]       = bOS_L3_End[1, cols(bOS_L3_End)-1] + d
-	bOS_L4[1, cols(bOS_L4)-1]               = bOS_L4[1, cols(bOS_L4)-1] + d
-	bOS_L4_End[1, cols(bOS_L4_End)-1]       = bOS_L4_End[1, cols(bOS_L4_End)-1] + d
-	bOS_L5[1, cols(bOS_L5)-1]               = bOS_L5[1, cols(bOS_L5)-1] + d
-	bOS_L5_End[1, cols(bOS_L5_End)-1]       = bOS_L5_End[1, cols(bOS_L5_End)-1] + d
-	bOS_L6plus[1, cols(bOS_L6plus)-1]       = bOS_L6plus[1, cols(bOS_L6plus)-1] + d
+	external bOS_DN, bOS_L1S, bOS_L1E_NoASCT, bOS_L1E_ASCT, bOS_L2S, bOS_L2E
+	external bOS_L3S, bOS_L3E, bOS_L4S, bOS_L4E, bOS_L5S, bOS_L5E, bOS_L6plus
+	bOS_DN[1, cols(bOS_DN)-1]                 = bOS_DN[1, cols(bOS_DN)-1] + d
+	bOS_L1S[1, cols(bOS_L1S)-1]               = bOS_L1S[1, cols(bOS_L1S)-1] + d
+	bOS_L1E_NoASCT[1, cols(bOS_L1E_NoASCT)-1] = bOS_L1E_NoASCT[1, cols(bOS_L1E_NoASCT)-1] + d
+	bOS_L1E_ASCT[1, cols(bOS_L1E_ASCT)-1]     = bOS_L1E_ASCT[1, cols(bOS_L1E_ASCT)-1] + d
+	bOS_L2S[1, cols(bOS_L2S)-1]               = bOS_L2S[1, cols(bOS_L2S)-1] + d
+	bOS_L2E[1, cols(bOS_L2E)-1]               = bOS_L2E[1, cols(bOS_L2E)-1] + d
+	bOS_L3S[1, cols(bOS_L3S)-1]               = bOS_L3S[1, cols(bOS_L3S)-1] + d
+	bOS_L3E[1, cols(bOS_L3E)-1]               = bOS_L3E[1, cols(bOS_L3E)-1] + d
+	bOS_L4S[1, cols(bOS_L4S)-1]               = bOS_L4S[1, cols(bOS_L4S)-1] + d
+	bOS_L4E[1, cols(bOS_L4E)-1]               = bOS_L4E[1, cols(bOS_L4E)-1] + d
+	bOS_L5S[1, cols(bOS_L5S)-1]               = bOS_L5S[1, cols(bOS_L5S)-1] + d
+	bOS_L5E[1, cols(bOS_L5E)-1]               = bOS_L5E[1, cols(bOS_L5E)-1] + d
+	bOS_L6plus[1, cols(bOS_L6plus)-1]         = bOS_L6plus[1, cols(bOS_L6plus)-1] + d
 }
 end
 

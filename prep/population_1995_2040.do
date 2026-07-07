@@ -1,11 +1,9 @@
 **********
 * Monash Myeloma Model - Population 1995 to 2040
 *
-* Purpose: This code generates a synthetic cohort of MM patients to be simultaed
-* Timeframes:
-*		- 1995 to 2020 from AIHW data 
-*		- 2021 to 2040 from Daffodil Centre data
-* Outcome: population_1995_2040_(1 to 10).dta
+* Purpose: Generate a synthetic cohort of MM patients to be simulated: 1995-2020 from AIHW data,
+*          2021-2040 from Daffodil Centre data.
+* Notes:   Outputs population_1995_2040_(1 to 10).dta
 **********
 
 clear

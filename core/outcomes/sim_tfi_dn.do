@@ -1,9 +1,8 @@
 **********
-* SIM TFI DN
-* 
-* Purpose: Treatment-free Interval at Diagnosis (Time from DN to L1S)
-* Method: Parametric survival analysis
-* Outcome: Continuous time (months)
+* Monash Myeloma Model - Sim TFI DN
+*
+* Purpose: Draw Treatment-free Interval at Diagnosis (time from DN to L1S) via parametric
+*          survival. Continuous time in months.
 **********
 	
 mata {

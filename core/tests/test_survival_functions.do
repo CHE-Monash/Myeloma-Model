@@ -1,6 +1,8 @@
 **********
-* Test Survival Time Calculation Functions
-* Tests calcSurvTime() against old formulas
+* Monash Myeloma Model - Test Survival Functions
+*
+* Purpose: Test calcSurvTime() across distributions (exponential, Weibull, ...) against the old
+*          inline survival-time formulas and assert the results match.
 **********
 
 clear all

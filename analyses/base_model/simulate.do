@@ -1,16 +1,16 @@
 **********
-* Monash Myeloma Model - base_model: simulate.do (simulation dispatcher)
+* Monash Myeloma Model - Simulate (base_model dispatcher)
 *
-* Current-practice projection over the synthetic population (all regimens). Orchestrated by run.do;
-* on the HPC it is sbatch'd directly (it never sources run.do).
-*
-* Point estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples.
+* Purpose: simulation dispatcher for the current-practice projection over the synthetic population (all
+*          regimens).
+* Usage:   orchestrated by run.do; on the HPC it is sbatch'd directly (never sources run.do). Point
+*          estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples.
 **********
 
 * Optional positional args for bootstrapping run, read into locals BEFORE clear all:
-local a_boot  `"`1'"'
-local a_minbs `"`2'"'
-local a_maxbs `"`3'"'
+local a_boot  `1'
+local a_minbs `2'
+local a_maxbs `3'
 
 clear all
 set more off
@@ -39,9 +39,9 @@ global scenario     ""           		// Scenario
 
 // Bootstrap settings
 global boot         "0"                 // Bootstrap flag (0/1)
-if `"`a_boot'"'  != "" global boot   `"`a_boot'"'
-if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
-if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
+if "`a_boot'"  != "" global boot   "`a_boot'"
+if "`a_minbs'" != "" global min_bs "`a_minbs'"
+if "`a_maxbs'" != "" global max_bs "`a_maxbs'"
 
 **********
 * Set Paths

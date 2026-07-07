@@ -1,22 +1,13 @@
 **********
-* Monash Myeloma Model - OOS (70/30): held-out validation targets
+* Monash Myeloma Model - OOS targets
 *
 * Purpose: Build the OBSERVED outcome targets for the held-out 30% (OS, BCR, TXD, TFI, pathways) --
-*          what the model's predictions for those patients are compared against.
-*
-* This is the dedicated OOS targets script, but it deliberately REUSES prep/generate_benchmarks.do
-* (the single source of truth for the estimators: KM, the M12/M24 horizon-survival columns, the
-* competing-risks pathways CIF, the L1-end-reacher ASCT denominator) by passing it the test-fold
-* imputed data and an OOS output directory as ARGUMENTS. Identical estimators are what make the OOS
-* comparison fair; arguments (not globals) are used because generate_benchmarks.do runs clear all.
-* (Invoke with do, not run -- run suppresses all screen output.)
-*
-* Requires (run analyses/oos/run.do step 1, the test fold, first):
-*   ${data_path}/oos/MRDR Long MI_test.dta     (test fold, imputed separately)
-* Output:
-*   analyses/oos/targets/   -- the 13 csv files (same schema the model validates against)
-*
-* Run from the repository root.
+*          what the model's predictions for those patients are compared against. Reuses
+*          prep/generate_benchmarks.do (the estimator source of truth) with the test-fold data + an
+*          OOS output dir as ARGUMENTS; identical estimators keep the comparison fair.
+* Notes:   Invoke with do, not run (run suppresses output; args used because generate_benchmarks runs
+*          clear all). Requires ${data_path}/oos/MRDR Long MI_test.dta (run.do step 1 first) ->
+*          analyses/oos/targets/ (13 csv files).
 **********
 
 if "$repo_path" != "" cd "$repo_path"   // cd using the session's repo_path BEFORE clear all wipes it

@@ -1,7 +1,8 @@
 **********
 * Monash Myeloma Model - Load Patients
-* 
-* Purpose: Load and filter patient data file
+*
+* Purpose: Load the cohort (population, $cohort_file override, or production file) and
+*          filter by year of diagnosis, disease stage and ID range; reset ID = _n.
 **********
 
 capture program drop load_patients

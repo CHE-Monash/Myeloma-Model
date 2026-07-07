@@ -1,10 +1,8 @@
 **********
 * Monash Myeloma Model - Simulation Engine
-* 
-* Purpose: Run simulation
 *
-* Author: Monash Myeloma Model Team
-* Date: November 2025
+* Purpose: Drive the simulation pass, dispatching each pathway point (DN, L1S..L9E) to
+*          its outcome module in core/outcomes/ (ASCT, TFI, OS, mortality, BCR, TXR, TXD).
 **********
 
 cap program drop simulation

@@ -1,5 +1,8 @@
 **********
-* Test Mata Functions
+* Monash Myeloma Model - Test Mata Functions
+*
+* Purpose: Unit-test the helpers in core/mata_functions.do (calcSurvTime, ordered-logit assignment,
+*          ...) against the old inline formulas and assert the results match.
 **********
 
 clear all

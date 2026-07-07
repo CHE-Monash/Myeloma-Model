@@ -1,9 +1,7 @@
 **********
-* SIM TXR
+* Monash Myeloma Model - Sim TXR
 *
-* Purpose: Select treatment regimen
-* Method: Multinomial logit
-* Outcome: Regimen number
+* Purpose: Select treatment regimen via multinomial logit. Outcome is the regimen number.
 **********
 
 mata {

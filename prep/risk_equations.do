@@ -1,18 +1,16 @@
 **********
-* Monash Myeloma Model
-* Risk Equations
-* 
-* Purpose: Estimate risk equations for use in simulation
+* Monash Myeloma Model - Risk Equations
 *
-* Author: Adam Irving
-* Date: December 2025
+* Purpose: Fit every model risk equation (grouped by outcome type) from the MI data and matsave
+*          the coefficients to analyses/$analysis/coefficients/. Called by the prep pipeline.
+* Usage:   do risk_equations.do <analysis> <coeffs> <minyr> <maxyr> <boot> <minbs> <maxbs> [sample]
 **********
 
 clear
 clear mata
 
 local Data "$data_cut"
-	
+
 **********
 // Capture arguments
 global analysis `1'
@@ -37,30 +35,31 @@ else {
 	global re_indir "oos/"
 	global re_intag "_$sample"
 }
-		
+
 **********
 // Define functions
+
 cap program drop save_coefs
 program define save_coefs
 	args mat
-	
+
 	mata: b`mat' = st_matrix("e(b_mi)")
 	mata: rb`mat' = st_matrixrowstripe("e(b_mi)")
 	mata: cb`mat' = st_matrixcolstripe("e(b_mi)")
-	
+
 	scalar ncol = colsof(e(b_mi))
 	forval i = 1/`=ncol'{
 		mata: cb`mat'[`i',1] = "`i'"
 	}
 	scalar drop ncol
 	global Coeffs $Coeffs b`mat' rb`mat' cb`mat'
-	
+
 	// For parametric survival analysis - save functional form
-	if ("e(ecmd_mi)" != "") { 
+	if ("e(ecmd_mi)" != "") {
 		mata: fb`mat' = st_global("e(ecmd_mi)")
 		global Coeffs $Coeffs fb`mat'
 	}
-	
+
 	// For multinomial/ordered logt: save outcome levels
 	capture mata: o`mat' = st_matrix("e(out)")
 	if _rc == 0 {
@@ -94,528 +93,454 @@ end
 
 cap program drop risk_equations
 program define risk_equations
-	
+
 	// OS distribution
 	global dOS "w"
-		
+
 	// TXD distribution
 	global dTXD "w"
-		
-	// TFI distribution -- log-normal (heavier tail than Weibull to fix the thin-tail over-progression,
-	// but FINITE variance so simulated draws don't blow out prev_dur like log-logistic did; see
-	// scratch/tfi_family_check.do + prevdur_check.do). Engine calcSurvTime/Prob handle "lnormal".
+
+	// TFI distribution
 	global dTFI = "lognormal"
-			
-	// Per-line regimen code lists ($TXR_L1..L9) from the analysis spec, then build TXR_L* generically.
-	// Clear first so a prior analysis's lists cannot leak within the same Stata session.
+
+	// TXR variables
 	forval l = 1/9 {
 		global TXR_L`l' ""
 	}
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
 	gen_txr
-		
+
 	// Reset global
 	global Coeffs
 
-	// Risk equations
-	
+	// Risk equations are grouped BY OUTCOME TYPE (not by line). Each block below is a
+	// self-contained estimation (its own stset/if), so grouping is purely organisational -
+	// $Coeffs/matsave key by name, so order does not affect the saved coefficients. Within a
+	// group the equations run in pathway order (diagnosis -> L1 -> ... -> LX). See the engine's
+	// core/outcomes/sim_*.do for how each is consumed.
+
+	***** OVERALL SURVIVAL *****
 	di "Overall Survival"
+	// Per-line OS family: one Weibull per pathway stage, window-censored via origin()/exit().
+	// Same covariates throughout (Age Age2 Male i.ECOGcc i.RISS CM_* + stage BCR); stages differ
+	// only by the stset window and BCR source. See core/outcomes/sim_os.do for the firing map.
 
-	// PER-LINE OS (branch os-per-line): one fitted model per pathway stage, each clocked from
-	// that stage's own entry event, so the engine draws a fresh survival from the line clock
-	// (no from-diagnosis mTSD conditioning -- removes the heavy-TFI OS lift; see
-	// docs/os_line_specific_experiment.md sec 7c). Each carries the four baseline comorbidities
-	// (CM_CKD/CRD/PLM/DBT) inserted before the BCR block, matching sim_os.do's design matrix.
-	//
-	// WINDOW-CENSORING: each start->end model is exit()-censored at the NEXT stage's origin event
-	// (its window closes when the patient enters the next stage), symmetric with the next model's
-	// origin(). L6+ is a single model from L6 start (no exit) -- it conditions forward like the old
-	// single-equation OS, acceptable in the sparse deep tail. DN has no BCR.
-
-	// OS_DN: diagnosis -> L1 start
+	// OS_DN: DN -> L1S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 3) exit(Event1 == 10) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT, d($dOS)
 	save_coefs OS_DN
 	mata: _matrix_list(bOS_DN, rbOS_DN, cbOS_DN)
 
-	// OS_L1: L1 start -> L1 end
+	// OS_L1S: L1S -> L1E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 10) exit(Event1 == 11) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L1, d($dOS)
-	save_coefs OS_L1
-	mata: _matrix_list(bOS_L1, rbOS_L1, cbOS_L1)
+	save_coefs OS_L1S
+	mata: _matrix_list(bOS_L1S, rbOS_L1S, cbOS_L1S)
 
-	// OS_L1_NoASCT: L1 end -> L2 start, non-transplant
+	// OS_L1E_NoASCT: L1E -> L2S, No ASCT
 	mi stset Date1 if(F_OS != 1 & SCT == 0), id(ID_BS) failure(Event1 == 104) origin(Event1 == 11) exit(Event1 == 20) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L1, d($dOS)
-	save_coefs OS_L1_NoASCT
-	mata: _matrix_list(bOS_L1_NoASCT, rbOS_L1_NoASCT, cbOS_L1_NoASCT)
+	save_coefs OS_L1E_NoASCT
+	mata: _matrix_list(bOS_L1E_NoASCT, rbOS_L1E_NoASCT, cbOS_L1E_NoASCT)
 
-	// OS_L1_ASCT: L1 end -> L2 start, transplant (BCR_SCT, 4 levels)
+	// OS_L1E_ASCT: L1E -> L2S, ASCT (BCR_SCT, 4 levels)
 	mi stset Date1 if(F_OS != 1 & SCT == 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 11) exit(Event1 == 20) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_SCT, d($dOS)
-	save_coefs OS_L1_ASCT
-	mata: _matrix_list(bOS_L1_ASCT, rbOS_L1_ASCT, cbOS_L1_ASCT)
+	save_coefs OS_L1E_ASCT
+	mata: _matrix_list(bOS_L1E_ASCT, rbOS_L1E_ASCT, cbOS_L1E_ASCT)
 
-	// OS_L2: L2 start -> L2 end
+	// OS_L2S: L2S -> L2E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 20) exit(Event1 == 21) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
-	save_coefs OS_L2
-	mata: _matrix_list(bOS_L2, rbOS_L2, cbOS_L2)
+	save_coefs OS_L2S
+	mata: _matrix_list(bOS_L2S, rbOS_L2S, cbOS_L2S)
 
-	// OS_L2_End: L2 end -> L3 start
+	// OS_L2E: L2E -> L3S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 21) exit(Event1 == 30) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
-	save_coefs OS_L2_End
-	mata: _matrix_list(bOS_L2_End, rbOS_L2_End, cbOS_L2_End)
+	save_coefs OS_L2E
+	mata: _matrix_list(bOS_L2E, rbOS_L2E, cbOS_L2E)
 
-	// OS_L3: L3 start -> L3 end
+	// OS_L3S: L3S -> L3E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 30) exit(Event1 == 31) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
-	save_coefs OS_L3
-	mata: _matrix_list(bOS_L3, rbOS_L3, cbOS_L3)
+	save_coefs OS_L3S
+	mata: _matrix_list(bOS_L3S, rbOS_L3S, cbOS_L3S)
 
-	// OS_L3_End: L3 end -> L4 start
+	// OS_L3E: L3E -> L4S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 31) exit(Event1 == 40) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
-	save_coefs OS_L3_End
-	mata: _matrix_list(bOS_L3_End, rbOS_L3_End, cbOS_L3_End)
+	save_coefs OS_L3E
+	mata: _matrix_list(bOS_L3E, rbOS_L3E, cbOS_L3E)
 
-	// OS_L4: L4 start -> L4 end
+	// OS_L4S: L4S -> L4E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 40) exit(Event1 == 41) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
-	save_coefs OS_L4
-	mata: _matrix_list(bOS_L4, rbOS_L4, cbOS_L4)
+	save_coefs OS_L4S
+	mata: _matrix_list(bOS_L4S, rbOS_L4S, cbOS_L4S)
 
-	// OS_L4_End: L4 end -> L5 start
+	// OS_L4E: L4E -> L5S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 41) exit(Event1 == 50) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
-	save_coefs OS_L4_End
-	mata: _matrix_list(bOS_L4_End, rbOS_L4_End, cbOS_L4_End)
+	save_coefs OS_L4E
+	mata: _matrix_list(bOS_L4E, rbOS_L4E, cbOS_L4E)
 
-	// OS_L5: L5 start -> L5 end
+	// OS_L5S: L5S -> L5E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 50) exit(Event1 == 51) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
-	save_coefs OS_L5
-	mata: _matrix_list(bOS_L5, rbOS_L5, cbOS_L5)
+	save_coefs OS_L5S
+	mata: _matrix_list(bOS_L5S, rbOS_L5S, cbOS_L5S)
 
-	// OS_L5_End: L5 end -> L6 start
+	// OS_L5E: L5E -> L6S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 51) exit(Event1 == 60) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L5, d($dOS)
-	save_coefs OS_L5_End
-	mata: _matrix_list(bOS_L5_End, rbOS_L5_End, cbOS_L5_End)
+	save_coefs OS_L5E
+	mata: _matrix_list(bOS_L5E, rbOS_L5E, cbOS_L5E)
 
-	// OS_L6plus: L6 start onward (single conditional model for the sparse deep tail; running BCR)
+	// OS_L6plus: L6S onward (single conditional model for the sparse deep tail; running BCR)
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 60) scale(30.4375)
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR, d($dOS)
 	save_coefs OS_L6plus
 	mata: _matrix_list(bOS_L6plus, rbOS_L6plus, cbOS_L6plus)
 
-	di "Diagnosis"
-	
-		// ASCT
-	
-		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
-		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event0 == 3)
-		save_coefs DN_SCT
-		
-		mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
-			
-		// Treatment-free Interval
-		
-		mi stset Date1, id(ID_BS) failure(Event1 == 10) origin(Event1 == 3) scale(30.4375)
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
-		save_coefs DN_TFI
-		
-		mata: _matrix_list(bDN_TFI, rbDN_TFI, cbDN_TFI)
-		
-	di "Line 1" 
-	
-		// Treatment Regimen
-	
-		qui tab TXR_L1 // Check if modelling specific regimens
-		if `r(r)' > 1 {
-			// Regimen choice is availability-driven; only Age (+ transplant status, which gates some
-			// regimens) carried signal - Male/ECOG/RISS did not (see scratch/txr_predictor_check.do).
-			// Simplified to Age Age2 SCT. Engine design mPat in core/outcomes/sim_txr.do must match.
-			mi estimate: mlogit TXR_L1 Age Age2 SCT if(Event0 == 10 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
-			save_coefs L1_TXR	
-			
-			mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)	
-		}
-		else { // If all patients receive 'other'
-			mata: oL1_TXR = 0
-			global Coeffs $Coeffs oL1_TXR
-		}
+	***** ASCT (TRANSPLANT DECISION) *****
+	di "ASCT"
+	// Transplant-eligibility logits: at diagnosis (DN_SCT) and at L1 end (L1_SCT).
+	// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
 
-		// L1 Best Clinical Response
-		
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS SCT i.TXR_L1 if(Event0 == 10)
-		save_coefs L1_BCR	
-		
-		mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
+	// DN
+	mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event0 == 3)
+	save_coefs DN_SCT
+	mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
 
-		// Treatment Duration
+	// L1
+	mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
+	save_coefs L1_SCT
+	mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 
-			// Fixed w/ ASCT - L1_TXD_ASCT
-				
-				// Cut off 1 - 60 for optimal fit with 3 splines, 90 for 2 splines
-				scalar L1_TXD_ASCT_C1 = 60
-				mata: L1_TXD_ASCT_C1 = st_numscalar("L1_TXD_ASCT_C1")
-							
-				// Cut off 2 - 120 for optimal fit with 3 splines
-				scalar L1_TXD_ASCT_C2 = 120
-				mata: L1_TXD_ASCT_C2 = st_numscalar("L1_TXD_ASCT_C2")
-						
-				global Coeffs $Coeffs L1_TXD_ASCT_C1 L1_TXD_ASCT_C2 
-				
-				// Spline 1
-				gen S1_exit = Date1 + `=L1_TXD_ASCT_C1'
-				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) exit(S1_exit) scale(30.4375)
-				
-				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD) 
-				save_coefs L1_TXD_ASCT_S1	
-				
-				mata: _matrix_list(bL1_TXD_ASCT_S1, rbL1_TXD_ASCT_S1, cbL1_TXD_ASCT_S1)
-				
-				// Spline 2
-				gen S2_enter = S1_exit + 1
-				gen S2_exit = Date1 + `=L1_TXD_ASCT_C2'
-					
-				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S2_enter) exit(S2_exit) scale(30.4375)
-				
-				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
-				save_coefs L1_TXD_ASCT_S2		
-				
-				mata: _matrix_list(bL1_TXD_ASCT_S2, rbL1_TXD_ASCT_S2, cbL1_TXD_ASCT_S2)
-				
-				// Spline 3
-				gen S3_enter = S2_exit + 1
-				mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S3_enter) scale(30.4375)
-				
-				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
-				save_coefs L1_TXD_ASCT_S3	
-				
-				drop S1_exit S2_enter S2_exit S3_enter
-				mata: _matrix_list(bL1_TXD_ASCT_S3, rbL1_TXD_ASCT_S3, cbL1_TXD_ASCT_S3)
-						
-			// Fixed w/o SCT  - L1_TXD_NoASCT 
-			
-			mi stset Date1 if(TXR_L1 != 7 & SCT == 0), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
-			
-			mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR i.TXR_L1, d($dTXD)
-			save_coefs L1_TXD_NoASCT
-			
-			mata: _matrix_list(bL1_TXD_NoASCT, rbL1_TXD_NoASCT, cbL1_TXD_NoASCT)
-				
-			// Continuous - L1_TXD_Cont
-			
-			count if(TXR_L1 == 7)
-			if r(N) > 0 { // If Rd is included
-				mi stset Date1 if(TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
-				save_max L1_TXD_Cont
-				
-				mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
-				save_coefs L1_TXD_Cont
-				}
-				else { // If Rd is not included (need empty matrices)
-					mata: bL1_TXD_Cont = .
-					mata: rbL1_TXD_Cont = .
-					mata: cbL1_TXD_Cont = .
-					mata: fbL1_TXD_Cont = .
-					mata: maxL1_TXD_Cont = .
-					global Coeffs $Coeffs bL1_TXD_Cont rbL1_TXD_Cont cbL1_TXD_Cont fbL1_TXD_Cont maxL1_TXD_Cont
-				}
-				*mata: _matrix_list(bL1_TXD_Cont, rbL1_TXD_Cont, cbL1_TXD_Cont)
+	***** TREATMENT REGIMEN (TXR) *****
+	di "Treatment Regimen"
+	// Regimen choice is availability-driven; L1 carries Age Age2 SCT (transplant gates some
+	// regimens), L2+ carry Age only - Male/ECOG/RISS/prior-BCR carried no signal (see
+	// scratch/txr_predictor_check.do). Engine design mPat in core/outcomes/sim_txr.do must match.
+	// If a line has only 'other' (r(r) == 1) an empty o<L>_TXR = 0 is stored instead.
 
-		// ASCT
-		
-		// Comorbidities: 4 individual flags (CKD/cardiac/lung/diabetes).
-		mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
-		save_coefs L1_SCT
-		
-		mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
-				
-		// ASCT Best Clinical Response
-		
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 if(Event0 == 100 & BCR_L1 != 6)	
-		save_coefs SCT_BCR
-		
-		mata: _matrix_list(bSCT_BCR, rbSCT_BCR, cbSCT_BCR)
-			
-		// MNT
+	// L1
+	qui tab TXR_L1 // Check if modelling specific regimens
+	if `r(r)' > 1 {
+		mi estimate: mlogit TXR_L1 Age Age2 SCT if(Event0 == 10 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L1_TXR
+		mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
+	}
+	else { // If all patients receive 'other'
+		mata: oL1_TXR = 0
+		global Coeffs $Coeffs oL1_TXR
+	}
 
-			// ASCT
-			mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_SCT if(Event1 == 11 & SCT == 1)
-			save_coefs MNT_ASCT
-			
-			mata: _matrix_list(bMNT_ASCT, rbMNT_ASCT, cbMNT_ASCT)
-			
-			// No ASCT
-			mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_L1 if(Event1 == 11 & SCT == 0)
-			save_coefs MNT_NoASCT	
-			
-			mata: _matrix_list(bMNT_NoASCT, rbMNT_NoASCT, cbMNT_NoASCT)	
-		
-		// Treatment-free Interval
+	// L2
+	qui tab TXR_L2 // Check if modelling specific regimens
+	if `r(r)' > 1 {
+		mi estimate: mlogit TXR_L2 Age Age2 if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L2_TXR
+		mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
+	}
+	else { // If all patients receive 'other'
+		mata: oL2_TXR = 0
+		global Coeffs $Coeffs oL2_TXR
+	}
 
-			// ASCT 
-			mi stset Date1 if(SCT == 1 & BCR_SCT != 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-			save_max L1_TFI_ASCT
-			
-			mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)	
-			save_coefs L1_TFI_ASCT	
-			
-			mata: _matrix_list(bL1_TFI_ASCT, rbL1_TFI_ASCT, cbL1_TFI_ASCT)
-				
-			// No ASCT
-			mi stset Date1 if(SCT == 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
-			save_max L1_TFI_NoASCT
-			
-			mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_L1, d($dTFI)	
-			save_coefs L1_TFI_NoASCT
-			
-			mata: _matrix_list(bL1_TFI_NoASCT, rbL1_TFI_NoASCT, cbL1_TFI_NoASCT)
+	// L3
+	qui tab TXR_L3 // Check if modelling specific regimens
+	if `r(r)' > 1 {
+		mi estimate: mlogit TXR_L3 Age Age2 if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L3_TXR
+		mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
+	}
+	else { // If all patients receive 'other'
+		mata: oL3_TXR = 0
+		global Coeffs $Coeffs oL3_TXR
+	}
 
-	di "Line 2" 
-		
-		// Treatment Regimen
-	
-		qui tab TXR_L2 // Check if modelling specific regimens
-		if `r(r)' > 1 {
-			// Simplified to Age only (see scratch/txr_predictor_check.do): Male/ECOG/RISS/prior-BCR
-			// carried no signal for regimen choice (availability-driven). Engine mPat must match.
-			mi estimate: mlogit TXR_L2 Age Age2 if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
-			save_coefs L2_TXR
-			
-			mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
-		}
-		else { // If all patients receive 'other'
-			mata: oL2_TXR = 0
-			global Coeffs $Coeffs oL2_TXR
-		}
-		
-		// Best Clinical Response
+	// L4
+	qui tab TXR_L4 // Check if modelling specific regimens
+	if `r(r)' > 1 {
+		mi estimate: mlogit TXR_L4 Age Age2 if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L4_TXR
+		mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
+	}
+	else { // If all patients receive 'other'
+		mata: oL4_TXR = 0
+		global Coeffs $Coeffs oL4_TXR
+	}
 
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 i.BCR_SCT i.TXR_L2 if(Event0 == 20)
-		save_coefs L2_BCR
-		
-		mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
-			
-		// Treatment Duration
+	// L5
+	qui tab TXR_L5 // Check if modelling specific regimens
+	if `r(r)' > 1 {
+		mi estimate: mlogit TXR_L5 Age Age2 if(Event0 == 50 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L5_TXR
+		mata: _matrix_list(bL5_TXR, rbL5_TXR, cbL5_TXR)
+	}
+	else { // If all patients receive 'other'
+		mata: oL5_TXR = 0
+		global Coeffs $Coeffs oL5_TXR
+	}
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
-		save_max L2_TXD
-		
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L2, d($dTXD)
-		save_coefs L2_TXD	
-		
-		mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
+	***** BEST CLINICAL RESPONSE (BCR) *****
+	di "Best Clinical Response"
+	// Ordered logit for response at each line; each line conditions on the prior line's response
+	// (and regimen). SCT_BCR is the post-transplant response (conditional on BCR_L1).
 
-		// Treatment-free Interval
+	// L1
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS SCT i.TXR_L1 if(Event0 == 10)
+	save_coefs L1_BCR
+	mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 30) origin(Event1 == 21) scale(30.4375)
-		save_max L2_TFI	
-		
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2, d($dTFI)	
-		save_coefs L2_TFI	
-		
-		mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
+	// ASCT (post-transplant response)
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 if(Event0 == 100 & BCR_L1 != 6)
+	save_coefs SCT_BCR
+	mata: _matrix_list(bSCT_BCR, rbSCT_BCR, cbSCT_BCR)
 
-	di "Line 3"
-	
-		// Treatment Regimen
+	// L2
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 i.BCR_SCT i.TXR_L2 if(Event0 == 20)
+	save_coefs L2_BCR
+	mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
 
-		qui tab TXR_L3 // Check if modelling specific regimens
-		if `r(r)' > 1 {
-			// Simplified to Age only (see L2 note / scratch/txr_predictor_check.do). Engine mPat must match.
-			mi estimate: mlogit TXR_L3 Age Age2 if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
-			save_coefs L3_TXR
-			
-			mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
-		}
-		else { // If all patients receive 'other'
-			mata: oL3_TXR = 0
-			global Coeffs $Coeffs oL3_TXR
-		}
-		
-		// Best Clinical Response
-		
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L3 if(Event0 == 30)
-		save_coefs L3_BCR
-		
-		mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
-			
-		// Treatment Duration
+	// L3
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L3 if(Event0 == 30)
+	save_coefs L3_BCR
+	mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
-		save_max L3_TXD
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L3, d($dTXD)
-		save_coefs L3_TXD
+	// L4
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L4 if(Event0 == 40)
+	save_coefs L4_BCR
+	mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
 
-		mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
-		
-		// Treatment-free Interval
+	// L5
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 if(Event0 == 50)
+	save_coefs L5_BCR
+	mata: _matrix_list(bL5_BCR, rbL5_BCR, cbL5_BCR)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 40) origin(Event1 == 31) scale(30.4375)
-		save_max L3_TFI	
+	// LX (lines 6-9)
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.pBCR if(Event0 == 60 | Event0 == 70 | Event0 == 80 | Event0 == 90)
+	save_coefs LX_BCR
+	mata: _matrix_list(bLX_BCR, rbLX_BCR, cbLX_BCR)
 
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3, d($dTFI)	
-		save_coefs L3_TFI
+	// L6 (superseded by LX; kept for reference)
+/*
+	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.pBCR if(Event0 == 60)
+	save_coefs L6_BCR
+	mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
+*/
 
-		mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
-		
-	di "Line 4"
-	
-		// Treatment Regimen
+	***** TREATMENT DURATION (TXD) *****
+	di "Treatment Duration"
+	// Time on treatment within a line (Weibull). L1 splits by transplant: ASCT fixed-duration is a
+	// 3-spline fit (cut-offs 60/120 mo), NoASCT is a single fit, and Continuous (Rd) is separate.
+	// L2+ are single fits conditional on that line's response and regimen.
 
-		qui tab TXR_L4 // Check if modelling specific regimens
-		if `r(r)' > 1 {
-			// Simplified to Age only (see L2 note / scratch/txr_predictor_check.do). Engine mPat must match.
-			mi estimate: mlogit TXR_L4 Age Age2 if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
-			save_coefs L4_TXR
-				
-			mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
-		}
-		else { // If all patients receive 'other'
-			mata: oL4_TXR = 0
-			global Coeffs $Coeffs oL4_TXR
-		}
-			
-		// Best Clinical Response
-		
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L4 if(Event0 == 40)
-		save_coefs L4_BCR		
+	// L1 - Fixed w/ ASCT (3 splines)
+	// Cut off 1 - 60 for optimal fit with 3 splines, 90 for 2 splines
+	scalar L1_TXD_ASCT_C1 = 60
+	mata: L1_TXD_ASCT_C1 = st_numscalar("L1_TXD_ASCT_C1")
 
-		mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
-		
-		// Treatment Duration
+	// Cut off 2 - 120 for optimal fit with 3 splines
+	scalar L1_TXD_ASCT_C2 = 120
+	mata: L1_TXD_ASCT_C2 = st_numscalar("L1_TXD_ASCT_C2")
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
-		save_max L4_TXD	
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 i.TXR_L4, d($dTXD)
-		save_coefs L4_TXD
-			
-		mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
-		
-		// Treatment-free Interval
+	global Coeffs $Coeffs L1_TXD_ASCT_C1 L1_TXD_ASCT_C2
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 50) origin(Event1 == 41) scale(30.4375)
-		save_max L4_TFI
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4, d($dTFI)	
-		save_coefs L4_TFI	
+	// Spline 1
+	gen S1_exit = Date1 + `=L1_TXD_ASCT_C1'
+	mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) exit(S1_exit) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
+	save_coefs L1_TXD_ASCT_S1
+	mata: _matrix_list(bL1_TXD_ASCT_S1, rbL1_TXD_ASCT_S1, cbL1_TXD_ASCT_S1)
 
-		mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
-		
-	di "Line 5"
-	
-		// Best Clinical Response
+	// Spline 2
+	gen S2_enter = S1_exit + 1
+	gen S2_exit = Date1 + `=L1_TXD_ASCT_C2'
+	mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S2_enter) exit(S2_exit) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
+	save_coefs L1_TXD_ASCT_S2
+	mata: _matrix_list(bL1_TXD_ASCT_S2, rbL1_TXD_ASCT_S2, cbL1_TXD_ASCT_S2)
 
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 if(Event0 == 50)
-		save_coefs L5_BCR		
-		
-		mata: _matrix_list(bL5_BCR, rbL5_BCR, cbL5_BCR)
-		
-		// Treatment Duration
+	// Spline 3
+	gen S3_enter = S2_exit + 1
+	mi stset Date1 if(TXR_L1 != 7 & SCT == 1), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) enter(S3_enter) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.TXR_L1, d($dTXD)
+	save_coefs L1_TXD_ASCT_S3
+	drop S1_exit S2_enter S2_exit S3_enter
+	mata: _matrix_list(bL1_TXD_ASCT_S3, rbL1_TXD_ASCT_S3, cbL1_TXD_ASCT_S3)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
-		save_max L5_TXD	
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTXD)
-		save_coefs L5_TXD
-			
-		mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
-		
-		// Treatment-free Interval
+	// L1 - Fixed w/o ASCT
+	mi stset Date1 if(TXR_L1 != 7 & SCT == 0), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR i.TXR_L1, d($dTXD)
+	save_coefs L1_TXD_NoASCT
+	mata: _matrix_list(bL1_TXD_NoASCT, rbL1_TXD_NoASCT, cbL1_TXD_NoASCT)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 60) origin(Event1 == 51) scale(30.4375)
-		save_max L5_TFI
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTFI)	
-		save_coefs L5_TFI	
-
-		mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
-		
-	di "Line 6"
-/*	
-		// Best Clinical Response
-
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.pBCR if(Event0 == 60)
-		save_coefs L6_BCR		
-		
-		mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
-		
-		// Treatment Duration
-
-		mi stset Date1, id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
-		save_max L6_TXD	
-			
+	// L1 - Continuous (Rd)
+	count if(TXR_L1 == 7)
+	if r(N) > 0 { // If Rd is included
+		mi stset Date1 if(TXR_L1 == 7), id(ID_BS) failure(Event1 == 11) origin(Event1 == 10) scale(30.4375)
+		save_max L1_TXD_Cont
 		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
-		save_coefs L6_TXD
-			
-		mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
-		
-		// Treatment-free Interval
+		save_coefs L1_TXD_Cont
+	}
+	else { // If Rd is not included (need empty matrices)
+		mata: bL1_TXD_Cont = .
+		mata: rbL1_TXD_Cont = .
+		mata: cbL1_TXD_Cont = .
+		mata: fbL1_TXD_Cont = .
+		mata: maxL1_TXD_Cont = .
+		global Coeffs $Coeffs bL1_TXD_Cont rbL1_TXD_Cont cbL1_TXD_Cont fbL1_TXD_Cont maxL1_TXD_Cont
+	}
+	*mata: _matrix_list(bL1_TXD_Cont, rbL1_TXD_Cont, cbL1_TXD_Cont)
 
-		mi stset Date1, id(ID_BS) failure(Event1 == 70) origin(Event1 == 61) scale(30.4375)
-		save_max L6_TFI
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)	
-		save_coefs L6_TFI	
+	// L2
+	mi stset Date1, id(ID_BS) failure(Event1 == 21) origin(Event1 == 20) scale(30.4375)
+	save_max L2_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2 i.TXR_L2, d($dTXD)
+	save_coefs L2_TXD
+	mata: _matrix_list(bL2_TXD, rbL2_TXD, cbL2_TXD)
 
-		mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
-*/	
-	di "Line 6 to 9 (LX)"
-	
-		// Best Clinical Response
+	// L3
+	mi stset Date1, id(ID_BS) failure(Event1 == 31) origin(Event1 == 30) scale(30.4375)
+	save_max L3_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3 i.TXR_L3, d($dTXD)
+	save_coefs L3_TXD
+	mata: _matrix_list(bL3_TXD, rbL3_TXD, cbL3_TXD)
 
-		mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.pBCR if(Event0 == 60 | Event0 == 70 | Event0 == 80 | Event0 == 90)
-		save_coefs LX_BCR		
-		
-		mata: _matrix_list(bLX_BCR, rbLX_BCR, cbLX_BCR)	
-		
-		// Treatment Duration
+	// L4
+	mi stset Date1, id(ID_BS) failure(Event1 == 41) origin(Event1 == 40) scale(30.4375)
+	save_max L4_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4 i.TXR_L4, d($dTXD)
+	save_coefs L4_TXD
+	mata: _matrix_list(bL4_TXD, rbL4_TXD, cbL4_TXD)
 
-		qui cap drop fail
-		qui gen fail = 1 if(Event1 == 61 | Event1 == 71 | Event1 == 81 | Event1 == 91)
-		qui replace fail = 0 if(Event1 == 60 | Event1 == 70 | Event1 == 80 | Event1 == 90)
-		qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
-		
-		mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
-		save_max LX_TXD	
-		
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
-		save_coefs LX_TXD
+	// L5
+	mi stset Date1, id(ID_BS) failure(Event1 == 51) origin(Event1 == 50) scale(30.4375)
+	save_max L5_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTXD)
+	save_coefs L5_TXD
+	mata: _matrix_list(bL5_TXD, rbL5_TXD, cbL5_TXD)
 
-		mata: _matrix_list(bLX_TXD, rbLX_TXD, cbLX_TXD)
-		
-		// Treatment-free Interval
-		
-		qui cap drop fail
-		qui gen fail = 1 if(Event1 == 70 | Event1 == 80 | Event1 == 90)
-		qui replace fail = 0 if(Event1 == 61 | Event1 == 71 | Event1 == 81)
-		qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
-		
-		mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 61) exit(time .) scale(30.4375)
-		save_max LX_TFI
-			
-		mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)	
-		save_coefs LX_TFI	
+	// LX (lines 6-9)
+	qui cap drop fail
+	qui gen fail = 1 if(Event1 == 61 | Event1 == 71 | Event1 == 81 | Event1 == 91)
+	qui replace fail = 0 if(Event1 == 60 | Event1 == 70 | Event1 == 80 | Event1 == 90)
+	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
+	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 60) exit(time .) scale(30.4375)
+	save_max LX_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
+	save_coefs LX_TXD
+	mata: _matrix_list(bLX_TXD, rbLX_TXD, cbLX_TXD)
 
-		mata: _matrix_list(bLX_TFI, rbLX_TFI, cbLX_TFI)
-	
+	// L6 (superseded by LX; kept for reference)
+/*
+	mi stset Date1, id(ID_BS) failure(Event1 == 61) origin(Event1 == 60) scale(30.4375)
+	save_max L6_TXD
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTXD)
+	save_coefs L6_TXD
+	mata: _matrix_list(bL6_TXD, rbL6_TXD, cbL6_TXD)
+*/
+
+	***** MAINTENANCE (MNT) *****
+	di "Maintenance"
+	// Maintenance-therapy logit after L1 induction, split by transplant status.
+
+	// ASCT
+	mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_SCT if(Event1 == 11 & SCT == 1)
+	save_coefs MNT_ASCT
+	mata: _matrix_list(bMNT_ASCT, rbMNT_ASCT, cbMNT_ASCT)
+
+	// No ASCT
+	mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_L1 if(Event1 == 11 & SCT == 0)
+	save_coefs MNT_NoASCT
+	mata: _matrix_list(bMNT_NoASCT, rbMNT_NoASCT, cbMNT_NoASCT)
+
+	***** TREATMENT-FREE INTERVAL (TFI) *****
+	di "Treatment-free Interval"
+	// Gap from the end of one line's treatment to the start of the next (log-normal). DN_TFI is the
+	// diagnosis-to-L1 interval; L1 splits by transplant (with maintenance MNT); L2+ are single fits.
+
+	// DN
+	mi stset Date1, id(ID_BS) failure(Event1 == 10) origin(Event1 == 3) scale(30.4375)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
+	save_coefs DN_TFI
+	mata: _matrix_list(bDN_TFI, rbDN_TFI, cbDN_TFI)
+
+	// L1 - ASCT
+	mi stset Date1 if(SCT == 1 & BCR_SCT != 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
+	save_max L1_TFI_ASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)
+	save_coefs L1_TFI_ASCT
+	mata: _matrix_list(bL1_TFI_ASCT, rbL1_TFI_ASCT, cbL1_TFI_ASCT)
+
+	// L1 - No ASCT
+	mi stset Date1 if(SCT == 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
+	save_max L1_TFI_NoASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_L1, d($dTFI)
+	save_coefs L1_TFI_NoASCT
+	mata: _matrix_list(bL1_TFI_NoASCT, rbL1_TFI_NoASCT, cbL1_TFI_NoASCT)
+
+	// L2
+	mi stset Date1, id(ID_BS) failure(Event1 == 30) origin(Event1 == 21) scale(30.4375)
+	save_max L2_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L2, d($dTFI)
+	save_coefs L2_TFI
+	mata: _matrix_list(bL2_TFI, rbL2_TFI, cbL2_TFI)
+
+	// L3
+	mi stset Date1, id(ID_BS) failure(Event1 == 40) origin(Event1 == 31) scale(30.4375)
+	save_max L3_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L3, d($dTFI)
+	save_coefs L3_TFI
+	mata: _matrix_list(bL3_TFI, rbL3_TFI, cbL3_TFI)
+
+	// L4
+	mi stset Date1, id(ID_BS) failure(Event1 == 50) origin(Event1 == 41) scale(30.4375)
+	save_max L4_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L4, d($dTFI)
+	save_coefs L4_TFI
+	mata: _matrix_list(bL4_TFI, rbL4_TFI, cbL4_TFI)
+
+	// L5
+	mi stset Date1, id(ID_BS) failure(Event1 == 60) origin(Event1 == 51) scale(30.4375)
+	save_max L5_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR_L5, d($dTFI)
+	save_coefs L5_TFI
+	mata: _matrix_list(bL5_TFI, rbL5_TFI, cbL5_TFI)
+
+	// LX (lines 6-9)
+	qui cap drop fail
+	qui gen fail = 1 if(Event1 == 70 | Event1 == 80 | Event1 == 90)
+	qui replace fail = 0 if(Event1 == 61 | Event1 == 71 | Event1 == 81)
+	qui bysort ID_BS (Date0): replace fail = fail[_n-1] if(fail == .)
+	mi stset Date1, id(ID_BS) failure(fail) origin(Event1 == 61) exit(time .) scale(30.4375)
+	save_max LX_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
+	save_coefs LX_TFI
+	mata: _matrix_list(bLX_TFI, rbLX_TFI, cbLX_TFI)
+
+	// L6 (superseded by LX; kept for reference)
+/*
+	mi stset Date1, id(ID_BS) failure(Event1 == 70) origin(Event1 == 61) scale(30.4375)
+	save_max L6_TFI
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.BCR, d($dTFI)
+	save_coefs L6_TFI
+	mata: _matrix_list(bL6_TFI, rbL6_TFI, cbL6_TFI)
+*/
+
 end
-	
+
 **********
 // Execute based on arguments
 
 if("$boot" == "0") {
-		
+
 	// Load data
 	use "${data_path}/${re_indir}MRDR Long MI${re_intag}.dta", replace
-			
+
 	// Execute function
 	risk_equations
 
@@ -623,22 +548,22 @@ if("$boot" == "0") {
 	mata: mata matsave "analyses/$analysis/coefficients/coefficients_$coeffs" $Coeffs, replace
 }
 else if("$boot" == "1") {
-		
+
 	forval b = $min_bs/$max_bs {
-		
+
 		// Load data
 		use "${data_path}/${re_indir}bootstrap/MRDR Long MI${re_intag} B`b'.dta", replace
-			
+
 		// Shift dates so bootstrap samples of the same ID_BS do not have the same Date0/Date1
 		qui bysort ID Event0 (ID_BS): gen tag0 = _n if Date0[_n-1] == Date0 & Date0 != .
 		qui bysort ID Event1 (ID_BS): gen tag1 = _n if Date1[_n-1] == Date1 & Date1 != .
 		qui replace Date0 = Date0 + tag0 - 1 if tag0 != .
 		qui replace Date1 = Date1 + tag1 - 1 if tag1 != .
 		qui drop tag0 tag1
-			
+
 		// Execute function
 		risk_equations
-				
+
 		// Save matrices
 		mata: mata matsave "analyses/$analysis/coefficients/bootstrap/coefficients_${coeffs}_B`b'" $Coeffs, replace
 	}

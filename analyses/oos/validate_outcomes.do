@@ -1,15 +1,11 @@
 **********
-* Monash Myeloma Model
-* Validate outcomes -- shared comparison engine
+* Monash Myeloma Model - Validate Outcomes
 *
-* Purpose: Compare a simulated dataset to a set of observed-outcome target CSVs (OS, BCR, TXD/TFI by
-*          horizon survival, pathways by competing-risks CIF, ASCT among L1-end reachers) and print a
-*          pass/fail summary. Driven entirely by $val_targets (target CSV directory) and $val_simfile
-*          (simulated .dta). This is the model's validation comparison engine; the out-of-sample
-*          validator (analyses/oos/validate_oos.do) sets both globals and calls it.
-*
-* Author: Adam Irving
-* Date: January 2026
+* Purpose: Shared comparison engine. Compares a simulated dataset to observed-outcome target CSVs (OS,
+*          BCR, TXD/TFI by horizon survival, pathways by competing-risks CIF, ASCT among L1-end
+*          reachers) and prints a pass/fail summary. Driven by $val_targets (target CSV directory) and
+*          $val_simfile (simulated .dta).
+* Notes:   Normally invoked via analyses/oos/validate_oos.do, which sets both globals and calls it.
 **********
 
 if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set it; a bare cd "" goes to home on Mac/Unix

@@ -1,14 +1,12 @@
 **********
 * Monash Myeloma Model - Process Data
 *
-* Generalised version that processes simulations starting at line $line
-* - If $line == 1: Full pathway from diagnosis, calendar-date discounting
-* - If $line > 1: From line $line onwards, relative-time discounting (L$line start = time 0)
-*
-* Naming Convention:
-*   cost_{component}[_L#][_d]  - Cost variables (tx, nt, total)
-*   qaly_{component}[_d]       - QALY variables
-*   _d suffix = discounted
+* Purpose: Assemble the Mata simulation matrices into a per-patient dataset and derive
+*          costs and QALYs starting at line $line ($line == 1: full pathway from diagnosis
+*          with calendar-date discounting; $line > 1: from L$line onwards with relative-time
+*          discounting, L$line start = time 0).
+* Notes:   Variable naming: cost_{component}[_L#][_d] (tx, nt, total), qaly_{component}[_d];
+*          _d suffix = discounted. Frees mRN (peak-memory stage).
 **********
 
 capture program drop process_data

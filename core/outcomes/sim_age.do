@@ -1,9 +1,8 @@
 **********
-* SIM Age
-* 
-* Purpose: Update patient age and handle age limit deaths
-* Method: Comparing times
-* Outcome: Continuous age in years
+* Monash Myeloma Model - Sim Age
+*
+* Purpose: Update patient age each event (add previous state time) and cap/kill patients who
+*          exceed the age limit. Continuous age in years, written to mAge[.,OMC].
 **********
 
 mata {

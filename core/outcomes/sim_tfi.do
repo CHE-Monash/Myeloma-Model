@@ -1,9 +1,8 @@
 **********
-* SIM TFI (L2+) 
+* Monash Myeloma Model - Sim TFI (L2+)
 *
-* Purpose: Treatment-free Interval (time from LXE to L(X+1)S)
-* Method: Parametric survival analysis
-* Outcome: Continous time (months)
+* Purpose: Draw Treatment-free Interval (time from LXE to L(X+1)S) via parametric survival.
+*          Continuous time in months.
 **********
 
 mata {

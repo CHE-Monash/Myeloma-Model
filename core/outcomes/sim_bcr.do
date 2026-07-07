@@ -1,9 +1,8 @@
 **********
-* SIM BCR 
+* Monash Myeloma Model - Sim BCR
 *
-* Purpose: Determine Best Clinical Response (BCR)
-* Method: Ordered logit
-* Outcome: 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD
+* Purpose: Determine Best Clinical Response (BCR) via ordered logit. Outcome 1=CR, 2=VGPR,
+*          3=PR, 4=MR, 5=SD, 6=PD.
 **********
 
 mata {

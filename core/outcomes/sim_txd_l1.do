@@ -1,9 +1,8 @@
 **********
-* SIM TXD L1
+* Monash Myeloma Model - Sim TXD L1
 *
-* Purpose: Treatment Duration for Line 1
-* Method: Parametric survival analysis
-* Outcome: Continuous time (months)
+* Purpose: Draw Treatment Duration for Line 1 via parametric survival. Continuous time in
+*          months.
 **********
 
 mata {

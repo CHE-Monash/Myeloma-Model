@@ -1,12 +1,11 @@
 **********
-* Monash Myeloma Model - OOS (70/30): validate held-out predictions
+* Monash Myeloma Model - Validate OOS
 *
-* Compares the simulated held-out 30% (analyses/oos/simulated/) against those patients' OBSERVED
-* outcomes (the csv files in analyses/oos/targets/) using the same checks as the validator -- OS &
-* TXD/TFI by horizon survival, BCR by category, pathways by competing-risks CIF, ASCT among L1-end
-* reachers. Reuses the shared comparison engine validate_outcomes.do via its $val_targets / $val_simfile globals.
-*
-* Run after analyses/oos/simulate.do (point estimate, $boot 0). From the repository root.
+* Purpose: Compare the simulated held-out 30% (analyses/oos/simulated/) against those patients'
+*          OBSERVED outcomes (analyses/oos/targets/) -- OS & TXD/TFI by horizon survival, BCR by
+*          category, pathways by competing-risks CIF, ASCT among L1-end reachers. Reuses the shared
+*          engine validate_outcomes.do via its $val_targets / $val_simfile globals.
+* Notes:   Run after analyses/oos/simulate.do (point estimate, $boot 0).
 **********
 
 clear all

@@ -1,9 +1,8 @@
 **********
-* SIM TFI L1
+* Monash Myeloma Model - Sim TFI L1
 *
-* Purpose: Treatment-free Interval at Line 1 End (time from L1E to L2S)
-* Method: Parametric survival analysis, split by ASCT status
-* Outcome: Continuous time (months)
+* Purpose: Draw Treatment-free Interval at Line 1 End (time from L1E to L2S) via parametric
+*          survival, split by ASCT status. Continuous time in months.
 **********
 
 mata {

@@ -1,9 +1,8 @@
 **********
-* SIM ASCT L1
-* 
-* Purpose: Determine receipt of ASCT at Line 1 End
-* Method: Logistic regression with outcome filters: TXR != 7 AND BCR != 6
-* Outcome: Binary (0 = No ASCT, 1 = ASCT)
+* Monash Myeloma Model - Sim ASCT L1
+*
+* Purpose: Determine receipt of ASCT at Line 1 End via logistic regression (outcome filters
+*          TXR != 7 and BCR != 6). Binary outcome (0 = no ASCT, 1 = ASCT).
 **********
 	
 mata {

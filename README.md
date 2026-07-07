@@ -8,19 +8,25 @@ A comprehensive discrete-event simulation model for multiple myeloma disease out
 
 - **Calibrated Transport methods**: out-of-trial outcome prediction (e.g. DVd at L2) via the `transport_dvd` analysis
 - **Common Random Numbers (CRN)**: aligned RNG across treatment arms for variance-reduced cost-effectiveness comparisons
+- **Per-line overall survival**: OS is now a separate parametric model for each line/stage of therapy, clocked from that line's own start, replacing the single from-diagnosis survival curve — removing an accumulated-time bias that inflated survival for poor responders at later lines
+- **Individual comorbidities**: the OS and ASCT-eligibility equations now carry four individual comorbidity flags (renal impairment, cardiac, pulmonary, diabetes) instead of a single combined comorbidity score
 - **Standardised CSV exports**: machine-readable result surface for downstream and programmatic use
 - **Vectorised engine** (incorporated from v2.1): Mata vector/matrix rewrite for dramatically faster large-scale simulation
 - **Rebrand**: project renamed from EpiMAP Myeloma to the Monash Myeloma Model
 
 ## Model Overview
 
-The model simulates the complete treatment journey of multiple myeloma patients using **30 evidence-based risk equations** derived from the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
+The model simulates the complete treatment journey of multiple myeloma patients using **50 evidence-based risk equations** derived from the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR).
+
+![Monash Myeloma Model structure](docs/images/model_diagram.png)
+
+*Discrete-event structure: patients flow from diagnosis through successive lines of therapy (LoT 1 … LoT N). At each line the model simulates regimen, best clinical response (BCR) and treatment duration, with ASCT intent/receipt, maintenance, treatment-free intervals and death (green = simulated outcomes).*
 
 ### Key Features
 
-- **Patient Characteristics**: Age, sex, ECOG performance score, R-ISS staging & co-morbidity score
+- **Patient Characteristics**: Age, sex, ECOG performance score, R-ISS staging & four individual co-morbidities (renal, cardiac, pulmonary, diabetes)
 - **Treatment Pathways**: Comprehensive modelling of up to 9 lines of therapy
-- **Clinical Outcomes**: Best Clinical Response (BCR) and Overall Survival (OS)
+- **Clinical Outcomes**: Best Clinical Response (BCR) and Overall Survival (OS), the latter modelled per line of therapy
 - **ASCT Modelling**: Separate pathways for transplant-eligible patients
 - **Maintenance Therapy**: Post-induction treatment modelling
 - **Parametric Survival Models**: Time-to-event analysis for all outcomes
@@ -97,6 +103,8 @@ Every analysis folder under `analyses/<name>/` follows the same layout, so the s
 
 Shared inputs are built once by `prep/` (multiple imputation, population cohorts) and fitted per-analysis by `prep/risk_equations.do <analysis> <coeffs> …`, which loads that analysis's `outcomes/txr_<coeffs>.do`. The bootstrap steps run on the MASSIVE cluster via the **generic** array jobs in `hpc/` (`multiple_imputation.script`, `risk_equations.script`, `simulate.script`); per-analysis arguments ride on each `sbatch --export=` line, recorded in that analysis's `run.do`.
 
+**Starting a new analysis?** Copy `analyses/template/` — a documented skeleton already in this layout (dispatcher, runbook, `txr` regimen list, and optional BCR/TXR outcome-override stubs following `transport_dvd`).
+
 ## Result Exports
 
 Each simulation can emit a PDF report (`$report`) and machine-readable **flat CSV** outputs for downstream use (R/Python post-processing, dashboards, manuscript drafting). CSV export is produced for point-estimate runs and skipped under bootstrap.
@@ -123,6 +131,7 @@ Myeloma-Model/
 │   ├── outcomes/            # Outcome (risk-equation) modules
 │   └── tests/               # Engine verification: unit tests + extreme-value
 ├── analyses/                # Per-analysis dispatchers, data & results
+│   ├── template/            # Copy-me skeleton for a new analysis
 │   ├── base_model/          # All regimens (current practice)
 │   ├── vrd_post/            # VRd LoT 1 post-market
 │   ├── transport_dvd/       # DVd Calibrated Transport
@@ -150,15 +159,20 @@ The vectorised implementation provides significant performance benefits:
 The model has been comprehensively validated:
 
 - **Published Validation**: See Irving et al. (2024) in PLOS ONE
-- **Out-of-Sample Testing**: 70/30 split validation with 100 bootstrap iterations
-- **Survival Curve Accuracy**: No significant difference in 90% of 120 months post-diagnosis
+- **Out-of-Sample Testing**: 70/30 split validation with 500 bootstrap iterations
+- **Survival Curve Accuracy**: No significant difference in 98.3% (118 of 120) of monthly comparisons over the 10 years post-diagnosis for the current per-line OS model (up from 90% for the published 2024 model)
+- **Engine Verification**: Unit + extreme-value stress-test suite in `core/tests/` (7/7 pass)
 - **Vectorisation Validation**: Comprehensive test suite confirms identical results to original implementation
+
+![Out-of-sample overall-survival validation](docs/images/oos_os_validation.png)
+
+*Out-of-sample validation (per-line OS model): whole-population overall survival for the held-out cohort (95% CI) vs. the simulated cohort (95% CI) over 10 years, with the monthly two-sample p-value (blue, right axis). The curves are statistically indistinguishable in 118 of 120 months.*
 
 ## Version History
 
 Access previous versions via Git tags:
 
-- **v3.0**: Current version — Calibrated Transport & CRN methods, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the v2.1 vectorised engine)
+- **v3.0**: Current version — Calibrated Transport & CRN methods, per-line overall survival, individual comorbidity covariates, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the v2.1 vectorised engine)
 - **v2.1**: Vectorised Mata implementation (backward compatible)
 - **v2.0**: Reorganised architecture with extended treatment options
 - **v1.0**: Initial public release (August 2024) - `git checkout v1.0`

@@ -1,14 +1,11 @@
 **********
-* Monash Myeloma Model - OOS (70/30): patient split
+* Monash Myeloma Model - OOS split
 *
-* Purpose: Assign each patient (ID) to TRAIN (70%) or TEST (30%), once, with a fixed seed, on the
-*          PRE-IMPUTATION data -- so imputation and risk-equation fitting never see the held-out
-*          30%. Everything downstream (multiple_imputation.do, risk_equations.do via $sample, and
-*          the OOS prep/validation scripts) keys off this crosswalk.
-*
-* Output:  ${data_path}/oos/oos_split.dta   (ID, fold)
-*
-* Run once, from the repository root. Restricted MRDR data ($data_path via config.do).
+* Purpose: Assign each patient (ID) to TRAIN (70%) or TEST (30%) once, with a fixed seed, on the
+*          PRE-IMPUTATION data so imputation and risk-equation fitting never see the held-out 30%.
+*          Everything downstream keys off this crosswalk.
+* Notes:   Run once. Output ${data_path}/oos/oos_split.dta (ID, fold). Needs the restricted MRDR
+*          drive ($data_path via config.do).
 **********
 
 clear all

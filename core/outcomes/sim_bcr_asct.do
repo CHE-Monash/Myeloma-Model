@@ -1,9 +1,7 @@
 **********
-* SIM BCR ASCT
-
-* Purpose: Determine BCR to SCT
-* Mehod: Multinomial logit
-* Outcome: Categorical 1 to 4, no 5/6 
+* Monash Myeloma Model - Sim BCR ASCT
+*
+* Purpose: Determine BCR to ASCT via multinomial logit. Categorical outcome 1 to 4 (no 5/6).
 **********
 
 mata {

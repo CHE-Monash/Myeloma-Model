@@ -1,18 +1,13 @@
 **********
-* Monash Myeloma Model - OOS (70/30): run.do (analysis runbook)
+* Monash Myeloma Model - OOS runbook
 *
-* The full OOS pipeline in order -- prep -> simulate -> validate. Run from the repository root.
-* MRDR data is read via $data_path (config.do). simulate.do is the simulation dispatcher.
-*
-* Two tracks:
-*   DETERMINISTIC (point estimate)  -- light; runs locally, top to bottom (the live `do` lines).
-*   BOOTSTRAP (prediction intervals) -- the headline OOS metric; HEAVY. The MI, risk-equation and
-*       500-replicate simulation steps run on the HPC. This file is NOT run on the HPC -- the
-*       bootstrap section below is the canonical record of the sequence (left commented), with the
-*       equivalent sbatch commands and the rsync/submit/pull plumbing in a /* ... */ shell block at the end.
-*
-* The split (step 0) and per-fold imputation need the restricted MRDR drive; everything from the
-* targets/cohort down operates on the imputed outputs.
+* Purpose: The full OOS pipeline in order (prep -> simulate -> validate). MRDR data via $data_path
+*          (config.do); simulate.do is the dispatcher.
+* Notes:   Two tracks. DETERMINISTIC (point estimate) is light and runs locally top to bottom.
+*          BOOTSTRAP (prediction intervals, the headline metric) is heavy and runs on the HPC -- this
+*          file is not run there; its section is the canonical record (commented), with the sbatch +
+*          rsync/submit/pull plumbing in the /* ... */ shell block at the end. Split (step 0) and
+*          per-fold imputation need the restricted MRDR drive; the rest uses the imputed outputs.
 **********
 
 if "$repo_path" != "" cd "$repo_path"

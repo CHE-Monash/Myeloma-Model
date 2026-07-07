@@ -1,9 +1,10 @@
 **********
-* config.example.do — copy to config.do and set your own paths.
+* Monash Myeloma Model - Config template
 *
-* config.do is GIT-IGNORED, so machine-specific paths never reach GitHub.
-* The data-prep scripts (e.g. outcomes/calibrated_transport.do) load it with
-* `capture run "config.do"` from the repository root.
+* Purpose: Template for config.do. Copy to config.do and set your own machine-specific paths.
+*          config.do is git-ignored, so those paths never reach GitHub. The data-prep scripts
+*          (e.g. outcomes/calibrated_transport.do) load it via `capture run "config.do"` from the
+*          repository root.
 **********
 
 * Repository root (interactively-run scripts cd here; load config.do once per session):

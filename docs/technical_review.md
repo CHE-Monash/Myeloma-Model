@@ -1,12 +1,12 @@
 # Monash Myeloma Model — Technical Review
 
-**Version:** 3.0 · **Updated:** 2026-06-24 · **Tooling:** Stata 15+ (Mata)
+**Version:** 3.0 · **Updated:** 2026-07-07 · **Tooling:** Stata 15+ (Mata)
 
 This document describes the architecture and implementation of the Monash Myeloma Model as it stands in the current codebase. It is rebuilt from source and supersedes earlier versions. Where a method underpins a specific analysis (notably Calibrated Transport), the authoritative specification lives in that analysis's own README; this review covers the shared engine.
 
 ## Executive summary
 
-The Monash Myeloma Model is a discrete-event microsimulation of the multiple myeloma treatment journey, from diagnosis through up to nine lines of therapy and death. It predicts best clinical response, treatment duration, treatment-free interval and overall survival from roughly 30 risk equations estimated on the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR), and attaches costs and quality-adjusted life years for health-economic evaluation.
+The Monash Myeloma Model is a discrete-event microsimulation of the multiple myeloma treatment journey, from diagnosis through up to nine lines of therapy and death. It predicts best clinical response, treatment duration, treatment-free interval and overall survival from 50 risk equations estimated on the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR), and attaches costs and quality-adjusted life years for health-economic evaluation.
 
 The engine is implemented in Stata's Mata language as a vectorised microsimulation: every patient is advanced through the same event simultaneously using matrix operations rather than a per-patient loop. All stochastic events draw from a pre-generated common-random-number (CRN) matrix, so two arms of a comparison see identical randomness for each patient — the basis for variance-reduced cost-effectiveness comparison.
 
@@ -80,11 +80,11 @@ All built in `core/mata_setup.do`. Outcome matrices are `Obs × 19` unless noted
 | `mBCR` | `Obs×10` | Best clinical response per line, plus post-ASCT response |
 | `mTFI` | `Obs×9` | Treatment-free interval (TFI for line *L* sits in column *L+1*) |
 
-Fixed characteristics are held as vectors: `vID`, `vAge`/`vAge2` (updated to current age each OMC), `vMale`, ECOG dummies, R-ISS and ISS dummies, comorbidity and chronic-kidney-disease indicators, age-threshold indicators (`vAge70`, `vAge75`), the constant `vCons`, and ASCT/maintenance receipt vectors (`vSCT_DN`, `vSCT_L1`, `vMNT`). `process_data` reassembles these into a single summary matrix and exports them as long-named Stata variables (`OS_DN`, `BCR_L1`, `OC_TIME`, …).
+Fixed characteristics are held as vectors: `vID`, `vAge`/`vAge2` (updated to current age each OMC), `vMale`, ECOG dummies, R-ISS and ISS dummies, four comorbidity indicators (chronic kidney disease, cardiac, pulmonary, diabetes), age-threshold indicators (`vAge70`, `vAge75`), the constant `vCons`, and ASCT/maintenance receipt vectors (`vSCT_DN`, `vSCT_L1`, `vMNT`). `process_data` reassembles these into a single summary matrix and exports them as long-named Stata variables (`OS_DN`, `BCR_L1`, `OC_TIME`, …).
 
 ## Risk-equation / outcomes architecture
 
-The roughly 30 risk equations are organised into self-contained modules under `core/outcomes/`. Each module filters to eligible patients, assembles a design matrix from the characteristic vectors, extracts the relevant coefficient block from an externally loaded Mata matrix, computes a linear predictor, draws a CRN uniform, maps it to an outcome, and writes back into the appropriate matrix. Most carry a design/coefficient dimension guard (`exit(459)` on mismatch).
+The 50 risk equations are organised into self-contained modules under `core/outcomes/`. Each module filters to eligible patients, assembles a design matrix from the characteristic vectors, extracts the relevant coefficient block from an externally loaded Mata matrix, computes a linear predictor, draws a CRN uniform, maps it to an outcome, and writes back into the appropriate matrix. Most carry a design/coefficient dimension guard (`exit(459)` on mismatch).
 
 | Module | Outcome | Method |
 |----|----|----|
@@ -98,16 +98,16 @@ The roughly 30 risk equations are organised into self-contained modules under `c
 | `sim_bcr_asct` | Post-ASCT response | Ordered logit |
 | `sim_txd_l1` | L1 treatment duration | Three-segment spline survival (fixed+ASCT), plus continuous-therapy branch |
 | `sim_txd` | L2+ treatment duration | Parametric survival, line-specific |
-| `sim_os` | Overall survival | Parametric survival, segmented by BCR × line |
+| `sim_os` | Overall survival | Per-line parametric survival: one Weibull per pathway stage, clocked from that stage's start |
 | `sim_mort` | Death at this OMC | Deterministic (time crosses OS) |
 | `sim_age` | Age update and age-limit deaths | Deterministic |
 | `sim_mnt` | Maintenance receipt | Logistic, split by ASCT status |
 
-The parametric survival families implemented in `core/mata_functions.do` are **exponential, Weibull and Gompertz** (closed-form inverse-CDF sampling; `ereg` is an alias for exponential). The family for each equation is selected by a string global (`fbOS`, `fbDN_TFI`, …). Response is modelled by **ordered logit** (`calcOrdLogitProbs` + `assignOrdOutcome`) and regimen choice by **multinomial logit**; ASCT and maintenance receipt are logistic. The L1 treatment-duration equation uses three conditional spline segments for the fixed-duration plus ASCT group.
+The parametric survival families implemented in `core/mata_functions.do` are **exponential, Weibull, Gompertz, log-normal and log-logistic** (closed-form inverse-CDF sampling; `ereg` is an alias for exponential). Overall survival and treatment duration use Weibull; the treatment-free interval uses log-normal. The family for each equation is selected by a string global (`fbOS_L1S`, `fbDN_TFI`, …). Response is modelled by **ordered logit** (`calcOrdLogitProbs` + `assignOrdOutcome`) and regimen choice by **multinomial logit**; ASCT and maintenance receipt are logistic. The L1 treatment-duration equation uses three conditional spline segments for the fixed-duration plus ASCT group. The four comorbidity flags (renal, cardiac, pulmonary, diabetes) enter overall survival and both ASCT logits.
 
 ## Mortality and survival tracking
 
-Survival is the master clock. `sim_os` draws a survival time from diagnosis at each pathway point, conditioned on the patient having survived to the current time-since-diagnosis; it is re-drawn at each OMC because the linear predictor changes as response and line evolve. `sim_mort` then declares death at an OMC when cumulative time crosses the drawn survival time, sets `mMOR`/`mOC`, and clips the realised duration (`mTXD` or `mTFI`) to the time actually experienced.
+Survival is the master clock. `sim_os` fits a **separate parametric model to each pathway stage** — diagnosis, each line's start and end, with L1 end split by transplant status — each clocked from that stage's own entry event. At a line's first stage the elapsed time is zero, so the draw is an **unconditional** fresh survival on that stage's clock; the result is then stored back on the diagnosis clock (stage origin + residual) so mortality is compared like-for-like. This per-line construction replaced a single from-diagnosis Weibull that resampled conditional on accumulated time — a coupling that over-predicted survival for weak responders. (Lines 6+ share one model clocked from L6 start, so their later stages do condition on survival since L6.) `sim_mort` then declares death at an OMC when cumulative time-since-diagnosis crosses the drawn survival time, sets `mMOR`/`mOC`, and clips the realised duration (`mTXD` or `mTFI`) to the time actually experienced.
 
 This is a single-cause time-to-event design rather than a formal competing-risks framework, with two additional absorbing mechanisms: an **age cap** (`Limit = 100`) that bounds age at death and can retroactively end a patient in the prior OMC, and a **terminal absorption** at L9E that forces any remaining survivors to die. `core/validation.do` enforces the survival invariants (no death-flag reversal, non-negative outcome times, monotone time-since-diagnosis, no outcomes recorded after death).
 

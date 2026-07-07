@@ -1,12 +1,12 @@
 **********
-* Monash Myeloma Model
-* Multiple Imputation  (performance-optimised variant of multiple_imputation.do)
+* Monash Myeloma Model - Multiple Imputation
 *
-* Purpose: Multiple Imputation of MRDR Long
-*
-* Author: Adam Irving
-* Date: June 2026
-*
+* Purpose: Multiple imputation of MRDR Long. Performance-optimised variant intended to produce
+*          IDENTICAL output to the original for a given seed.
+* Notes:   Optimisation rationale (carryforward/broadcast helpers, and a deliberately-deferred
+*          structural win) documented below.
+**********
+
 * -------------------------------------------------------------------------------------------------
 * WHAT CHANGED vs multiple_imputation.do (intended to produce IDENTICAL output for a given seed):
 *   The post-imputation carryforward/broadcast step was the bottleneck: ~27 `mi xeq 0/$imp: bysort`
@@ -34,7 +34,6 @@
 *   current carryforward is forward-LOCF, not a pure diagnosis-value broadcast) so it needs its own
 *   equivalence check. Left as a follow-up.
 * -------------------------------------------------------------------------------------------------
-**********
 
 clear
 clear mata

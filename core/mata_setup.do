@@ -1,9 +1,12 @@
 **********
 * Monash Myeloma Model - Mata Setup
 *
-* Architecture:
-*   - Vectors: Patient characteristics that don't change (Age, Male, ECOG, RISS)
-*   - Matrices: Line-varying outcomes preserved in columns (mBCR, mCD, mOS, etc.)
+* Purpose: Load the cohort into Mata and allocate the working structures for the
+*          simulation pass: fixed patient characteristics as vectors (Age, Male, ECOG,
+*          RISS, ...) and line-varying outcomes as matrices with one column per pathway
+*          point (mOS, mBCR, mTXR, ...). Also builds the common-random-number matrix mRN.
+* Notes:   CRN seed = $crn_seed_base (+ bootstrap iteration $b); requires canonical
+*          ID == _n row order (asserted) for cross-arm alignment. See core/rng_slots.do.
 **********
 
 cap program drop mata_setup

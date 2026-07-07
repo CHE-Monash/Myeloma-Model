@@ -1,15 +1,11 @@
 **********
-* Monash Myeloma Model - OOS: redraw the OS validation figure (2024 PLOS ONE Fig 2 style) locally
+* Monash Myeloma Model - OOS OS validation figure
 *
-* Purpose: Draw the whole-population OS validation figure -- observed (validation-cohort) KM 95% CI vs
-*          the simulated cohort's 95% CI, plus the monthly p-value testing the difference -- from
-*          os_wholepop_curve_validation.csv, which bootstrap_validation.do writes on the HPC. Use this
-*          when HPC batch graphics are disabled, or to restyle the figure without re-running the
-*          validation. Reads only the pulled-back CSV (no drive, no bootstrap sims).
-*
-* Run from the repository root:  do "analyses/oos/plot_os_curve.do"
-*   optional arg 1 = path to the validation CSV
-*                    (default: analyses/oos/results/os_wholepop_curve_validation.csv)
+* Purpose: Redraw the whole-population OS validation figure (2024 PLOS ONE Fig 2 style) locally --
+*          observed KM 95% CI vs the simulated cohort's 95% CI, plus the monthly p-value -- from the
+*          pulled-back os_wholepop_curve_validation.csv (no drive, no bootstrap sims). Use when HPC
+*          batch graphics are disabled, or to restyle without re-running the validation.
+* Usage:   do "analyses/oos/plot_os_curve.do" [csv]   (default csv: analyses/oos/results/os_wholepop_curve_validation.csv)
 **********
 
 clear all

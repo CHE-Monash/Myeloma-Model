@@ -1,28 +1,19 @@
 **********
 * Monash Myeloma Model - RNG Slot Registry (Common Random Numbers)
 *
-* Purpose: Single source of truth for the column layout of the pre-drawn
-*          random-number matrix mRN (Obs x K) used for common random numbers
-*          (CRN). Every stochastic event reads its own FIXED column for its own
-*          FIXED patient (row), so the same uniform feeds the same event for the
-*          same patient in every arm of a comparison. See CRN_implementation_plan.md.
-*
-* What this file provides:
-*   - rn_K()                         total number of columns (K) to allocate
-*   - rn_<event>(point) accessors    the column index for each (event, point)
-*   - rnDraw(idx, slot)              the shared uniforms mRN[idx, slot] for those
-*                                    patients at that event. CRN is unconditional -
-*                                    there is NO runtime toggle and NO runiform
-*                                    fallback (plan Q5, 15 Jun 2026).
-*
-* What it deliberately does NOT do (done in mata_setup.do):
-*   - build mRN                      set seed (base + b); mRN = runiform(Obs, rn_K())
-*
-* Loading: run once before the simulation pass, alongside the other Mata
-*          definitions, i.e. add  run "core/rng_slots.do"  to run_pipeline (after
-*          core/mata_functions.do). Functions compiled in a mata{} block persist
-*          for the session, exactly like core/mata_functions.do.
-*
+* Purpose: Single source of truth for the column layout of the pre-drawn random-number
+*          matrix mRN (Obs x K) used for common random numbers (CRN). Every stochastic
+*          event reads its own FIXED column for its own FIXED patient (row), so the same
+*          uniform feeds the same event for the same patient in every arm of a comparison.
+*          Provides rn_K() (total columns), rn_<event>(point) accessors (column index per
+*          event/point) and rnDraw(idx, slot) (the shared uniforms mRN[idx, slot]).
+* Usage:   run "core/rng_slots.do" once before the simulation pass (run_pipeline loads it
+*          after core/mata_functions.do); compiled functions persist for the session.
+* Notes:   CRN is unconditional - no runtime toggle, no runiform fallback. mRN itself is
+*          built in core/mata_setup.do (set seed base + b; runiform(Obs, rn_K())), NOT here.
+*          See CRN_implementation_plan.md. Column map below.
+**********
+
 * Design rules (from the plan, section 4):
 *   - One slot per (event, pathway point). Modules that draw at several lines/OMC
 *     (OS, BCR, TXR, TXD, TFI) get a DISTINCT column per line/OMC.
@@ -57,10 +48,6 @@
 *                      3 = ASCT spline 3 (cond.), 4 = no-ASCT, 5 = continuous therapy
 *   TFI_L1 branch:     1 = ASCT, 2 = no-ASCT
 *   MNT branch:        1 = ASCT, 2 = no-ASCT
-*
-* Author: Adam Irving
-* Date: June 2026
-**********
 
 mata:
 

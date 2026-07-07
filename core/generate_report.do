@@ -1,10 +1,9 @@
 **********
 * Monash Myeloma Model - Generate Report
-* 
-* Purpose: Create PDF report using putpdf
-*          Integrates with Monash Myeloma Model v2.0 dispatcher system
-* 
-* Output: ${int}_${data}_${scenario}.pdf
+*
+* Purpose: Build the per-run PDF report (putpdf) of patient, survival, treatment and
+*          economic outcomes from the processed dataset. Called by the dispatcher.
+* Notes:   Output -> `report_dir'/${int}_${line}_${data}.pdf.
 **********
 
 

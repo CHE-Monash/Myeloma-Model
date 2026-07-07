@@ -1,17 +1,12 @@
 **********
-* Monash Myeloma Model - OOS (70/30): held-out simulation cohort
+* Monash Myeloma Model - OOS cohort
 *
-* Purpose: Turn the held-out 30% patients' BASELINE (diagnosis) covariates into a simulation input
-*          cohort, in the same schema as patients/population_1995_2040_*.dta, so the engine can
-*          simulate the real test patients (not a synthetic incident population). The simulated
-*          trajectories are then compared to those same patients' observed outcomes (oos_targets.do).
-*
-* Input:   ${data_path}/oos/MRDR Wide MI_test.dta   (test fold, imputed; one row per patient x imp,
-*          at diagnosis; from prep/multiple_imputation.do with $sample=="test")
-* Output:  analyses/oos/patients/oos_cohort.dta
-*
-* The finalisation block below mirrors prep/population_1995_2040.do (cohort schema must match what
-* core/load_patients.do / core/mata_setup.do read). Run from the repository root.
+* Purpose: Turn the held-out 30% patients' baseline (diagnosis) covariates into a simulation input
+*          cohort matching the population_1995_2040_*.dta schema, so the engine can simulate the real
+*          test patients (not a synthetic population) for comparison against their observed outcomes.
+* Notes:   Input ${data_path}/oos/MRDR Wide MI_test.dta (test fold, imputed) -> output
+*          analyses/oos/patients/oos_cohort.dta. The finalisation block mirrors
+*          prep/population_1995_2040.do; schema must match core/load_patients.do + core/mata_setup.do.
 **********
 
 clear all
