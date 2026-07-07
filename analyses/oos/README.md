@@ -14,7 +14,9 @@ analyses/oos/
 ├── simulate.do              simulation dispatcher (70%-trained coeffs on the 30% cohort)
 ├── validate_oos.do          point-estimate: compares simulated 30% vs observed targets
 ├── validate_outcomes.do     shared comparison engine: sim .dta vs target CSVs  [moved from validation/]
-├── bootstrap_validation.do  HPC: 95% bootstrap prediction-interval coverage vs held-out (percentile method)
+├── bootstrap_validation.do  HPC: 95% bootstrap prediction-interval coverage vs held-out (percentile method);
+│                            also writes the 2024-style OS validation curve (obs vs sim 95% CI + monthly p-value)
+├── plot_os_curve.do         local: redraw that OS validation figure from the pulled-back CSV
 ├── prep/
 │   ├── oos_split.do         70/30 patient split (fixed seed) -> ${data_path}/oos/oos_split.dta
 │   ├── oos_targets.do       observed outcomes for the 30%  -> targets/*.csv  (reuses generate_benchmarks.do)
@@ -48,6 +50,8 @@ The main prep/validation scripts take optional arguments so they serve both the 
 7. `validate_oos.do` — compare the point estimate to the observed targets (fixed tolerances).
 
 **Bootstrap prediction intervals (HPC; the headline metric):** train bootstrap MI + risk equations, then `simulate.do 1 1 500` (500 simulations of the held-out 30%), then `bootstrap_validation.do` — 95% percentile interval per outcome, coverage vs the held-out observed. See `run.do` bootstrap steps (a)–(c) for the commands, and the `/* … */` shell block at the end of `run.do` for the cluster transfer/submit — run those lines in a VS Code terminal after `source env.sh` (git-ignored; supplies the machine-specific paths).
+
+**Whole-population OS validation curve (2024 PLOS ONE Fig 2):** the same `bootstrap_validation.do` run also builds the observed (validation-cohort) KM 95% CI vs the simulated cohort's 95% CI over 120 months, with a **monthly p-value** testing the difference — writing `results/os_wholepop_curve_validation.csv`, `results/os_wholepop_curve.png`, and the headline *"no significant difference in N/120 months"*. It reads the observed monthly curve from the `os_wholepop_curve.csv` target (`generate_benchmarks.do` must have produced it — re-run `oos_targets.do`) and reuses the existing 500 sims (no re-simulation). If HPC batch graphics are off, pull the CSV and run `plot_os_curve.do` locally to redraw the figure.
 
 ## Open items before a publication-grade run
 - **`oos_cohort.do`** mirrors `population_1995_2040.do`'s cohort schema — verify the column set still matches `core/load_patients.do` / `core/mata_setup.do` against live data.
