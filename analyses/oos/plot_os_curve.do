@@ -51,8 +51,8 @@ twoway ///
     (line pvalue year, yaxis(2) lcolor("`pcol'") lwidth(vthin)  lpattern(shortdash)) ///
     (function y = 0.05, range(0 10) yaxis(2) lcolor("`pcol'") lwidth(vthin) lpattern(solid)) ///
   , ytitle("Overall survival (%)") yscale(range(0 100)) ylabel(0(20)100, angle(0)) ///
-    ytitle("p-value", axis(2) color("`pcol'")) yscale(range(0 1) axis(2) lcolor("`pcol'") lwidth(thin)) ///
-    ylabel(0(.2)1, axis(2) angle(0) format(%2.1f) labcolor("`pcol'") tlcolor("`pcol'") tlwidth(thin)) ///
+    ytitle("p-value", axis(2) color("`pcol'")) yscale(range(0 1) axis(2) lcolor("`pcol'") lwidth(vthin)) ///
+    ylabel(0(.2)1, axis(2) angle(0) format(%2.1f) labcolor("`pcol'") tlcolor("`pcol'") tlwidth(vthin)) ///
     xtitle("Years since diagnosis", margin(t=3)) xlabel(0(2)10) ///
     legend(order(1 "Validation 95% CI" 3 "Simulated 95% CI" 5 "Monthly p-value" 6 "p = 0.05") ///
            rows(1) size(vsmall) symxsize(8) region(lstyle(none))) ///
