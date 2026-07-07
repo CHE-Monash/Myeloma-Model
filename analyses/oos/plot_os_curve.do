@@ -36,19 +36,26 @@ local nns = r(N)
 di as text _n "OS validation: no significant difference in `nns'/`nmo' months (" ///
     %4.1f cond(`nmo' > 0, 100*`nns'/`nmo', .) "%); p>=0.05" _n
 
+* Confidence-interval BOUNDS as lines, no shading: observed (validation) bounds solid black, simulated
+* bounds dotted -- so the overlap is legible. The monthly p-value and the p=0.05 threshold are light
+* blue (2nd axis) to set them apart from the black KM CI bounds.
+gen double year = month/12
+local pcol "74 143 199"     // light blue for the p-value lines
+* Bounds as lines only -> the simulated dotted line is one object shared by plot + legend, so they
+* match exactly (no scatter/proxy). Validation solid black; simulated dashed.
 twoway ///
-    (rarea obs_lo obs_hi month, color(navy%22) lwidth(none)) ///
-    (rarea sim_lo sim_hi month, color(cranberry%22) lwidth(none)) ///
-    (line  s_obs    month, lcolor(navy)      lwidth(medthin)) ///
-    (line  sim_mean month, lcolor(cranberry) lwidth(medthin)) ///
-    (line  pvalue   month, yaxis(2) lcolor(gs7) lpattern(dash)) ///
-  , yline(0.05, axis(2) lcolor(gs11) lpattern(shortdash)) ///
-    ytitle("Overall survival (%)") yscale(range(0 100)) ylabel(0(20)100, angle(0)) ///
-    ytitle("Monthly p-value", axis(2)) yscale(range(0 1) axis(2)) ylabel(0(.2)1, axis(2) angle(0)) ///
-    xtitle("Months since diagnosis") xlabel(0(12)120) ///
-    legend(order(1 "Observed (validation) 95% CI" 2 "Simulated 95% CI" 5 "Monthly p-value") ///
-           rows(1) size(vsmall) region(lstyle(none))) ///
-    title("Out-of-sample overall survival: observed vs simulated", size(medsmall)) ///
+    (line obs_lo year, lcolor(black) lpattern(solid) lwidth(medthin)) ///
+    (line obs_hi year, lcolor(black) lpattern(solid) lwidth(medthin)) ///
+    (line sim_lo year, lcolor(black) lpattern(shortdash) lwidth(medthin)) ///
+    (line sim_hi year, lcolor(black) lpattern(shortdash) lwidth(medthin)) ///
+    (line pvalue year, yaxis(2) lcolor("`pcol'") lwidth(medthick)  lpattern(dot)) ///
+    (function y = 0.05, range(0 10) yaxis(2) lcolor("`pcol'") lwidth(vthin) lpattern(dash)) ///
+  , ytitle("Overall survival (%)") yscale(range(0 100)) ylabel(0(20)100, angle(0)) ///
+    ytitle("p-value", axis(2)) yscale(range(0 1) axis(2)) ylabel(0(.2)1, axis(2) angle(0) format(%2.1f)) ///
+    xtitle("Years since diagnosis", margin(t=3)) xlabel(0(2)10) ///
+    legend(order(1 "Validation 95% CI" 3 "Simulated 95% CI" 5 "Monthly p-value" 6 "p = 0.05") ///
+           rows(1) size(vsmall) symxsize(8) region(lstyle(none))) ///
+    graphregion(color(white)) plotregion(color(white)) ///
     name(os_curve, replace)
 
 graph export "analyses/oos/results/os_wholepop_curve.png", replace width(1800)
