@@ -1,0 +1,2 @@
+year,index,note
+2025,100,"Base placeholder (index is relative; any base works). Populate with an ABS price index — e.g. CPI All Groups Australia (ABS 6401.0) or the Health subgroup / an AIHW health price index — one row per year. Inflation factor applied to non-drug costs = index[target_year] / index[source_year]. Drug prices are NOT inflated (use actual PBS prices in drug_prices.csv)."

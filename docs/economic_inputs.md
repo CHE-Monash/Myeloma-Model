@@ -13,9 +13,32 @@ parameter values, how they are applied, and how discounting works.
   PBS-based; hospital/community/emergency and ASCT costs from Australian costing sources).
 - **Discount rate:** `$drate` (default **0.05** = 5% per year, the PBAC reference rate).
 
-> ⚠️ These parameters are currently **hardcoded as locals** in `process_data.do` (no external cost file).
-> To reprice or run a cost sensitivity analysis, edit the `local c*`/`local u*` values there. Keep this
-> document in step with those edits.
+> ⚠️ The drug/regimen and non-drug costs are **derived** by **`prep/treatment_costs.do`** from tidy input
+> tables in `prep/inputs/` — the reproducible, versioned replacement for the old cost spreadsheet. The same
+> values are **currently also hardcoded** as `local c*` in `process_data.do`; wiring `process_data` to read
+> the derived output is a pending change. Utilities (`u*`) are still edited directly in `process_data.do`.
+
+## Deriving and repricing costs
+
+`prep/treatment_costs.do [year]` builds the per-cycle drug costs and the (inflated) non-drug costs for a
+price year from four input tables:
+
+| File | Role |
+|---|---|
+| `prep/inputs/treatment_regimens.csv` | Dosing spec (stable): per regimen×drug — dose, basis (`/m2`,`/kg`,`flat`), schedule, cycles, and any admin/vial overrides. |
+| `prep/inputs/drug_prices.csv` | PBS **DPMA per (drug, strength) × year**. Add a price year = **append rows**; the script uses the actual price for the target year (carrying the latest price ≤ target forward if a year is missing). |
+| `prep/inputs/other_costs.csv` | Non-drug costs (ASCT, hospital, community, emergency) with their **source year**. |
+| `prep/inputs/cost_index.csv` | Year × **ABS price index**, used to inflate the non-drug costs (`index[target]/index[source]`). Drug prices are **not** inflated — they use actual PBS values. |
+
+Output: `prep/inputs/treatment_costs_<year>.csv` (the `c*` per-cycle drug costs + inflated non-drug costs).
+The script **validates** that year 2025 reproduces the reference values before writing. To reprice: append
+the new year's PBS prices to `drug_prices.csv`, add the ABS index rows to `cost_index.csv`, and run
+`prep/treatment_costs.do <year>`.
+
+> ⚠️ **Kd correction (found when porting the spreadsheet):** the hardcoded `cKd = 15025` costs the escalated
+> carfilzomib dose (56 mg/m² ≈ 108 mg) as **one** 60 mg vial; it should be **two** → **≈ 25,028 / cycle**.
+> `prep/treatment_costs.do` uses the corrected 2-vial figure; the `cKd` local in `process_data.do` is still
+> 15,025 pending the rewire, so **current model runs under-cost Kd**.
 
 ## Discounting
 
@@ -104,10 +127,15 @@ The ICER machinery (e.g. `transport_dvd`) collapses `cost_total_d` and `qaly_tot
 - **No time-varying or health-state-specific costs beyond the annual non-treatment bundle** — disease
   management cost is a flat annual rate over survival, not resolved by line or response.
 - **Utilities are phase-based, not response-based** — BCR (response) does not directly modulate utility.
-- **The `Other` (code 0) drug cost is a single blended value** covering all pooled regimens.
-- **Reprice/sensitivity:** edit the `local c*` / `local u*` values in `core/process_data.do`; there is no
-  parameter file to override them at run time. Confirm the price year and source citations against the
-  analysis manuscript before publication.
+- **The `Other` (code 0) drug cost is a single blended value** covering all pooled regimens (mean of VTd,
+  TCd, Td, Vd); maintenance is a usage-weighted blend of lenalidomide and thalidomide.
+- **Body size is a population average** — drug dosing uses a fixed BSA (1.93 m²) and weight (81.1 kg), so
+  per-patient dose variation isn't modelled. This matters only for the size-adjusted drugs (carfilzomib
+  `/m2`, daratumumab `/kg`), and mostly at vial-rounding boundaries; per-patient dosing is a possible future
+  extension.
+- **Reprice/sensitivity:** for **drug** costs, edit `prep/inputs/*.csv` and re-run `prep/treatment_costs.do`
+  (see *Deriving and repricing costs* above); **utilities** are still edited directly in `process_data.do`.
+  Confirm the price year and source citations against the analysis manuscript before publication.
 
 See also: [`reference.md`](reference.md) for the pathway-point / regimen / duration variables these
 calculations consume, and [`technical_review.md`](technical_review.md) for the simulation architecture.

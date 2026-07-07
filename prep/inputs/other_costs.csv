@@ -1,0 +1,5 @@
+component,cost,source_year,apply_as,note
+cASCT,41723,2025,one-off,Autologous stem-cell transplant (per procedure). CONFIRM source year.
+cHosp,38743,2025,annual,Hospitalisation (per year alive). CONFIRM source year.
+cComm,10928,2025,annual,Community care (per year alive). CONFIRM source year.
+cEmer,2476,2025,annual,Emergency presentations (per year alive). CONFIRM source year.
