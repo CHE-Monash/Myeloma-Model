@@ -227,7 +227,6 @@ For access to genuine patient data from the Australia and New Zealand Myeloma an
 
 - **Noncommercial use** (academic, educational, public-research, government, personal) is free under the [PolyForm Noncommercial License 1.0.0](LICENSE).
 - **Commercial use** — including industry-sponsored regulatory or reimbursement (e.g. PBAC) submissions — requires a separate commercial licence from Monash University.
-- **Prior releases** remain available under the GNU General Public License v3.0; the change applies from v3.0 onward.
 - **Registry-derived data and fitted parameters** are additionally governed by the MRDR data agreement.
 
 See [LICENSING.md](LICENSING.md) for the full model and commercial-licence enquiries. This is **source-available**, not "open source" in the OSI sense (it restricts commercial use).

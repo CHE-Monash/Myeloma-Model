@@ -26,13 +26,6 @@ Two common industry paths:
    agreement and the MRDR data terms).
 2. **Commercial licence** — you run the model yourself, under a negotiated commercial licence.
 
-## Prior releases (GPLv3)
-
-Earlier public releases were made available under the **GNU General Public License v3.0** and remain so:
-copies already distributed under GPLv3 continue to be governed by GPLv3, and the `LICENSE` file at those
-earlier git tags is unchanged. **From version 3.0 onward**, the project is licensed as described here.
-A licence change is not retroactive — it applies to this and future versions only.
-
 ## Data and fitted parameters
 
 This licence covers the **software**. The **registry-derived data** (patient populations, cohorts) and the
