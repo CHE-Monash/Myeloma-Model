@@ -172,10 +172,9 @@ The model has been comprehensively validated:
 
 Access previous versions via Git tags:
 
-- **v3.0**: Current version — Calibrated Transport & CRN methods, per-line overall survival, individual comorbidity covariates, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the v2.1 vectorised engine)
-- **v2.1**: Vectorised Mata implementation (backward compatible)
-- **v2.0**: Reorganised architecture with extended treatment options
-- **v1.0**: Initial public release (August 2024) - `git checkout v1.0`
+- **v3.0**: Current version (`main`) — Calibrated Transport & CRN methods, per-line overall survival, individual comorbidity covariates, standardised CSV exports, rebrand to Monash Myeloma Model (incorporates the earlier vectorised Mata engine)
+- **v2.0**: Reorganised architecture with extended treatment options — `git checkout v2.0`
+- **v1.0**: Initial public release (August 2024) — `git checkout v1.0`
 
 ## Citation
 
