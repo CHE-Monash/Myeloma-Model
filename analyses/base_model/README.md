@@ -6,18 +6,17 @@ This is the base Monash Myeloma Model configuration that includes **all availabl
 
 ## What's Different About This Model
 
-The base model includes **ALL** treatment regimens in the risk equations:
+Unlike the intervention analyses, the base model keeps **all** treatment regimens in play. At each line the most common regimens are modelled as distinct categories and everything else is pooled into an "other" category. The per-line regimen lists are defined in `outcomes/txr_base_model.do`:
 
-### Line 1 (LoT 1) Regimens Included
-- **VCd** (Bortezomib, Cyclophosphamide, Dexamethasone) - 58%
-- **VRd** (Bortezomib, Lenalidomide, Dexamethasone) - 15% ✅ **Included**
-- **VTd** (Bortezomib, Thalidomide, Dexamethasone) - 8% 
-- **Other regimens** - 19%
+| Line | Distinctly modelled regimens (code) | Pooled |
+|---|---|---|
+| **L1** | VCd (4), **VRd** (31) | all other regimens → "other" |
+| **L2** | Rd (7), DVd (80) | " |
+| **L3** | Kd (49), Rd (7) | " |
+| **L4** | Kd (49), Pd (56) | " |
+| **L5–L9** | — (none listed) | all regimens → "other" |
 
-### Line 2 (LoT 2) Regimens Included  
-- **Rd** (Lenalidomide, Dexamethasone) - 16%
-- **DVd** (Daratumumab, Bortezomib, Dexamethasone) - 11%
-- **Other regimens** - 73%
+VCd = Bortezomib/Cyclophosphamide/Dexamethasone, VRd = Bortezomib/Lenalidomide/Dexamethasone, Rd = Lenalidomide/Dexamethasone, DVd = Daratumumab/Bortezomib/Dexamethasone, Kd = Carfilzomib/Dexamethasone, Pd = Pomalidomide/Dexamethasone. **VRd is included at L1** — the key contrast with the VRd post-market analysis, which excludes it.
 
 ## When to Use This Model
 

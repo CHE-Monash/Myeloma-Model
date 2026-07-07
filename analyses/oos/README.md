@@ -53,8 +53,9 @@ The main prep/validation scripts take optional arguments so they serve both the 
 
 **Whole-population OS validation curve (2024 PLOS ONE Fig 2):** the same `bootstrap_validation.do` run also builds the observed (validation-cohort) KM 95% CI vs the simulated cohort's 95% CI over 120 months, with a **monthly p-value** testing the difference — writing `results/os_wholepop_curve_validation.csv`, `results/os_wholepop_curve.png`, and the headline *"no significant difference in N/120 months"*. It reads the observed monthly curve from the `os_wholepop_curve.csv` target (`generate_benchmarks.do` must have produced it — re-run `oos_targets.do`) and reuses the existing 500 sims (no re-simulation). If HPC batch graphics are off, pull the CSV and run `plot_os_curve.do` locally to redraw the figure.
 
-## Open items before a publication-grade run
-- **`oos_cohort.do`** mirrors `population_1995_2040.do`'s cohort schema — verify the column set still matches `core/load_patients.do` / `core/mata_setup.do` against live data.
-- **Prediction-interval calibration** (the headline OOS metric) is implemented in `bootstrap_validation.do` (percentile method: does each held-out observed value fall in the bootstrap 95% interval?). It needs the 500 bootstrap simulations (`simulate.do 1 1 500`); designed to run on the HPC, which keeps the bootstrap outputs — pull back `results/oos_bootstrap_validation.md` + `.csv` for review. Smoke-tested locally (logic verified on a single sim replicated 5×); not yet run over genuine bootstraps.
+## Status and remaining checks
+The full OOS validation has been run for the current per-line model against live MRDR data: deterministic **143/172 (83.1%)**, in-sample **163/172 (94.8%)**, bootstrap prediction-interval coverage **105/171 (61.4%)**, and the whole-population OS validation curve showing **no significant difference in 118/120 months (98.3%)**. Results are in `results/` (`oos_bootstrap_validation.md`, `oos_bootstrap_coverage.*`, `os_wholepop_curve*`).
+
+Remaining minor checks before a submission:
 - **Match the 2024 methods**: confirm the split (simple vs stratified) and per-fold imputation choices against the PLOS ONE paper for comparability.
-- All scripts are **untested against live MRDR data** (built without drive access) — expect a debugging pass on first run.
+- Re-read the comorbidity FMI / degrees-of-freedom at the full 10 imputations (earlier reads were at 2).

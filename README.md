@@ -81,6 +81,7 @@ The dispatcher's configuration block sets the run via globals. Interactive runs 
 |---|---|
 | `analyses/base_model/simulate.do` | All regimens — current-practice projections |
 | `analyses/vrd_post/simulate.do` | VRd at LoT 1, post-market impact |
+| `analyses/oos/simulate.do` | Out-of-sample (70/30) validation — the mainstay |
 | `analyses/transport_dvd/simulate.do` | DVd via Calibrated Transport |
 
 Results are written to `analyses/<analysis>/simulated/`.
@@ -136,7 +137,8 @@ Myeloma-Model/
 │   ├── vrd_post/            # VRd LoT 1 post-market
 │   ├── transport_dvd/       # DVd Calibrated Transport
 │   └── oos/                 # Out-of-sample (70/30) validation — mainstay
-├── patients/                # Population cohorts (.dta)
+├── prep/                    # MRDR → model inputs: imputation, risk equations, cohorts, benchmarks
+├── patients/                # Population cohorts (.dta; git-ignored)
 ├── docs/                    # Technical documentation
 ├── hpc/                     # MASSIVE M3 cluster scripts
 ├── README.md
@@ -161,7 +163,7 @@ The model has been comprehensively validated:
 - **Published Validation**: See Irving et al. (2024) in PLOS ONE
 - **Out-of-Sample Testing**: 70/30 split validation with 500 bootstrap iterations
 - **Survival Curve Accuracy**: No significant difference in 98.3% (118 of 120) of monthly comparisons over the 10 years post-diagnosis for the current per-line OS model (up from 90% for the published 2024 model)
-- **Engine Verification**: Unit + extreme-value stress-test suite in `core/tests/` (7/7 pass)
+- **Engine Verification**: unit tests + an extreme-value stress test in `core/tests/` (the stress test passes 7/7)
 - **Vectorisation Validation**: Comprehensive test suite confirms identical results to original implementation
 
 ![Out-of-sample overall-survival validation](docs/images/oos_os_validation.png)

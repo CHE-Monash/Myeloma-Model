@@ -6,9 +6,7 @@ This directory contains 10 different population realisations for multiple myelom
 
 ## Files
 
-- `population_1995_2040_1.dta` to `population_1995_2040_10.dta` - Patient population datasets
-- `metadata/population_characteristics.dta` - Summary statistics for all populations
-- `metadata/generation_log.txt` - Documentation of how populations were generated
+- `population_1995_2040_1.dta` to `population_1995_2040_10.dta` — the 10 patient population datasets. These are **git-ignored** (regenerated locally by `prep/population_1995_2040.do`), not shipped in the public repo.
 
 ## Population Characteristics
 
@@ -21,7 +19,10 @@ Each population dataset contains 101,212 patients with:
 | **Male** | Sex indicator | 0=Female, 1=Male |
 | **ECOGcc** | ECOG performance status | 0, 1, 2 |
 | **RISS** | Revised International Staging | 1, 2, 3 |
-| **CMc** | Comorbidity Score | 0, 1, 2 |
+| **CM_CKD** | Renal impairment (chronic kidney disease) flag | 0, 1 |
+| **CM_CRD** | Cardiac comorbidity flag | 0, 1 |
+| **CM_PLM** | Pulmonary comorbidity flag | 0, 1 |
+| **CM_DBT** | Diabetes flag | 0, 1 |
 | **State** | Initial disease state | Usually 1 |
 | **DateDN** | Date of diagnosis | Date format |
 

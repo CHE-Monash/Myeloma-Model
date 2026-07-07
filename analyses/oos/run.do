@@ -30,7 +30,7 @@ do "prep/multiple_imputation.do" 2 0 . . test          // test  (30%) -> targets
 *    args: analysis coeffs min_year max_year boot min_bs max_bs sample   (loads outcomes/txr_oos.do)
 do "prep/risk_equations.do" oos oos 1995 2040 0 . . train
 
-* 3. Held-out 30% validation targets (observed outcomes) -> analyses/oos/targets/ (13 csv)
+* 3. Held-out 30% validation targets (observed outcomes) -> analyses/oos/targets/ (18 csv)
 do "analyses/oos/prep/oos_targets.do"
 
 * 4. Held-out 30% simulation cohort -> analyses/oos/patients/oos_cohort.dta
