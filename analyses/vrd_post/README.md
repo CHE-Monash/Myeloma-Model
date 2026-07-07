@@ -26,14 +26,14 @@ This analysis **excludes VRd from the risk equations** to simulate what would ha
 
 ## Analysis Scenarios
 
-The scenario is selected by the `$int` global in `vrd_post.do`; run the dispatcher from the repository root.
+The scenario is selected by the `$int` global in `simulate.do` (or its 4th positional arg); run the dispatcher from the repository root. To reproduce the whole analysis in order — risk equations, both arms, validation, and the bootstrap HPC plumbing — use `run.do`.
 
 ### Scenario 1: Historical Practice (SoC)
 
 Set `$int "SoC"`, then:
 
 ```stata
-do "analyses/vrd_post/vrd_post.do"
+do "analyses/vrd_post/simulate.do"
 ```
 
 - VRd patients get alternative regimens (VCd, VTd, Other)
@@ -44,7 +44,7 @@ do "analyses/vrd_post/vrd_post.do"
 Set `$int "VRd"`, then:
 
 ```stata
-do "analyses/vrd_post/vrd_post.do"
+do "analyses/vrd_post/simulate.do"
 ```
 
 - VRd patients receive VRd
@@ -52,7 +52,7 @@ do "analyses/vrd_post/vrd_post.do"
 
 ## Key Files
 
-- **Dispatcher**: `vrd_post.do` (configure via globals; `$int` toggles SoC / VRd)
+- **Dispatcher**: `simulate.do` (configure via globals; `$int` toggles SoC / VRd)
 - **Coefficients**: `coefficients/coefficients_vrd_post.mmat` (VRd excluded)
 - **Patient cohort**: `patients/patients_vrd_l1_post.dta` (VRd-eligible patients; loaded via `$cohort_file`)
 - **Bootstrap coefficients**: samples in `coefficients/bootstrap/`
@@ -66,7 +66,10 @@ Compare survival, response rates, and treatment pathways between scenarios to qu
 ```
 analyses/vrd_post/
 ├── README.md                       # This file
-├── vrd_post.do                     # Dispatcher (configure via globals)
+├── run.do                          # Analysis runbook: risk equations -> simulate (SoC/VRd) -> validate
+├── simulate.do                     # Dispatcher (configure via globals; 4th positional arg = arm)
+├── outcomes/
+│   └── txr_vrd_post.do             # Per-line regimen lists (VRd excluded)
 ├── coefficients/
 │   ├── coefficients_vrd_post.mmat  # VRd-excluded coefficients
 │   └── bootstrap/                  # bootstrap coefficient samples

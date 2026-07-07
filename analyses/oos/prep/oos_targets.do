@@ -11,7 +11,7 @@
 * comparison fair; arguments (not globals) are used because generate_benchmarks.do runs clear all.
 * (Invoke with do, not run -- run suppresses all screen output.)
 *
-* Requires (run analyses/oos/run_prep.do steps 1-2 first):
+* Requires (run analyses/oos/run.do step 1, the test fold, first):
 *   ${data_path}/oos/MRDR Long MI_test.dta     (test fold, imputed separately)
 * Output:
 *   analyses/oos/targets/   -- the 13 csv files (same schema the model validates against)
@@ -34,7 +34,7 @@ capture confirm file "`testdata'"
 if _rc {
 	di as error "Test-fold imputed data not found:"
 	di as error "  `testdata'"
-	di as error "Run analyses/oos/run_prep.do step 2 (multiple_imputation ... test) first."
+	di as error "Run analyses/oos/run.do step 1 (multiple_imputation ... test) first."
 	exit 601
 }
 

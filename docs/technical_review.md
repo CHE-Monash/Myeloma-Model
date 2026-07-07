@@ -27,9 +27,9 @@ The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). 
 
 ## Run interface
 
-There is no `main.do` and no positional-argument entry point. Each analysis ships a dispatcher do-file (`analyses/<name>/<name>.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
+There is no `main.do`. Each analysis ships a dispatcher do-file (`analyses/<name>/simulate.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Interactive runs are globals-only; `run.do` and the HPC arrays additionally pass a few optional positional overrides (`boot`, `min_bs`, `max_bs`, `scenario`). Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
 
-The configuration block (canonical form in `analyses/base_model/base_model.do`):
+The configuration block (canonical form in `analyses/base_model/simulate.do`):
 
 | Global | Meaning | Default |
 |----|----|----|
@@ -47,9 +47,9 @@ The configuration block (canonical form in `analyses/base_model/base_model.do`):
 | `$report` | Generate PDF report (0/1) | `0` |
 | `$scenario` | Scenario label (woven into output paths) | `""` |
 
-Two invocation patterns coexist. `base_model.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
+Two invocation patterns coexist. `base_model/simulate.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
 
-> `analyses/vrd_post/vrd_post.do` is a legacy dispatcher still using camel-case globals (`$Int`, `$Line`, `$Boot`, …) and the old `matrix_setup` naming. It is functionally superseded by the `base_model`/`transport_dvd` convention and is a candidate for modernisation.
+> `analyses/vrd_post/simulate.do` follows the explicit-call pattern (like `base_model`) rather than `run_pipeline`, and carries a legacy cohort-filename override (`$cohort_file` → `patients_vrd_l1_post.dta`). It is a candidate for consolidation onto `run_pipeline`, but its globals and `mata_setup` naming are already current.
 
 ## Simulation flow
 
@@ -167,7 +167,7 @@ The definitive method specification, including the exact regression form and the
 
 ## Outputs
 
-`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd.do`), not by `base_model.do`.
+`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd/simulate.do`), not by `base_model/simulate.do`.
 
 `core/generate_report.do` produces a `putpdf` report (titled "Monash Myeloma Model v3.0") when `$report == 1`, covering the patient sample, treatments, overall survival (with figures), lines of therapy, treatment duration, treatment-free interval and economic outcomes.
 

@@ -13,15 +13,13 @@
 
 # Generic bootstrap-simulation array job (committed -- no machine-specific paths). Per-run values from
 # the submitting `sbatch --export`:
-#   ANALYSIS   = the analyses/<ANALYSIS>/ folder to run
-#   DISPATCHER = the .do dispatcher within it (optional; defaults to simulate.do -- e.g. transport_dvd
-#                uses DISPATCHER=transport_dvd.do)
-#   SCENARIO   = optional 4th positional passed to the dispatcher (transport_dvd: A_trial/B_transport/
-#                C_mrdr). Empty for dispatchers that don't take it -- a trailing empty arg is ignored.
+#   ANALYSIS = the analyses/<ANALYSIS>/simulate.do dispatcher to run
+#   SCENARIO = optional 4th positional passed to the dispatcher (transport_dvd: A_trial/B_transport/
+#              C_mrdr). Empty for dispatchers that don't take it -- a trailing empty arg is ignored.
 # The job runs in the sbatch SUBMISSION directory -- run.do submits after `cd em76/$user` (your
 # cluster repo root), so no `cd` is needed here. --mail-user is supplied at submit from env.sh;
 # --account defaults to em76 (override at submit). boot fixed at 1; pass a sub-range via --array=1-200.
 
 module load stata/16u2021
 
-stata-mp analyses/${ANALYSIS}/${DISPATCHER:-simulate.do} 1 ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_TASK_ID} ${SCENARIO}
+stata-mp analyses/${ANALYSIS}/simulate.do 1 ${SLURM_ARRAY_TASK_ID} ${SLURM_ARRAY_TASK_ID} ${SCENARIO}

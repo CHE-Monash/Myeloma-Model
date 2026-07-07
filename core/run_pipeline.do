@@ -2,7 +2,7 @@
 * Monash Myeloma Model - Run Pipeline (shared lean engine pass)
 *
 * Purpose: One definition of the core simulation pass used by every orchestrator
-*          (build_cohort_pool.do, transport_dvd.do, ce_convergence.do, ...).
+*          (build_cohort_pool.do, transport_dvd/simulate.do, ce_convergence.do, ...).
 *          Runs entry/diagnosis -> processed per-patient outcomes, WITHOUT the
 *          CSV export (callers that want CSVs run core/export_results.do
 *          separately). Replaces the per-script "simulation_pipeline" copies.

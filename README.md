@@ -51,7 +51,7 @@ do "analyses/base_model/simulate.do"
 
 #### Configuration
 
-The dispatcher's configuration block sets the run via globals (there are no positional arguments):
+The dispatcher's configuration block sets the run via globals. Interactive runs need nothing more; `run.do` and the HPC array jobs instead pass a few of these as optional positional arguments (`boot`, `min_bs`, `max_bs`, and — where an analysis has scenarios — `scenario`), which override the globals of the same name:
 
 | Global | Description | Example |
 |---|---|---|
@@ -74,10 +74,28 @@ The dispatcher's configuration block sets the run via globals (there are no posi
 | Dispatcher | Focus |
 |---|---|
 | `analyses/base_model/simulate.do` | All regimens — current-practice projections |
-| `analyses/vrd_post/vrd_post.do` | VRd at LoT 1, post-market impact |
-| `analyses/transport_dvd/transport_dvd.do` | DVd via Calibrated Transport |
+| `analyses/vrd_post/simulate.do` | VRd at LoT 1, post-market impact |
+| `analyses/transport_dvd/simulate.do` | DVd via Calibrated Transport |
 
 Results are written to `analyses/<analysis>/simulated/`.
+
+### Analysis layout convention
+
+Every analysis folder under `analyses/<name>/` follows the same layout, so the same commands work across analyses:
+
+| File / folder | Role |
+|---|---|
+| `run.do` | **Analysis runbook** — the full ordered pipeline (prep → simulate → validate) as runnable `do` lines, plus the bootstrap HPC plumbing (the canonical record of the `sbatch`/`rsync` sequence, kept in a trailing block comment). Start here to reproduce an analysis. |
+| `simulate.do` | **Dispatcher** — one simulation run, configured by the globals block at the top. Also accepts the optional positionals `boot min_bs max_bs [scenario]` (used by `run.do` and the HPC arrays). |
+| `outcomes/txr_<coeffs>.do` | Per-line regimen code lists (`$TXR_L1..L9`) for the coefficient set; `prep/risk_equations.do`'s `gen_txr` builds the regimen dummies from them. |
+| `outcomes/` | Any analysis-specific outcome overrides (e.g. `sim_bcr_override.do`) and coefficient generators (e.g. `calibrated_transport.do`). |
+| `coefficients/` | Fitted coefficients `coefficients_<coeffs>.mmat` (+ `bootstrap/` for the 500 resamples). |
+| `patients/` | The simulation cohort `.dta` (git-ignored; restricted data). |
+| `simulated/` | Run outputs (per-scenario subfolders where an analysis has scenarios; `bootstrap/` for resamples). |
+| `results/` | Analysis-level CSVs/figures + a `results.md` — the canonical read surface for downstream consumers. |
+| `README.md` | Analysis-specific notes (research question, methodology, quirks). |
+
+Shared inputs are built once by `prep/` (multiple imputation, population cohorts) and fitted per-analysis by `prep/risk_equations.do <analysis> <coeffs> …`, which loads that analysis's `outcomes/txr_<coeffs>.do`. The bootstrap steps run on the MASSIVE cluster via the **generic** array jobs in `hpc/` (`multiple_imputation.script`, `risk_equations.script`, `simulate.script`); per-analysis arguments ride on each `sbatch --export=` line, recorded in that analysis's `run.do`.
 
 ## Result Exports
 

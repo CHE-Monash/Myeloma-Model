@@ -33,15 +33,15 @@ Trains the model on a random **70%** of MRDR patients, predicts the held-out **3
 
 ### How to run
 
+The full pipeline — split, train-70% fit, 30% targets + cohort, simulate, and compare — is the deterministic track of `analyses/oos/run.do` (its numbered steps 0–6); run that top to bottom, or the individual steps it lists:
+
 ``` stata
-// 1. Build inputs (split, train-70% fit, 30% targets + cohort) — see run_prep.do
-do "analyses/oos/run_prep.do"
+// The whole deterministic OOS pipeline (see the numbered steps inside):
+do "analyses/oos/run.do"
 
-// 2. Simulate the held-out 30% with the 70%-trained coefficients
-do "analyses/oos/oos.do"
-
-// 3. Compare the simulated 30% to the observed targets
-do "analyses/oos/validate_oos.do"
+// ... or just the final compare (steps 1-5 already done):
+//   step 5  do "analyses/oos/simulate.do"       // simulate the held-out 30% with the 70%-trained coefficients
+//   step 6  do "analyses/oos/validate_oos.do"   // compare the simulated 30% to the observed targets
 ```
 
 `validate_oos.do` points the shared comparison engine `validate_outcomes.do` at the OOS targets (`$val_targets`) and the OOS simulation (`$val_simfile`); the engine imports the target CSVs inline, loads the simulated dataset, runs the checks below, and prints a pass/fail summary.

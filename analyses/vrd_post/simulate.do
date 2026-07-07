@@ -1,11 +1,19 @@
 **********
-* Monash Myeloma Model - VRd Line 1 Post-Market Dispatcher
+* Monash Myeloma Model - vrd_post: simulate.do (simulation dispatcher)
 *
-* Purpose: VRd at line 1, post-market impact. Uses a coefficient set in which
-*          VRd is excluded from the risk equations; $int toggles the comparison
-*          (SoC = VRd-eligible patients receive historical alternatives;
-*           VRd = VRd available).
+* VRd at line 1, post-market impact. Uses a coefficient set in which VRd is excluded from the
+* risk equations; $int toggles the comparison (SoC = VRd-eligible patients receive historical
+* alternatives; VRd = VRd available). Orchestrated by run.do; on the HPC it is sbatch'd directly.
+*
+* Point estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over the coefficient resamples.
+* Optional positional args (used by run.do / HPC arrays): boot min_bs max_bs [int-arm].
 **********
+
+* Optional positional args, read into locals BEFORE clear all:
+local a_boot  `"`1'"'
+local a_minbs `"`2'"'
+local a_maxbs `"`3'"'
+local a_int   `"`4'"'   // arm override (SoC / VRd); default set below
 
 clear all
 set more off
@@ -34,6 +42,12 @@ global cost_year    "2025"              // Price year for all costs (AUD)
 global drate        "0.05"              // Annual discount rate (PBAC = 5%)
 global report       "0"                 // Generate report (0/1)
 global scenario     ""                  // Scenario
+
+// Positional-arg overrides (run.do / HPC arrays): boot/min_bs/max_bs and the intervention arm
+if `"`a_boot'"'  != "" global boot   `"`a_boot'"'
+if `"`a_minbs'"' != "" global min_bs `"`a_minbs'"'
+if `"`a_maxbs'"' != "" global max_bs `"`a_maxbs'"'
+if `"`a_int'"'   != "" global int    `"`a_int'"'   // SoC / VRd (run.do loops both arms)
 
 **********
 * Set Paths
