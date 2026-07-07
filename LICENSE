@@ -15,9 +15,11 @@ LICENSING.md for the full model and commercial-licence enquiries.
 
 These terms apply to version 3.0 of this software and later. See LICENSING.md.
 
-Registry-derived data and fitted model parameters are additionally governed by
-the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR) data
-agreement; this licence covers the software only.
+The coefficient sets and patient cohorts included in this repository are covered
+by these terms. The underlying individual-patient MRDR registry data from which
+the model is estimated is not included in this distribution and is separately
+restricted under the Australia and New Zealand Myeloma and Related Diseases
+Registry (MRDR) data agreement. See LICENSING.md.
 
 --------------------------------------------------------------------------------
 

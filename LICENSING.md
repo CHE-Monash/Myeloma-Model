@@ -28,11 +28,15 @@ Two common industry paths:
 
 ## Data and fitted parameters
 
-This licence covers the **software**. The **registry-derived data** (patient populations, cohorts) and the
-**fitted model parameters** (coefficient sets) are additionally governed by the **MRDR data agreement**
-(Australia and New Zealand Myeloma and Related Diseases Registry). Access to the restricted registry data
-is via the MRDR Steering Committee — [mrdr.net.au](https://www.mrdr.net.au/). Reproduction of a published
-analysis is supported through that data-access process.
+The **fitted model parameters** (coefficient sets) and the **patient cohorts included in this repository**
+are provided under the same licence as the code, so the **published analyses can be reproduced directly
+from the repository** — no separate data request is required.
+
+The **underlying individual-patient MRDR registry data** from which the model is estimated is **not
+included here**: it is restricted and governed by the **MRDR data agreement** (Australia and New Zealand
+Myeloma and Related Diseases Registry), with access via the MRDR Steering Committee —
+[mrdr.net.au](https://www.mrdr.net.au/). That raw registry data is needed only to **re-estimate the model
+or build new patient populations** — not to reproduce the published results.
 
 ## Enquiries
 
