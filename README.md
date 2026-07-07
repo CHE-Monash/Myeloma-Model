@@ -68,12 +68,12 @@ The dispatcher's configuration block sets the run via globals. Interactive runs 
 | `data` | Patient data | `population`, `predicted` |
 | `min_year` / `max_year` | Diagnosis-year range | `1995` / `2040` |
 | `min_id` / `max_id` | Patient ID range | `1` / `101212` |
-| `boot` | Bootstrap flag (0/1) | `0` |
-| `min_bs` / `max_bs` | Bootstrap iteration range | `1` / `100` |
 | `cost_year` | Price year for costs (AUD) | `2025` |
 | `drate` | Annual discount rate (PBAC = 5%) | `0.05` |
 | `report` | Generate PDF report (0/1) | `0` |
 | `scenario` | Scenario label | `Base` |
+| `boot` | Bootstrap flag (0/1) | `0` |
+| `min_bs` / `max_bs` | Bootstrap iteration range | `1` / `100` |
 
 #### Available Analyses
 
@@ -137,7 +137,6 @@ Myeloma-Model/
 │   ├── transport_dvd/       # DVd Calibrated Transport
 │   └── oos/                 # Out-of-sample (70/30) validation — mainstay
 ├── patients/                # Population cohorts (.dta)
-├── scratch/                 # Retired validation: OS/TFI debug diagnostics
 ├── docs/                    # Technical documentation
 ├── hpc/                     # MASSIVE M3 cluster scripts
 ├── README.md
