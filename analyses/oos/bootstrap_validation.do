@@ -119,6 +119,10 @@ import delimited "${bv_targets}/tfi_l2.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TFI_L2_bench)
 import delimited "${bv_targets}/pathways.csv", clear case(preserve)
 mkmat N ASCT L2 L3 L4 L5 L6 L7 L8, matrix(Pathways_bench)
+* Observed whole-population monthly OS KM curve (survivor + Greenwood SE at 0..120 mo) for the
+* 2024-style validation figure; optional -- if absent, the per-bootstrap curve + figure are skipped.
+capture confirm file "${bv_targets}/os_wholepop_curve.csv"
+local have_curve = (_rc == 0)
 di "Targets loaded."
 
 **********
@@ -169,6 +173,23 @@ program define bv_os_all
         if r(N) > 0 & !missing(`obs') post `h' (`b') ("OS") ("OS/ALL/`yr'yr") (`obs') (`=r(min)*100')
     }
     capture drop _osv _ostime
+end
+
+* OS whole-population monthly KM survivor at 0..120 mo from diagnosis -- one curve per bootstrap. The
+* spread across bootstraps forms the simulated 95% band for the 2024-style validation figure (observed
+* KM CI vs simulated CI + monthly p-value). Posts to a SEPARATE file so it doesn't enter the coverage set.
+cap program drop bv_os_curve
+program define bv_os_curve
+    args h b
+    capture drop _ct _cv
+    qui gen double _ct = OC_TIME
+    qui stset _ct, failure(OC_MORT==1) id(ID)
+    qui sts generate _cv = s
+    forvalues m = 0/120 {
+        qui summarize _cv if _t <= `m'
+        post `h' (`b') (`m') (`=cond(r(N) > 0, r(min), 1)')
+    }
+    capture drop _cv _ct
 end
 
 * OS whole-population stratified by baseline comorbidity burden (CKD+CRD+PLM+DBT: 0/1/2+).
@@ -243,6 +264,8 @@ end
 **********
 tempname pf
 postfile `pf' int b str8 family str44 metric double obs double sim using "$bv_out/bootstrap_iterations.dta", replace
+tempname pcurve
+if `have_curve' postfile `pcurve' int b int month double s using "$bv_out/os_curve_boot.dta", replace
 
 local nfiles = 0
 forvalues b = $bv_minbs/$bv_maxbs {
@@ -258,8 +281,9 @@ forvalues b = $bv_minbs/$bv_maxbs {
     bv_os `pf' `b' TSD_L1E BCR_SCT 4 OS_ASCT_bench      ASCT none
     bv_os `pf' `b' TSD_L2S BCR_L2  6 OS_L2_bench        L2   none
     bv_os `pf' `b' TSD_L3S BCR_L3  6 OS_L3_bench        L3   none
-    if `have_all' bv_os_all `pf' `b' OS_All_bench
-    if `have_cm'  bv_os_cm  `pf' `b' OS_CM_bench
+    if `have_all'   bv_os_all   `pf' `b' OS_All_bench
+    if `have_cm'    bv_os_cm    `pf' `b' OS_CM_bench
+    if `have_curve' bv_os_curve `pcurve' `b'
 
     // BCR distribution (4 lines)
     bv_bcr `pf' `b' BCR_L1  6 1 L1
@@ -302,6 +326,7 @@ forvalues b = $bv_minbs/$bv_maxbs {
     if (`b' == $bv_minbs | mod(`b', 50) == 0) di as text "  ... processed resample `b'"
 }
 postclose `pf'
+if `have_curve' postclose `pcurve'
 di as text _n "Processed `nfiles' bootstrap file(s)."
 
 **********
@@ -390,10 +415,80 @@ file close `rf'
 export delimited family metric observed lo95 med hi95 nsim inside included ///
     using "$bv_out/oos_bootstrap_coverage.csv", replace
 
+**********
+* 4. Monthly OS validation curve (2024 PLOS ONE Fig 2 style): observed whole-population KM 95% CI vs
+*    the simulated cohort's 95% CI across the bootstraps, plus a monthly p-value testing the difference.
+*    Needs the observed curve target os_wholepop_curve.csv (from generate_benchmarks.do).
+**********
+local curve_note ""
+if `have_curve' {
+    * Simulated band: per month, mean + SD across bootstraps. 95% CI = mean +/- 1.96*SD (the bootstrap
+    * S(m) distribution is ~normal, and SD is the quantity the monthly z-test uses).
+    use "$bv_out/os_curve_boot.dta", clear
+    collapse (mean) sim_mean = s (sd) sim_sd = s, by(month)
+    qui replace sim_mean = sim_mean * 100          // proportions -> %
+    qui replace sim_sd   = sim_sd   * 100
+    gen double sim_lo = max(0,   sim_mean - 1.96*sim_sd)
+    gen double sim_hi = min(100, sim_mean + 1.96*sim_sd)
+    tempfile _simband
+    save `_simband'
+
+    * Observed KM curve + Greenwood SE (from the target CSV) -> %; 95% CI = S +/- 1.96*SE.
+    import delimited "${bv_targets}/os_wholepop_curve.csv", clear case(preserve)
+    qui replace s_obs  = s_obs  * 100
+    qui replace se_obs = se_obs * 100
+    gen double obs_lo = max(0,   s_obs - 1.96*se_obs)
+    gen double obs_hi = min(100, s_obs + 1.96*se_obs)
+    merge 1:1 month using `_simband', nogen
+
+    * Monthly p-value: two-sample z-test of the survival difference at each month, combining the
+    * observed Greenwood variance and the simulated bootstrap variance (the 2024 Fig 2 p-value line).
+    gen double _den   = sqrt(se_obs^2 + sim_sd^2)
+    gen double zstat  = cond(_den > 0, (s_obs - sim_mean)/_den, 0)
+    gen double pvalue = cond(_den > 0, 2*(1 - normal(abs(zstat))), 1)
+    sort month
+    order month s_obs se_obs obs_lo obs_hi sim_mean sim_sd sim_lo sim_hi zstat pvalue
+    export delimited using "$bv_out/os_wholepop_curve_validation.csv", replace
+
+    * Headline (2024): fraction of months 1..120 with no significant difference (p >= 0.05).
+    qui count if month >= 1 & month <= 120
+    local nmo = r(N)
+    qui count if month >= 1 & month <= 120 & pvalue >= 0.05
+    local nns = r(N)
+    local curve_note "OS validation curve: no significant difference in `nns'/`nmo' months (`=string(100*`nns'/`nmo',"%4.1f")'%); p>=0.05"
+
+    * Figure (batch-safe: capture so a headless graphics failure cannot abort the run; the CSV above is
+    * always written, so the same figure can be drawn locally from it).
+    capture {
+        twoway ///
+            (rarea obs_lo obs_hi month, color(navy%22) lwidth(none)) ///
+            (rarea sim_lo sim_hi month, color(cranberry%22) lwidth(none)) ///
+            (line  s_obs   month, lcolor(navy) lwidth(medthin)) ///
+            (line  sim_mean month, lcolor(cranberry) lwidth(medthin)) ///
+            (line  pvalue  month, yaxis(2) lcolor(gs7) lpattern(dash)) ///
+          , yline(0.05, axis(2) lcolor(gs11) lpattern(shortdash)) ///
+            ytitle("Overall survival (%)") yscale(range(0 100)) ylabel(0(20)100, angle(0)) ///
+            ytitle("Monthly p-value", axis(2)) yscale(range(0 1) axis(2)) ylabel(0(.2)1, axis(2) angle(0)) ///
+            xtitle("Months since diagnosis") xlabel(0(12)120) ///
+            legend(order(1 "Observed (validation) 95% CI" 2 "Simulated 95% CI" 5 "Monthly p-value") ///
+                   rows(1) size(vsmall) region(lstyle(none))) ///
+            title("Out-of-sample overall survival: observed vs simulated", size(medsmall)) ///
+            name(os_curve, replace)
+        graph export "$bv_out/os_wholepop_curve.png", replace width(1800)
+        di as text "  wrote os_wholepop_curve.png"
+    }
+}
+
 di _n "{hline 90}"
 di "OVERALL COVERAGE: " %3.0f `ncov' " / " %3.0f `ntot' " assessed inside the bootstrap 95% interval  (" %5.1f `opct' "%)   [`nexcl' sparse excluded]"
 di "{hline 90}"
+if "`curve_note'" != "" di "`curve_note'"
+di "{hline 90}"
 di "Outputs in $bv_out :"
-di "  oos_bootstrap_validation.md    (readable report -- pull this back)"
-di "  oos_bootstrap_coverage.csv     (per-target intervals + coverage)"
-di "  bootstrap_iterations.dta       (per-resample long data, retained)"
+di "  oos_bootstrap_validation.md         (readable report -- pull this back)"
+di "  oos_bootstrap_coverage.csv          (per-target intervals + coverage)"
+di "  bootstrap_iterations.dta            (per-resample long data, retained)"
+if `have_curve' {
+    di "  os_wholepop_curve_validation.csv    (2024-style OS curve: obs vs sim CI + monthly p-value)"
+    di "  os_wholepop_curve.png               (the figure, if graphics available; else plot from the CSV)"
+}

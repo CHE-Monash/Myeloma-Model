@@ -640,6 +640,41 @@ if `n' > 0 {
 	matrix OS_All[1, 12] = r(N) / `n' * 100
 }
 
+// Whole-population OS monthly KM curve (survivor + Greenwood SE) at 0..120 months from diagnosis.
+// These are the inputs for the 2024-style validation figure (observed KM 95% CI vs simulated 95% CI
+// + monthly p-value). Exported as a target CSV so bootstrap_validation.do -- which runs on the HPC
+// without the drive -- can read the observed curve. Uses the same whole-pop stset as OS_All above.
+preserve
+	keep if _st == 1
+	bysort ID_BS (_t): keep if _n == _N          // one row per patient: _t = OS exit (mo), _d = died
+	keep _t _d
+	gen double _tot = 1
+	collapse (sum) d = _d (sum) tot = _tot, by(_t)   // per distinct exit time: deaths, # exiting
+	sort _t
+	egen double _Ntot = total(tot)
+	gen double _cum = sum(tot)
+	gen double n = _Ntot - _cum + tot            // number at risk just before _t (no delayed entry)
+	gen double _fac = 1 - d/n
+	gen byte   _zero = sum(_fac <= 0) > 0         // running flag: has the survivor hit 0?
+	gen double _s = exp(sum(ln(cond(_fac > 0, _fac, 1))))   // product-limit survivor
+	replace _s = 0 if _zero
+	gen double _gt = cond(n > d, d/(n*(n - d)), 0)          // Greenwood increment
+	gen double _gcum = sum(_gt)
+	tempfile _curvecsv
+	tempname _cvf
+	postfile `_cvf' int month double s_obs double se_obs using "`_curvecsv'", replace
+	forvalues m = 0/120 {
+		qui summarize _s    if _t <= `m', meanonly
+		local sm = cond(r(N) > 0, r(min), 1)     // S(m): survivor is non-increasing -> min over t<=m
+		qui summarize _gcum if _t <= `m', meanonly
+		local gm = cond(r(N) > 0, r(max), 0)     // Greenwood cum: non-decreasing -> max over t<=m
+		post `_cvf' (`m') (`sm') (`sm' * sqrt(`gm'))
+	}
+	postclose `_cvf'
+	use "`_curvecsv'", clear
+	export delimited using "`bench_out'/os_wholepop_curve.csv", replace
+restore
+
 // Whole-population OS stratified by baseline comorbidity burden (CKD+CRD+PLM+DBT: 0 / 1 / 2+).
 // Mirrors OS_All. Adding the four comorbidities to OS leaves the aggregate ~unchanged (it only
 // redistributes hazard), so THIS stratified target is what tests whether the model's comorbidity
