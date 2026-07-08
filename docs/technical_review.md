@@ -2,13 +2,13 @@
 
 **Version:** 3.0 · **Updated:** 2026-07-07 · **Tooling:** Stata 15+ (Mata)
 
-This document describes the architecture and implementation of the Monash Myeloma Model as it stands in the current codebase. It is rebuilt from source and supersedes earlier versions. Where a method underpins a specific analysis (notably Calibrated Transport), the authoritative specification lives in that analysis's own README; this review covers the shared engine.
+This document describes the architecture and implementation of the Monash Myeloma Model. Where a method underpins a specific analysis (notably Calibrated Transport), the authoritative specification lives in that analysis's own README; this review covers the shared engine.
 
 ## Executive summary
 
 The Monash Myeloma Model is a discrete-event microsimulation of the multiple myeloma treatment journey, from diagnosis through up to nine lines of therapy and death. It predicts best clinical response, treatment duration, treatment-free interval and overall survival from 50 risk equations estimated on the Australia and New Zealand Myeloma and Related Diseases Registry (MRDR), and attaches costs and quality-adjusted life years for health-economic evaluation.
 
-The engine is implemented in Stata's Mata language as a vectorised microsimulation: every patient is advanced through the same event simultaneously using matrix operations rather than a per-patient loop. All stochastic events draw from a pre-generated common-random-number (CRN) matrix, so two arms of a comparison see identical randomness for each patient — the basis for variance-reduced cost-effectiveness comparison.
+The engine is implemented in Stata's Mata language as a vectorised microsimulation: every patient is advanced through the same event simultaneously using matrix operations. All stochastic events draw from a pre-generated common-random-number (CRN) matrix, so two arms of a comparison see identical randomness for each patient — the basis for variance-reduced cost-effectiveness comparison.
 
 ## Architecture overview
 
@@ -27,7 +27,7 @@ The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). 
 
 ## Run interface
 
-There is no `main.do`. Each analysis ships a dispatcher do-file (`analyses/<name>/simulate.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline. Interactive runs are globals-only; `run.do` and the HPC arrays additionally pass a few optional positional overrides (`boot`, `min_bs`, `max_bs`, `scenario`). Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative, and there are no hardcoded `cd` statements.
+Each analysis ships a dispatcher do-file (`analyses/<name>/simulate.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline; a per-analysis `run.do` runbook drives the dispatcher (looping the arms of a comparison, or chaining prep steps). Interactive runs are globals-only; `run.do` and the HPC arrays additionally pass a few optional positional overrides (`boot`, `min_bs`, `max_bs`, `scenario`). Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative.
 
 The configuration block (canonical form in `analyses/base_model/simulate.do`):
 
@@ -40,16 +40,14 @@ The configuration block (canonical form in `analyses/base_model/simulate.do`):
 | `$data` | Patient data: `population` or `predicted` | `population` |
 | `$min_year` / `$max_year` | Diagnosis-year range | `1995` / `2040` |
 | `$min_id` / `$max_id` | Patient ID range | `1` / `101212` |
-| `$boot` | Bootstrap flag (0/1) | `0` |
-| `$min_bs` / `$max_bs` | Bootstrap iteration range | `""` |
-| `$cost_year` | Price year for costs (AUD) | `2025` |
+| `$cost_year` | Price year for costs (AUD) | `2026` |
 | `$drate` | Annual discount rate (PBAC = 5%) | `0.05` |
 | `$report` | Generate PDF report (0/1) | `0` |
 | `$scenario` | Scenario label (woven into output paths) | `""` |
+| `$boot` | Bootstrap flag (0/1) | `0` |
+| `$min_bs` / `$max_bs` | Bootstrap iteration range | `""` |
 
-Two invocation patterns coexist. `base_model/simulate.do` loads the core programs with `run "core/…"` and then calls them explicitly (`load_patients` → `mata_setup` → `simulation` → `process_data`). The newer orchestrators (`transport_dvd` and its helpers) call the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs the same lean pass — `load_patients`, `mata_setup`, `simulation`, `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` — but deliberately excludes CSV export and saving so callers can compose those steps themselves.
-
-> `analyses/vrd_post/simulate.do` follows the explicit-call pattern (like `base_model`) rather than `run_pipeline`, and carries a legacy cohort-filename override (`$cohort_file` → `patients_vrd_l1_post.dta`). It is a candidate for consolidation onto `run_pipeline`, but its globals and `mata_setup` naming are already current.
+Every dispatcher loads the core programs with `run "core/…"` and runs the lean simulation pass via the shared program **`run_pipeline`** (`core/run_pipeline.do`), which performs `load_patients` → `mata_setup` → `simulation` → `process_data`, after sourcing `core/mata_functions.do` and `core/rng_slots.do` when the Mata functions aren't already compiled. `run_pipeline` deliberately excludes CSV export and saving, so each dispatcher composes those around it: save the simulated `.dta`, run `core/validation.do`, and optionally `core/generate_report.do` (`$report`) / `core/export_results.do`.
 
 ## Simulation flow
 
@@ -58,7 +56,7 @@ A typical run proceeds:
 1.  **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `population_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
 2.  **`core/mata_setup.do`** (`mata_setup`) — builds the Mata characteristic vectors and outcome matrices from the Stata data, and constructs the CRN matrix `mRN`. It asserts `ID == _n` (errors otherwise).
 3.  **`core/simulation_engine.do`** (`simulation`) — the deterministic event loop. At each of the 19 OMC points it sets the current `OMC` and `Line` and executes the relevant `core/outcomes/sim_*.do` module, filling the outcome matrices.
-4.  **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs and discounted QALYs.
+4.  **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs, QALYs and discounting.
 
 The dispatcher then saves the dataset, runs the in-run invariant checks in `core/validation.do`, and optionally writes CSV exports and/or a PDF report.
 
@@ -107,7 +105,7 @@ The parametric survival families implemented in `core/mata_functions.do` are **e
 
 ## Mortality and survival tracking
 
-Survival is the master clock. `sim_os` fits a **separate parametric model to each pathway stage** — diagnosis, each line's start and end, with L1 end split by transplant status — each clocked from that stage's own entry event. At a line's first stage the elapsed time is zero, so the draw is an **unconditional** fresh survival on that stage's clock; the result is then stored back on the diagnosis clock (stage origin + residual) so mortality is compared like-for-like. This per-line construction replaced a single from-diagnosis Weibull that resampled conditional on accumulated time — a coupling that over-predicted survival for weak responders. (Lines 6+ share one model clocked from L6 start, so their later stages do condition on survival since L6.) `sim_mort` then declares death at an OMC when cumulative time-since-diagnosis crosses the drawn survival time, sets `mMOR`/`mOC`, and clips the realised duration (`mTXD` or `mTFI`) to the time actually experienced.
+Survival is the master clock. `sim_os` fits a **separate parametric model to each pathway stage** — diagnosis, each line's start and end, with L1 end split by transplant status — each clocked from that stage's own entry event. At a line's first stage the elapsed time is zero, so the draw is an **unconditional** fresh survival on that stage's clock; the result is then stored back on the diagnosis clock (stage origin + residual) so mortality is compared like-for-like. (Lines 6+ share one model clocked from L6 start, so their later stages do condition on survival since L6.) `sim_mort` then declares death at an OMC when cumulative time-since-diagnosis crosses the drawn survival time, sets `mMOR`/`mOC`, and clips the realised duration (`mTXD` or `mTFI`) to the time actually experienced.
 
 This is a single-cause time-to-event design rather than a formal competing-risks framework, with two additional absorbing mechanisms: an **age cap** (`Limit = 100`) that bounds age at death and can retroactively end a patient in the prior OMC, and a **terminal absorption** at L9E that forces any remaining survivors to die. `core/validation.do` enforces the survival invariants (no death-flag reversal, non-negative outcome times, monotone time-since-diagnosis, no outcomes recorded after death).
 
@@ -146,7 +144,6 @@ Parameter uncertainty is propagated through the coefficients. When `$boot == 1`,
 ## Analyses
 
 - **`base_model`** — the full treatment landscape, with all observed MRDR regimens in the risk equations. Used for population projections and as the baseline for the health-economic models. Its output, `analyses/base_model/simulated/all_0_population_1_101212.dta`, is the file the validation suite checks.
-- **`vrd_post`** — VRd at line 1, post-market. Uses a coefficient set in which VRd is excluded, so VRd-eligible patients are re-allocated to historical alternatives; two scenarios (`SoC` vs `VRd`) quantify the clinical impact of VRd availability.
 - **`transport_dvd`** — a two-arm comparative cost-effectiveness analysis of DVd versus Vd at line 2, built on the Calibrated Transport method (below). Runs under three scenarios (`A_trial`, `B_transport`, `C_mrdr`), each saved to its own `simulated/<scenario>/` subtree.
 
 ## Calibrated Transport
@@ -177,7 +174,7 @@ Validation is described in `docs/validation.md`. In brief, three layers: `core/v
 
 ## Performance
 
-The vectorised Mata implementation processes all patients simultaneously through matrix operations rather than a per-patient loop, which makes it substantially faster than the original loop-based implementation and allows large cohorts (tens of thousands of patients, with bootstrap replication) to be simulated in practical time. Memory is the main constraint at scale; the CRN matrix is the largest transient structure and is released in `process_data` once outcomes are finalised.
+The vectorised Mata implementation processes all patients simultaneously through matrix operations, which allows large cohorts (tens of thousands of patients, with bootstrap replication) to be simulated in practical time. Memory is the main constraint at scale; the CRN matrix is the largest transient structure and is released in `process_data` once outcomes are finalised.
 
 ## Common pitfalls and debugging
 

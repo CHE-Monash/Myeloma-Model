@@ -6,9 +6,7 @@ The model is checked at three layers:
 
 1.  **In-simulation invariants** — `core/validation.do`, run inside every simulation: lightweight ordering/bounds sanity checks (e.g. event times non-decreasing, durations non-negative). Catches gross engine errors on every run.
 2.  **Engine verification** — `core/tests/`: unit tests for the Mata/survival primitives plus extreme-value (stress) testing. Verifies the *machinery* with no calibration data.
-3.  **Calibration validation** — the **out-of-sample (70/30) analysis** in `analyses/oos/`. This is the **mainstay validation, re-run for each model version** to confirm the model still reproduces observed outcomes and nothing has regressed.
-
-> The previous in-sample registry acceptance test (a base-model run compared to pre-baked MRDR benchmark CSVs) has been **retired**. Its comparison logic survives as the shared engine `analyses/oos/validate_outcomes.do`; the old debug diagnostics were moved to `scratch/`.
+3.  **Calibration validation** — the **out-of-sample (70/30) analysis** in `analyses/oos/`. This is the **mainstay validation, re-run for each model version** to confirm the model reproduces observed outcomes and nothing has regressed. The shared comparison engine is `analyses/oos/validate_outcomes.do`.
 
 ## Layer 2 — engine verification (`core/tests/`)
 

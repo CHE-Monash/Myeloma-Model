@@ -144,7 +144,7 @@ cap mata: mata drop mRN
 	frame _costs: quietly import delimited "`costfile'", varnames(1) case(preserve) stringcols(_all) clear
 	frame _costs: quietly destring value, replace     // to double (avoids float import rounding)
 	foreach p in cVCd cVRd cRd cPd cVd cOther cMNT cASCT ///
-	             cKd_load cKd_maint cDVd_load cDVd_mid cDVd_tail ///
+	             cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 ///
 	             cHosp_initial cHosp_continuing cHosp_terminal ///
 	             cMBS_initial  cMBS_continuing  cMBS_terminal ///
 	             cEmer_initial cEmer_continuing cEmer_terminal {
@@ -159,14 +159,14 @@ cap mata: mata drop mRN
 * allocated to phase windows (months from regimen start) at each phase's per-month rate rather than a
 * single flat rate. DVd: load = cycles 1-3 (21-day, dara weekly), mid = cycles 4-8 (21-day, dara q3w),
 * tail = cycles 9+ (28-day, dara-only). Kd: load = cycle 1 (28-day step-up), maint = cycles 2+ (28-day).
-	local dvd_le = 3*21/30.4375                 // DVd load ends (months)
-	local dvd_me = 168/30.4375                  // DVd mid ends (months) = 8 x 21-day cycles
-	local dvd_lr = `cDVd_load' * 30.4375/21     // DVd per-month rate: load / mid / tail
-	local dvd_mr = `cDVd_mid'  * 30.4375/21
-	local dvd_tr = `cDVd_tail' * 30.4375/28
-	local kd_le  = 28/30.4375                   // Kd load ends (months) = 1 x 28-day cycle
-	local kd_lr  = `cKd_load'  * 30.4375/28
-	local kd_mr  = `cKd_maint' * 30.4375/28
+	local dvd_le = 3*21/30.4375                 // DVd phase-1 (load) ends (months)
+	local dvd_me = 168/30.4375                  // DVd phase-2 (mid) ends (months) = 8 x 21-day cycles
+	local dvd_lr = `cDVd_p1' * 30.4375/21       // DVd per-month rate: p1 / p2 / p3
+	local dvd_mr = `cDVd_p2' * 30.4375/21
+	local dvd_tr = `cDVd_p3' * 30.4375/28
+	local kd_le  = 28/30.4375                   // Kd phase-1 (load) ends (months) = 1 x 28-day cycle
+	local kd_lr  = `cKd_p1' * 30.4375/28
+	local kd_mr  = `cKd_p2' * 30.4375/28
 
 * Treatment costs by line (undiscounted)
 	forval l = `L'/`maxL' {

@@ -99,7 +99,7 @@ a line is pooled into `0 = other`.
 
 ## Comorbidity flags
 
-Four binary flags enter the OS and ASCT-eligibility equations (replacing the earlier ordinal `CMc` score):
+Four binary flags enter the OS and ASCT-eligibility equations:
 
 | Variable | Comorbidity |
 |---|---|
@@ -107,8 +107,6 @@ Four binary flags enter the OS and ASCT-eligibility equations (replacing the ear
 | `CM_CRD` | Moderate-to-severe cardiac disease |
 | `CM_PLM` | Moderate-to-severe chronic lung disease |
 | `CM_DBT` | Diabetes (insulin / oral hypoglycaemics) |
-
-(The imputation also derives `CM_LVR` / `CM_PNR` / `CM_MLG`, which the current model does not use.)
 
 ## Mata data structures
 
@@ -134,7 +132,7 @@ Each matrix has paired `rm*`/`cm*` row/column-label matrices.
 
 ### Characteristic vectors
 
-`vID`, `vAge` (age at diagnosis), `vAge2` (age²), `vMale`; ECOG as `vECOG` and dummies `vECOG0/1/2`;
+`vID`, `vAge`, `vAge2` (age²), `vMale`; ECOG as `vECOG` and dummies `vECOG0/1/2`;
 staging as `vRISS`/`vRISS1..3` and `vISS`/`vISS1..3`; age-threshold indicators `vAge70`, `vAge75`;
 comorbidity flags `vCKD`, `vCRD`, `vPLM`, `vDBT`; the constant `vCons`; and treatment-receipt vectors
 `vSCT_DN` (ASCT intent at diagnosis), `vSCT_L1` (ASCT receipt at L1), `vMNT` (maintenance receipt).

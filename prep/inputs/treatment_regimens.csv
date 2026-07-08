@@ -7,18 +7,18 @@ VRd,,Lenalidomide,25.0,25.0,flat,14,5,
 VRd,,Dexamethasone,4.0,20.0,flat,8,5,
 Rd,,Lenalidomide,25.0,25.0,flat,21,8,
 Rd,,Dexamethasone,4.0,40.0,flat,4,8,
-Kd,load,Carfilzomib,60.0,20.0,m2,2,1,cycle 1 step-up (D1 D2 at 20 mg/m2)
-Kd,load,Carfilzomib,60.0,56.0,m2,4,1,cycle 1 (D8 D9 D15 D16 at 56 mg/m2)
-Kd,load,Dexamethasone,4.0,40.0,flat,3,1,
-Kd,maint,Carfilzomib,60.0,56.0,m2,6,,cycles 2+ twice-weekly 56 mg/m2 (D1 D2 D8 D9 D15 D16)
-Kd,maint,Dexamethasone,4.0,40.0,flat,3,,
-DVd,load,Daratumumab,1800.0,16.0,kg,3,,dara weekly cycles 1-3
-DVd,load,Bortezomib,3.5,1.3,m2,4,,
-DVd,load,Dexamethasone,4.0,20.0,flat,6,,
-DVd,mid,Daratumumab,1800.0,16.0,kg,1,,dara every 3 weeks cycles 4-8
-DVd,mid,Bortezomib,3.5,1.3,m2,4,,
-DVd,mid,Dexamethasone,4.0,20.0,flat,6,,
-DVd,tail,Daratumumab,1800.0,16.0,kg,1,,dara-only monthly cycles 9+ (bort/dexa stopped)
+Kd,p1,Carfilzomib,60.0,20.0,m2,2,1,phase 1 = cycle 1 step-up (D1 D2 at 20 mg/m2)
+Kd,p1,Carfilzomib,60.0,56.0,m2,4,1,phase 1 = cycle 1 (D8 D9 D15 D16 at 56 mg/m2)
+Kd,p1,Dexamethasone,4.0,40.0,flat,3,1,
+Kd,p2,Carfilzomib,60.0,56.0,m2,6,,phase 2 = cycles 2+ twice-weekly 56 mg/m2 (D1 D2 D8 D9 D15 D16)
+Kd,p2,Dexamethasone,4.0,40.0,flat,3,,
+DVd,p1,Daratumumab,1800.0,16.0,kg,3,,phase 1 = dara weekly cycles 1-3
+DVd,p1,Bortezomib,3.5,1.3,m2,4,,
+DVd,p1,Dexamethasone,4.0,20.0,flat,6,,
+DVd,p2,Daratumumab,1800.0,16.0,kg,1,,phase 2 = dara every 3 weeks cycles 4-8
+DVd,p2,Bortezomib,3.5,1.3,m2,4,,
+DVd,p2,Dexamethasone,4.0,20.0,flat,6,,
+DVd,p3,Daratumumab,1800.0,16.0,kg,1,,phase 3 = dara-only monthly cycles 9+ (bort/dexa stopped)
 Pd,,Pomalidomide,4.0,4.0,flat,21,1,
 Pd,,Dexamethasone,4.0,40.0,flat,4,1,
 VTd,,Bortezomib,3.5,1.3,m2,4,4,

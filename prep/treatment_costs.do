@@ -74,8 +74,8 @@ capture confirm variable phase
 if _rc gen phase = ""
 frame copy default fregs, replace
 
-* cost keys = regimen, or regimen_phase for phased regimens
-local reglist "VCd VRd Rd Kd_load Kd_maint DVd_load DVd_mid DVd_tail Pd Vd VTd TCd Td R T"
+* cost keys = regimen, or regimen_phase for phased regimens (DVd/Kd phases p1/p2/p3)
+local reglist "VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd VTd TCd Td R T"
 
 * scalars the Mata block reads (locals are not visible inside mata:)
 scalar BSA_    = `BSA'
@@ -216,7 +216,7 @@ scalar c_Other = (c_VTd + c_TCd + c_Td + c_Vd)/4
 scalar c_MNT   = (1002/1504)*c_R + (502/1504)*c_T          // MRDR R/T usage weights
 
 di as text _n "Per-cycle drug costs (full DPMQ, `oral_policy' orals):"
-foreach rg in VCd VRd Rd Kd_load Kd_maint DVd_load DVd_mid DVd_tail Pd Vd Other MNT {
+foreach rg in VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd Other MNT {
     di as text "  c`rg' " _col(16) %12.2f scalar(c_`rg')
 }
 
@@ -297,7 +297,7 @@ st_numscalar("v_cb",  inj_vialcost(1.3*1.93,     p_str[selb], p_aemp[selb]) + pr
 st_numscalar("v_cd",  inj_vialcost(16*81.10597,  p_str[seld], p_aemp[seld]) + prepc)
 st_numscalar("v_lena", oral_packdpmq(p_aemp[sell[1]], p_prog[sell[1]], m_type,m_lo,m_pct,m_off,m_fix, f_prog,f_disp))
 end
-foreach pair in "carf56 v_c56 2503.54" "bort v_cb 113.03" "dara v_cd 7307.30" "lena25 v_lena 778.73" "Kd_load c_Kd_load 12629.70" {
+foreach pair in "carf56 v_c56 2503.54" "bort v_cb 113.03" "dara v_cd 7307.30" "lena25 v_lena 778.73" "Kd_p1 c_Kd_p1 12629.70" {
     tokenize "`pair'"
     local got = scalar(`2')
     local d = abs(`got' - `3')
@@ -320,7 +320,7 @@ gen double value = .
 gen str8 unit = ""
 gen str48 note = ""
 local i 0
-foreach p in cVCd cVRd cRd cKd_load cKd_maint cDVd_load cDVd_mid cDVd_tail cPd cVd cOther cMNT {
+foreach p in cVCd cVRd cRd cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 cPd cVd cOther cMNT {
     local ++i
     local nm = subinstr("`p'", "c", "", 1)
     replace parameter = "`p'" in `i'
