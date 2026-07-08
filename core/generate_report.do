@@ -1106,65 +1106,67 @@ putpdf table cost_sum(2,2) = ("$`mean_cost' ($`sd_cost')")
 putpdf table cost_sum(3,1) = ("Median [IQR]")
 putpdf table cost_sum(3,2) = ("$`median_cost' [$`p25_cost' - $`p75_cost']")
 
-// Cost Components
+// Cost Components (all means over all patients, so the parts are additive)
 putpdf paragraph
-putpdf text ("Cost Components (Mean)"), bold
+putpdf text ("Cost Components (Mean over all patients)"), bold
 
+// ASCT is missing for non-recipients; set to 0 so the population mean is well-defined and additive.
+capture drop _asct_d0
+gen double _asct_d0 = cond(missing(cost_tx_asct_d), 0, cost_tx_asct_d)
 quietly summarize cost_tx_d
-local mean_tx = string(r(mean), "%12.0fc")
+scalar m_tx = r(mean)
 quietly summarize cost_nt_d
-local mean_nt = string(r(mean), "%12.0fc")
+scalar m_nt = r(mean)
+quietly summarize _asct_d0
+scalar m_asct = r(mean)
+scalar m_pbs = m_tx - m_asct           // treatment less ASCT = PBS drugs (regimens + maintenance)
+scalar m_total = m_tx + m_nt
+drop _asct_d0
 
-// ASCT costs (recipients only)
-quietly summarize cost_tx_asct_d if SCT_L1 == 1
-if r(N) > 0 {
-	local mean_asct = string(r(mean), "%12.0fc")
-	local n_asct = string(r(N), "%9.0fc")
-}
-else {
-	local mean_asct = "N/A"
-	local n_asct = "0"
-}
-
-// Maintenance costs (recipients only)
-quietly summarize cost_tx_mnt_d if MNT == 1
-if r(N) > 0 {
-	local mean_mnt = string(r(mean), "%12.0fc")
-	local n_mnt = string(r(N), "%9.0fc")
-}
-else {
-	local mean_mnt = "N/A"
-	local n_mnt = "0"
-}
-
-// Non-treatment costs: process_data.do applies phase-based rates (initial / continuing /
-// terminal; hospitalisation + community + emergency, Yap 2025) and stores only the combined
-// cost_nt_d, so report it as one line rather than an artificial component split.
-
-putpdf table cost_comp = (5, 2), border(all)
+putpdf table cost_comp = (6, 2), border(all)
 putpdf table cost_comp(1,1) = ("Component"), bold
 putpdf table cost_comp(1,2) = ("Mean (AUD)"), bold
-putpdf table cost_comp(2,1) = ("Treatment Costs (Total)")
-putpdf table cost_comp(2,2) = ("$`mean_tx'")
-putpdf table cost_comp(3,1) = ("  ASCT (n=`n_asct')")
-putpdf table cost_comp(3,2) = ("$`mean_asct'")
-putpdf table cost_comp(4,1) = ("  Maintenance (n=`n_mnt')")
-putpdf table cost_comp(4,2) = ("$`mean_mnt'")
-putpdf table cost_comp(5,1) = ("Non-Treatment Costs (Total)")
-putpdf table cost_comp(5,2) = ("$`mean_nt'")
+putpdf table cost_comp(2,1) = ("Treatment costs (total)")
+putpdf table cost_comp(2,2) = ("$" + string(m_tx, "%12.0fc"))
+putpdf table cost_comp(3,1) = ("  PBS drugs (regimens + maintenance)")
+putpdf table cost_comp(3,2) = ("$" + string(m_pbs, "%12.0fc"))
+putpdf table cost_comp(4,1) = ("  ASCT (AR-DRG)")
+putpdf table cost_comp(4,2) = ("$" + string(m_asct, "%12.0fc"))
+putpdf table cost_comp(5,1) = ("Non-treatment costs (total)")
+putpdf table cost_comp(5,2) = ("$" + string(m_nt, "%12.0fc"))
+putpdf table cost_comp(6,1) = ("Total"), bold
+putpdf table cost_comp(6,2) = ("$" + string(m_total, "%12.0fc")), bold
 
-// Diagnosis-to-5-year cost (undiscounted) - benchmark against Yap 2025 (dx-to-5yr excess)
+// Per-recipient context: ASCT and maintenance are received by only a subset of patients.
+quietly summarize cost_tx_asct_d if SCT_L1 == 1
+local mean_asct_r = cond(r(N) > 0, string(r(mean), "%12.0fc"), "N/A")
+local n_asct = string(r(N), "%9.0fc")
+quietly summarize cost_tx_mnt_d if MNT == 1
+local mean_mnt_r = cond(r(N) > 0, string(r(mean), "%12.0fc"), "N/A")
+local n_mnt = string(r(N), "%9.0fc")
+putpdf paragraph
+putpdf text ("Mean among recipients (discounted): ASCT $`mean_asct_r' (n=`n_asct'); maintenance $`mean_mnt_r' (n=`n_mnt')."), font(,9) italic
+
+// Diagnosis-to-5-year Cost (undiscounted) - table identical to the Total Costs Summary
 quietly count if cost_5yr < .
 if r(N) > 0 {
-	quietly summarize cost_5yr
+	quietly summarize cost_5yr, detail
 	local mean_5yr = string(r(mean), "%12.0fc")
-	local sd_5yr   = string(r(sd), "%12.0fc")
-	local med_5yr  = string(r(p50), "%12.0fc")
+	local sd_5yr = string(r(sd), "%12.0fc")
+	local median_5yr = string(r(p50), "%12.0fc")
+	local p25_5yr = string(r(p25), "%12.0fc")
+	local p75_5yr = string(r(p75), "%12.0fc")
+
 	putpdf paragraph
-	putpdf text ("Diagnosis-to-5-year cost (undiscounted): "), bold
-	putpdf text ("$`mean_5yr' mean ($`sd_5yr' SD); $`med_5yr' median")
-	putpdf paragraph
-	putpdf text ("Total cost (drugs + ASCT + non-treatment) accrued in the first 60 months from diagnosis, for comparison with Yap 2025 (which reports a diagnosis-to-5-year MM-attributable excess cost that also includes PBS, in 2019 AUD)."), font(,9) italic
+	putpdf text ("Diagnosis-to-5-year Cost (undiscounted)"), bold
+
+	putpdf table cost_5yr_sum = (3, 2), border(all)
+	putpdf table cost_5yr_sum(1,1) = ("Statistic"), bold
+	putpdf table cost_5yr_sum(1,2) = ("AUD"), bold
+	putpdf table cost_5yr_sum(2,1) = ("Mean (SD)")
+	putpdf table cost_5yr_sum(2,2) = ("$`mean_5yr' ($`sd_5yr')")
+	putpdf table cost_5yr_sum(3,1) = ("Median [IQR]")
+	putpdf table cost_5yr_sum(3,2) = ("$`median_5yr' [$`p25_5yr' - $`p75_5yr']")
 }
 
 // Treatment Costs by Line of Therapy
