@@ -25,5 +25,7 @@ global data_path     "${drive_path}/Data/${data_cut}"
 global registry_path "/path/to/MRDR/Registry data/MRDR Data/2025/${data_cut}_Data"
 
 * Raw PBS Schedule extract (public; not restricted) consumed by prep/extract_pbs_costs.do.
-* Point at the tables_as_csv dir of a dated PBS API CSV download.
+* Point at the tables_as_csv dir of a dated PBS API CSV download. This is the source for the DEFAULT
+* (2026-07-01) schedule only; other price years are selected by passing the schedule date as arg 1
+* (e.g. `do prep/extract_pbs_costs.do 2025-07-01`), which resolves the source dir by convention.
 global pbs_src      "/path/to/PBS-API-CSV-files/tables_as_csv"

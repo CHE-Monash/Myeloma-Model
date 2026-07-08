@@ -8,10 +8,11 @@
 *          (see prep/extract_pbs_costs.do).
 * Usage:   do "prep/treatment_costs.do" [target_year]      (default 2026)
 * Inputs:  prep/inputs/treatment_regimens.csv - dosing spec (dose, basis, schedule, cycles)
-*          prep/inputs/pbs_prices.csv          - AEMP per (drug, strength, program, pack), cheapest brand
-*          prep/inputs/pbs_fees.csv            - EFC preparation / dispensing fees per program
-*          prep/inputs/pbs_markups.csv         - General-Schedule wholesale + pharmacy mark-up bands
-*          prep/inputs/pbs_copayments.csv      - general / concessional co-payment (perspective switch)
+*          prep/inputs/pbs_prices_<year>.csv   - AEMP per (drug, strength, program, pack), cheapest brand
+*          prep/inputs/pbs_fees_<year>.csv     - EFC preparation / dispensing fees per program
+*          prep/inputs/pbs_markups_<year>.csv  - General-Schedule wholesale + pharmacy mark-up bands
+*          prep/inputs/pbs_copayments_<year>.csv - general / concessional co-payment (perspective switch)
+*          (<year> = target price year; the matching schedule's extract, from extract_pbs_costs.do)
 *          prep/inputs/other_costs.csv         - non-drug costs (ASCT, hospital, community, emergency)
 *          prep/inputs/cost_index.csv          - year x ABS price index (inflates the non-drug costs)
 * Output:  prep/inputs/treatment_costs_<year>.csv - the c* per-cycle drug costs + inflated non-drug costs
@@ -54,17 +55,17 @@ local IN          "prep/inputs"
 di as text _n "=== Treatment costs, price year `target' (`setting', orals=`oral_policy', net_copay=`net_copay') ===" _n
 
 * ---- Load the PBS inputs into frames for the Mata core ----
-* prices (public path; oral General-Schedule items are tagged setting=community)
-import delimited "`IN'/pbs_prices.csv", varnames(1) case(preserve) clear
+* year-stamped PBS inputs: the extract writes pbs_*_<schedule year>.csv, so multiple price years coexist
+import delimited "`IN'/pbs_prices_`target'.csv", varnames(1) case(preserve) clear
 keep if setting == "`setting'" | (kind == "oral" & setting == "community")
 frame copy default fprices, replace
 
 * fees, markups, co-payments
-import delimited "`IN'/pbs_fees.csv",       varnames(1) case(preserve) clear
+import delimited "`IN'/pbs_fees_`target'.csv",       varnames(1) case(preserve) clear
 frame copy default ffees, replace
-import delimited "`IN'/pbs_markups.csv",    varnames(1) case(preserve) clear
+import delimited "`IN'/pbs_markups_`target'.csv",    varnames(1) case(preserve) clear
 frame copy default fmark, replace
-import delimited "`IN'/pbs_copayments.csv", varnames(1) case(preserve) clear
+import delimited "`IN'/pbs_copayments_`target'.csv", varnames(1) case(preserve) clear
 quietly summarize copay if type == "`copay_class'", meanonly
 scalar copay_amt = cond(`net_copay', r(mean), 0)
 
@@ -247,9 +248,13 @@ merge m:1 source_year using `idx', keep(master match) nogen
 gen double factor = cond(missing(idx_t) | missing(idx_s), 1, idx_t/idx_s)
 gen double cost_infl = cost*factor
 
-* ASCT one-off (no phase)
-quietly summarize cost_infl if component == "cASCT"
-scalar cASCT = r(sum)
+* ASCT one-off (no phase). NEP-based (AR-DRG price weight x National Efficient Price), set administratively
+* each year -> NOT CPI-inflated: pick the cASCT row for the latest source_year <= target and use its raw cost.
+quietly summarize source_year if component == "cASCT" & source_year <= `target', meanonly
+scalar asct_yr = r(max)
+quietly summarize cost if component == "cASCT" & source_year == asct_yr, meanonly
+scalar cASCT = r(mean)
+if asct_yr < `target' di as text "  (no NEP for `target'; carrying `=asct_yr' ASCT cost forward)"
 
 * Phase-based non-treatment (Yap 2025), kept SPLIT by component so a breakdown can be reported:
 * cHosp (APDC admitted-hospital), cMBS (out-of-hospital Medicare), cEmer (emergency). PBS is already
@@ -277,9 +282,10 @@ di as text "  cASCT (one-off)" _col(14) %12.2f cASCT
 * Validation: injectable admin DPMQ against known 2026 PBS figures
 * ===========================================================================
 if `net_copay' == 0 {
-di as text _n "Validation (2026 PBS, full DPMQ):"
+di as text _n "Validation (full DPMQ; the reference DPMQs below are verified 2026 PBS figures):"
 local nfail 0
-* Externally-verifiable published PBS DPMQs (policy-independent):
+* Externally-verifiable published PBS DPMQs (policy-independent; verified against the 2026 schedule -
+* asserted only when target==2026, since other price years legitimately differ):
 *   Carfilzomib 108.08 mg (56 mg/m2) admin = 2 x 60 mg + prep      = 2,503.54
 *   Bortezomib  2.51 mg   (1.3 mg/m2) admin = 1 x 3.5 mg + prep    = 113.03
 *   Daratumumab 1297.7 mg (16 mg/kg)  admin = 3x400 + 1x100 + prep = 7,307.30
@@ -301,12 +307,18 @@ foreach pair in "carf56 v_c56 2503.54" "bort v_cb 113.03" "dara v_cd 7307.30" "l
     tokenize "`pair'"
     local got = scalar(`2')
     local d = abs(`got' - `3')
-    local ok = cond(`d' < 0.5, "OK", "FAIL")
-    if "`ok'" == "FAIL" local ++nfail
-    di as text "  `1' " _col(10) %12.2f `got' "  expect " %12.2f `3' "   `ok'"
+    if `target' == 2026 {
+        local ok = cond(`d' < 0.5, "OK", "FAIL")
+        if "`ok'" == "FAIL" local ++nfail
+        di as text "  `1' " _col(10) %12.2f `got' "  expect " %12.2f `3' "   `ok'"
+    }
+    else di as text "  `1' " _col(10) %12.2f `got' "  (2026 ref " %12.2f `3' ")"
 }
-if `nfail' == 0 di as result "  All checks pass."
-else            di as error  "  `nfail' check(s) FAILED - investigate before use."
+if `target' == 2026 {
+    if `nfail' == 0 di as result "  All checks pass."
+    else            di as error  "  `nfail' check(s) FAILED - investigate before use."
+}
+else di as text "  (reference figures are 2026 PBS; `target' prices differ by schedule - shown for context, not asserted)"
 }
 else di as text _n "(validation skipped: reference DPMQs are full-price; net_copay=1)"
 

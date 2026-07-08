@@ -9,3 +9,4 @@ cHosp,terminal,59252.84,2019,phase,Yap 2025 terminal-phase APDC admitted-hospita
 cMBS,terminal,7816.74,2019,phase,Yap 2025 terminal-phase MBS out-of-hospital Medicare (96503 x 0.081)
 cEmer,terminal,2412.58,2019,phase,Yap 2025 terminal-phase EDDC emergency (96503 x 0.025)
 cASCT,,41723.26,2025,one-off,AR-DRG V11.0 R06A/B/C autologous HSCT seps-wtd inlier price weight 6.4537 x NEP 6465 (2024-25)
+cASCT,,48692.59,2026,one-off,AR-DRG V11.0 R06A/B/C autologous HSCT seps-wtd inlier price weight 6.7088 x NEP 7258 (2025-26)

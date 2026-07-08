@@ -16,7 +16,7 @@
 *          condition (relapsed/refractory -> RRMM; previously untreated/newly diagnosed -> newly-dx),
 *          combination partners ("in combination with ..."), and a line signal (prior-therapy wording).
 *          `likely_regimen` is a best-effort label from drug + combination — verify before relying on it.
-* Notes:   Eligibility reference only; the priced items + max amounts live in pbs_prices.csv. A restriction
+* Notes:   Eligibility reference only; the priced items + max amounts live in pbs_prices_<year>.csv. A restriction
 *          typically spans several items (strengths/programs) — `n_items` counts how many of the drug's
 *          priced codes it governs.
 **********

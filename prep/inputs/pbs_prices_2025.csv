@@ -1,0 +1,68 @@
+drug,strength_mg,pack_size,aemp,program,setting,kind,form,max_amount_mg,code,brand,sched
+Bortezomib,1,1,75.01,IN,public,injectable,Powder for injection 1 mg,3,12219D,Bortezomib Accord,2025-07-01
+Bortezomib,2.5,1,24.92,IN,public,injectable,Solution for injection 2.5 mg in 1 mL,3,12219D,Bortezomib Ever Pharma,2025-07-01
+Bortezomib,3,1,389.92,IN,public,injectable,Powder for injection 3 mg,3,12219D,DBL Bortezomib,2025-07-01
+Bortezomib,3.5,1,34.88,IN,public,injectable,Powder for injection 3.5 mg,3,12219D,Bortezom,2025-07-01
+Bortezomib,1,1,75.01,IP,private,injectable,Powder for injection 1 mg,3,12227M,Bortezomib Accord,2025-07-01
+Bortezomib,2.5,1,24.92,IP,private,injectable,Solution for injection 2.5 mg in 1 mL,3,12227M,Bortezomib Accord,2025-07-01
+Bortezomib,3,1,389.92,IP,private,injectable,Powder for injection 3 mg,3,12227M,DBL Bortezomib,2025-07-01
+Bortezomib,3.5,1,34.88,IP,private,injectable,Powder for injection 3.5 mg,3,12227M,Bortezom,2025-07-01
+Carfilzomib,10,1,200.92,IN,public,injectable,Powder for injection 10 mg,120,11230C,Kyprolis,2025-07-01
+Carfilzomib,30,1,602.75,IN,public,injectable,Powder for injection 30 mg,120,11230C,Kyprolis,2025-07-01
+Carfilzomib,60,1,1205.49,IN,public,injectable,Powder for injection 60 mg,120,11230C,Kyprolis,2025-07-01
+Carfilzomib,10,1,200.92,IP,private,injectable,Powder for injection 10 mg,120,11229B,Kyprolis,2025-07-01
+Carfilzomib,30,1,602.75,IP,private,injectable,Powder for injection 30 mg,120,11229B,Kyprolis,2025-07-01
+Carfilzomib,60,1,1205.49,IP,private,injectable,Powder for injection 60 mg,120,11229B,Kyprolis,2025-07-01
+Cyclophosphamide,50,50,131.65,GE,community,oral,Tablet 50 mg (anhydrous),,1266P,Cyclonex,2025-07-01
+Daratumumab,100,1,584.19,IN,public,injectable,Solution concentrate for I.V. infusion 100 mg in 5 mL,1920,12225K,Darzalex,2025-07-01
+Daratumumab,400,1,2336.76,IN,public,injectable,Solution concentrate for I.V. infusion 400 mg in 20 mL,1920,12225K,Darzalex,2025-07-01
+Daratumumab,100,1,584.19,IP,private,injectable,Solution concentrate for I.V. infusion 100 mg in 5 mL,1920,12220E,Darzalex,2025-07-01
+Daratumumab,400,1,2336.76,IP,private,injectable,Solution concentrate for I.V. infusion 400 mg in 20 mL,1920,12220E,Darzalex,2025-07-01
+Dexamethasone,.5,30,2.50,GE,community,oral,Tablet 500 micrograms,,1292B,Dexmethsone,2025-07-01
+Dexamethasone,4,30,4.84,GE,community,oral,Tablet 4 mg,,2507Y,Dexmethsone,2025-07-01
+Lenalidomide,5,14,418.64,HB,public,oral,Capsule 5 mg,,12035K,Revlimid,2025-07-01
+Lenalidomide,5,21,627.96,HB,public,oral,Capsule 5 mg,,11029L,Lenalidomide Sandoz,2025-07-01
+Lenalidomide,5,28,837.28,HB,public,oral,Capsule 5 mg,,11967W,Revlimid,2025-07-01
+Lenalidomide,10,14,548.44,HB,public,oral,Capsule 10 mg,,12070G,Lenalide,2025-07-01
+Lenalidomide,10,21,822.66,HB,public,oral,Capsule 10 mg,,11064H,Lenalide,2025-07-01
+Lenalidomide,10,28,1096.88,HB,public,oral,Capsule 10 mg,,11968X,Lenalidomide Sandoz,2025-07-01
+Lenalidomide,15,14,660.53,HB,public,oral,Capsule 15 mg,,12012F,Lenalide,2025-07-01
+Lenalidomide,15,21,990.80,HB,public,oral,Capsule 15 mg,,11062F,Lenalidomide Viatris,2025-07-01
+Lenalidomide,15,28,1321.06,HB,public,oral,Capsule 15 mg,,11964Q,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,20,14,844.46,HB,public,oral,Capsule 20 mg,,14623P,Lenalide,2025-07-01
+Lenalidomide,20,21,1266.69,HB,public,oral,Capsule 20 mg,,14588T,Lenalidomide Sandoz,2025-07-01
+Lenalidomide,25,14,864.20,HB,public,oral,Capsule 25 mg,,12019N,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,25,21,1296.30,HB,public,oral,Capsule 25 mg,,11041D,Lenalidomide Viatris,2025-07-01
+Lenalidomide,5,14,418.64,HS,private,oral,Capsule 5 mg,,12058P,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,5,21,627.96,HS,private,oral,Capsule 5 mg,,11036W,Revlimid,2025-07-01
+Lenalidomide,5,28,837.28,HS,private,oral,Capsule 5 mg,,11966T,Revlimid,2025-07-01
+Lenalidomide,10,14,548.44,HS,private,oral,Capsule 10 mg,,12004T,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,10,21,822.66,HS,private,oral,Capsule 10 mg,,11063G,Revlimid,2025-07-01
+Lenalidomide,10,28,1096.88,HS,private,oral,Capsule 10 mg,,11969Y,Revlimid,2025-07-01
+Lenalidomide,15,14,660.53,HS,private,oral,Capsule 15 mg,,12069F,Lenalidomide Sandoz,2025-07-01
+Lenalidomide,15,21,990.80,HS,private,oral,Capsule 15 mg,,11042E,Lenalidomide Viatris,2025-07-01
+Lenalidomide,15,28,1321.06,HS,private,oral,Capsule 15 mg,,11965R,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,20,14,844.46,HS,private,oral,Capsule 20 mg,,14615F,Lenalide,2025-07-01
+Lenalidomide,20,21,1266.69,HS,private,oral,Capsule 20 mg,,14582L,Lenalide,2025-07-01
+Lenalidomide,25,14,864.20,HS,private,oral,Capsule 25 mg,,12018M,Lenalidomide Dr.Reddy''s,2025-07-01
+Lenalidomide,25,21,1296.30,HS,private,oral,Capsule 25 mg,,11055W,Lenalide,2025-07-01
+Pomalidomide,1,14,621.91,HB,public,oral,Capsule 1 mg,,13794B,Pomolide,2025-07-01
+Pomalidomide,1,21,932.87,HB,public,oral,Capsule 1 mg,,13803L,Pomalidomide Sandoz,2025-07-01
+Pomalidomide,2,14,1108.61,HB,public,oral,Capsule 2 mg,,13815D,Pomolide,2025-07-01
+Pomalidomide,2,21,1662.92,HB,public,oral,Capsule 2 mg,,13788Q,Pomalidomide Sandoz,2025-07-01
+Pomalidomide,3,14,1662.92,HB,public,oral,Capsule 3 mg,,12666P,Pomalidomide Sandoz,2025-07-01
+Pomalidomide,3,21,2494.38,HB,public,oral,Capsule 3 mg,,10406Q,Pomolide,2025-07-01
+Pomalidomide,4,14,2217.22,HB,public,oral,Capsule 4 mg,,12665N,Pomalyst,2025-07-01
+Pomalidomide,4,21,3325.83,HB,public,oral,Capsule 4 mg,,10387Q,Pomalyst,2025-07-01
+Pomalidomide,1,14,621.91,HS,private,oral,Capsule 1 mg,,13813B,Pomolide,2025-07-01
+Pomalidomide,1,21,932.87,HS,private,oral,Capsule 1 mg,,13814C,Pomalidomide Sandoz,2025-07-01
+Pomalidomide,2,14,1108.61,HS,private,oral,Capsule 2 mg,,13812Y,Pomolide,2025-07-01
+Pomalidomide,2,21,1662.92,HS,private,oral,Capsule 2 mg,,13811X,Pomolide,2025-07-01
+Pomalidomide,3,14,1662.92,HS,private,oral,Capsule 3 mg,,12668R,Pomalidomide Sandoz,2025-07-01
+Pomalidomide,3,21,2494.38,HS,private,oral,Capsule 3 mg,,10417G,Pomalyst,2025-07-01
+Pomalidomide,4,14,2217.22,HS,private,oral,Capsule 4 mg,,12661J,Pomolide,2025-07-01
+Pomalidomide,4,21,3325.83,HS,private,oral,Capsule 4 mg,,10386P,Pomalidomide Sandoz,2025-07-01
+Thalidomide,50,28,265.35,HB,public,oral,Capsule 50 mg,,9566L,Thalomid,2025-07-01
+Thalidomide,100,28,530.69,HB,public,oral,Capsule 100 mg,,9667T,Thalomid,2025-07-01
+Thalidomide,50,28,265.35,HS,private,oral,Capsule 50 mg,,6469L,Thalomid,2025-07-01
+Thalidomide,100,28,530.69,HS,private,oral,Capsule 100 mg,,9684Q,Thalomid,2025-07-01

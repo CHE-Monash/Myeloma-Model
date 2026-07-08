@@ -1,0 +1,7 @@
+markup,lo_limit,pct,off,fixed_amt
+pharmacy,.01,0,0,4.91
+pharmacy,100,5,-100,4.91
+pharmacy,2000.01,0,0,99.91
+wholesale,.01,0,0,.41
+wholesale,5.51,7.52,0,0
+wholesale,720.01,0,0,54.14

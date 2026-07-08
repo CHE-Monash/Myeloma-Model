@@ -13,10 +13,11 @@
 *          <pbs_src>/fees.csv         - per-program dispensing / EFC preparation / container fees
 *          <pbs_src>/copayments.csv   - general & concessional patient co-payments
 *          <pbs_src>/markup-bands.csv  - wholesale + pharmacy mark-up bands (General Schedule path)
-* Output:  prep/inputs/pbs_prices.csv     - AEMP per (drug, strength, program, pack), cheapest brand
-*          prep/inputs/pbs_fees.csv       - the fees the DPMQ build uses, per program
-*          prep/inputs/pbs_copayments.csv - general / concessional co-payment
-*          prep/inputs/pbs_markups.csv    - General-Schedule mark-up bands (dexamethasone, oral cyclo)
+* Output:  prep/inputs/pbs_prices_<year>.csv     - AEMP per (drug, strength, program, pack), cheapest brand
+*          prep/inputs/pbs_fees_<year>.csv       - the fees the DPMQ build uses, per program
+*          prep/inputs/pbs_copayments_<year>.csv - general / concessional co-payment
+*          prep/inputs/pbs_markups_<year>.csv    - General-Schedule mark-up bands (dexamethasone, oral cyclo)
+*          (<year> = the schedule year, so multiple price years coexist; treatment_costs.do reads the matching set)
 * Method:  DPMQ (built downstream in treatment_costs.do) = AEMP + mark-ups + fees, by program:
 *            EFC injectables (IN public / IP private) : sum(vial AEMP) + EFC preparation fee
 *            Section 100 HSD orals (HB public / HS private): pack AEMP + dispensing fee
@@ -34,13 +35,20 @@ set more off
 if "$repo_path" != "" cd "$repo_path"
 capture run "config.do"
 
-* ---- Config ----
-local SRC "$pbs_src"
-if "`SRC'" == "" local SRC "../data/2026-07-01-PBS-API-CSV-files/tables_as_csv"
-local SCHED "2026-07-01"          // schedule date of this extract (provenance stamp)
+* ---- Config (arg 1 = schedule date YYYY-07-01; default 2026-07-01) ----
+local SCHED = "`1'"
+if "`SCHED'" == "" local SCHED "2026-07-01"     // schedule date of this extract (provenance stamp)
+local YR = substr("`SCHED'", 1, 4)              // price year -> drives the year-stamped output names
+* Source dir: dated PBS API CSV download in the sibling data/ folder (git-ignored, re-downloadable).
+* An explicit schedule arg wins and resolves by convention; config.do's $pbs_src is honoured only for
+* the default 2026 schedule (so a bare `do extract_pbs_costs.do` keeps using the machine's config path).
+if      "`SCHED'" == "2026-07-01" & "$pbs_src" != "" local SRC "$pbs_src"
+else if "`SCHED'" == "2026-07-01"                    local SRC "../data/2026-07-01-PBS-API-CSV-files/tables_as_csv"
+else if "`SCHED'" == "2025-07-01"                    local SRC "../data/2025-07-01-pbs-api-csv-files/tables_as_csv"
+else                                                 local SRC "../data/`SCHED'-PBS-API-CSV-files/tables_as_csv"
 local OUT   "prep/inputs"
 
-di as text _n "=== Extracting PBS cost inputs from `SRC' (schedule `SCHED') ===" _n
+di as text _n "=== Extracting PBS cost inputs from `SRC' (schedule `SCHED', year `YR') ===" _n
 
 * ===========================================================================
 * 1. PRICES  -  AEMP per modelled (drug, strength, program, pack), cheapest brand
@@ -94,8 +102,8 @@ keep  drug strength_mg pack_size aemp program setting kind form max_amount_mg co
 order drug strength_mg pack_size aemp program setting kind form max_amount_mg code brand sched
 gsort drug kind program strength_mg pack_size
 format aemp %9.2f
-export delimited "`OUT'/pbs_prices.csv", replace datafmt
-di as result "  wrote `OUT'/pbs_prices.csv (" _N " rows)"
+export delimited "`OUT'/pbs_prices_`YR'.csv", replace datafmt
+di as result "  wrote `OUT'/pbs_prices_`YR'.csv (" _N " rows)"
 
 * ===========================================================================
 * 2. FEES  -  the fees the DPMQ build uses, per modelled program
@@ -113,11 +121,11 @@ rename program_code program
 keep  program setting disp_fee prep_fee dil_fee dist_fee note
 order program setting disp_fee prep_fee dil_fee dist_fee note
 gsort program
-export delimited "`OUT'/pbs_fees.csv", replace
-di as result "  wrote `OUT'/pbs_fees.csv (" _N " rows)"
+export delimited "`OUT'/pbs_fees_`YR'.csv", replace
+di as result "  wrote `OUT'/pbs_fees_`YR'.csv (" _N " rows)"
 
 * ===========================================================================
-* 3. CO-PAYMENTS  -  general & concessional (2026)
+* 3. CO-PAYMENTS  -  general & concessional
 * ===========================================================================
 import delimited "`SRC'/copayments.csv", varnames(1) case(preserve) stringcols(_all) clear
 destring general concessional, gen(g c) force
@@ -136,8 +144,8 @@ replace copay = gg if type=="general"
 replace copay = cc if type=="concessional"
 gen sched = "`SCHED'"
 format copay %6.2f
-export delimited "`OUT'/pbs_copayments.csv", replace datafmt
-di as result "  wrote `OUT'/pbs_copayments.csv (" _N " rows)"
+export delimited "`OUT'/pbs_copayments_`YR'.csv", replace datafmt
+di as result "  wrote `OUT'/pbs_copayments_`YR'.csv (" _N " rows)"
 
 * ===========================================================================
 * 4. MARK-UP BANDS  -  General Schedule community pharmacy (s90-cp): wholesale + pharmacy
@@ -151,7 +159,7 @@ keep  markup lo_limit pct off fixed_amt
 order markup lo_limit pct off fixed_amt
 gsort markup lo_limit
 di as text "  (DPMQ mark-up per band = pct% * (AEMP + off) + fixed_amt, using the band whose lo_limit <= AEMP)"
-export delimited "`OUT'/pbs_markups.csv", replace
-di as result "  wrote `OUT'/pbs_markups.csv (" _N " rows)"
+export delimited "`OUT'/pbs_markups_`YR'.csv", replace
+di as result "  wrote `OUT'/pbs_markups_`YR'.csv (" _N " rows)"
 
 di as result _n "=== PBS cost inputs extracted (schedule `SCHED') ==="

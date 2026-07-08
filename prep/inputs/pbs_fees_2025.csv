@@ -1,0 +1,6 @@
+program,setting,disp_fee,prep_fee,dil_fee,dist_fee,note
+GE,community,8.880000000000001,,,,General Schedule: pack AEMP + mark-up + disp_fee
+HB,public,,,,,S100 HSD: pack AEMP + disp_fee
+HS,private,8.880000000000001,,,,S100 HSD: pack AEMP + disp_fee
+IN,public,8.880000000000001,91.23,6.08,30.71,EFC: sum(vial AEMP) + prep_fee
+IP,private,,91.23,,,EFC: sum(vial AEMP) + prep_fee
