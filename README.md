@@ -80,7 +80,6 @@ The dispatcher's configuration block sets the run via globals. Interactive runs 
 | Dispatcher | Focus |
 |---|---|
 | `analyses/base_model/simulate.do` | All regimens — current-practice projections |
-| `analyses/vrd_post/simulate.do` | VRd at LoT 1, post-market impact |
 | `analyses/oos/simulate.do` | Out-of-sample (70/30) validation — the mainstay |
 | `analyses/transport_dvd/simulate.do` | DVd via Calibrated Transport |
 
@@ -134,7 +133,6 @@ Myeloma-Model/
 ├── analyses/                # Per-analysis dispatchers, data & results
 │   ├── template/            # Copy-me skeleton for a new analysis
 │   ├── base_model/          # All regimens (current practice)
-│   ├── vrd_post/            # VRd LoT 1 post-market
 │   ├── transport_dvd/       # DVd Calibrated Transport
 │   └── oos/                 # Out-of-sample (70/30) validation — mainstay
 ├── prep/                    # MRDR → model inputs: imputation, risk equations, cohorts, benchmarks

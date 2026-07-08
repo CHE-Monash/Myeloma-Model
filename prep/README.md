@@ -43,7 +43,7 @@ Steps 1→2 are sequential; once `MRDR Long MI.dta` exists, `risk_equations` / `
 
 ## Downstream consumers
 
-- **Coefficients** (`coefficients_<coeffs>.mmat`) → loaded by each analysis dispatcher via `mata matuse "$coefficients_path/coefficients_$coeffs"` (`base_model`, `vrd_post`, `oos`, …).
+- **Coefficients** (`coefficients_<coeffs>.mmat`) → loaded by each analysis dispatcher via `mata matuse "$coefficients_path/coefficients_$coeffs"` (`base_model`, `transport_dvd`, `oos`, …).
 - **Population cohorts** → `core/load_patients.do` (`use "patients/population_1995_2040_<n>.dta"`).
 - **Benchmarks** → `analyses/oos/validate_outcomes.do` (imports the target CSVs as comparison matrices).
 
