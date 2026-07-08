@@ -1137,8 +1137,8 @@ else {
 	local n_mnt = "0"
 }
 
-// Non-treatment costs: process_data.do applies a single blended per-month rate
-// (hospitalisation + community + emergency) and stores only the combined
+// Non-treatment costs: process_data.do applies phase-based rates (initial / continuing /
+// terminal; hospitalisation + community + emergency, Yap 2025) and stores only the combined
 // cost_nt_d, so report it as one line rather than an artificial component split.
 
 putpdf table cost_comp = (5, 2), border(all)

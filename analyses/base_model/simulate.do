@@ -32,9 +32,9 @@ global min_year     "1995"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID (>= 1)
 global max_id       "101212"            // Last patient ID (<= 101,212)
-global cost_year	"2025"				// Cost year (AUD)
+global cost_year	"2026"				// Cost year (AUD); reads prep/inputs/treatment_costs_2026.csv (PBS DPMQ)
 global drate		"0.05"				// Annual discount rate (PBAC = 5%)
-global report       "0"                 // Generate report (0/1)
+global report       "1"                 // Generate report (0/1)
 global scenario     ""           		// Scenario
 
 // Bootstrap settings

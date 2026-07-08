@@ -1,5 +1,11 @@
-component,cost,source_year,apply_as,note
-cASCT,41723,2025,one-off,Autologous stem-cell transplant (per procedure). CONFIRM source year.
-cHosp,38743,2025,annual,Hospitalisation (per year alive). CONFIRM source year.
-cComm,10928,2025,annual,Community care (per year alive). CONFIRM source year.
-cEmer,2476,2025,annual,Emergency presentations (per year alive). CONFIRM source year.
+component,phase,cost,source_year,apply_as,note
+cHosp,initial,33129.36,2019,phase,Yap 2025 STable6 initial-phase APDC admitted-hospital (62040 x 0.534) 2019 AUD; ASCT netted in calc
+cMBS,initial,8003.16,2019,phase,Yap 2025 initial-phase MBS out-of-hospital Medicare (62040 x 0.129)
+cEmer,initial,992.64,2019,phase,Yap 2025 initial-phase EDDC emergency (62040 x 0.016)
+cHosp,continuing,12023.34,2019,phase,Yap 2025 continuing-phase APDC admitted-hospital (39681 x 0.303) annualised
+cMBS,continuing,4007.78,2019,phase,Yap 2025 continuing-phase MBS out-of-hospital Medicare (39681 x 0.101)
+cEmer,continuing,476.17,2019,phase,Yap 2025 continuing-phase EDDC emergency (39681 x 0.012)
+cHosp,terminal,59252.84,2019,phase,Yap 2025 terminal-phase APDC admitted-hospital (96503 x 0.614) last year of life
+cMBS,terminal,7816.74,2019,phase,Yap 2025 terminal-phase MBS out-of-hospital Medicare (96503 x 0.081)
+cEmer,terminal,2412.58,2019,phase,Yap 2025 terminal-phase EDDC emergency (96503 x 0.025)
+cASCT,,41723.26,2025,one-off,AR-DRG V11.0 R06A/B/C autologous HSCT seps-wtd inlier price weight 6.4537 x NEP 6465 (2024-25)

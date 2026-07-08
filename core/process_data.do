@@ -114,22 +114,44 @@ cap mata: mata drop mRN
 * Costs
 **********
 
-	local cVCd = 902
-	local cVRd = 1776
-	local cRd = 1608
-	local cKd = 15025
-	local cDVd = 12110
-	local cPd = 2291
-	local cVd = 724
-	local cOther = 1612 // VTd / TCd / Td / Vd
-	
-	local cASCT = 41723
-	local cMNT = 1329
-	
-	local cHosp = 38743
-	local cComm = 10928
-	local cEmer = 2476
-	
+* ---- Per-cycle regimen + non-drug costs, from the derived PBS DPMQ table ----
+* prep/treatment_costs.do builds prep/inputs/treatment_costs_<year>.csv (PBS first-principles DPMQ)
+* from the committed PBS inputs. Read it into a FRAME so the in-memory (peak-size) simulation data is
+* untouched. Uses $cost_year; if that year's file is absent, falls back to the latest available with a
+* note. (Values were hardcoded here until Jul 2026 - see docs/economic_inputs.md.)
+	local cyear = "$cost_year"
+	if "`cyear'" == "" local cyear 2026
+	local costfile "prep/inputs/treatment_costs_`cyear'.csv"
+	capture confirm file "`costfile'"
+	if _rc {
+		local avail : dir "prep/inputs" files "treatment_costs_*.csv"
+		local latest ""
+		foreach f of local avail {
+			if "`f'" > "`latest'" local latest "`f'"
+		}
+		if "`latest'" == "" {
+			di as error "process_data: no prep/inputs/treatment_costs_*.csv - run prep/treatment_costs.do first"
+			exit 601
+		}
+		if "$_cost_fallback_note" != "`latest'" {   // note once per session (process_data runs many times)
+			di as text "  (cost year `cyear' not found; using `latest')"
+			global _cost_fallback_note "`latest'"
+		}
+		local costfile "prep/inputs/`latest'"
+	}
+	capture frame drop _costs
+	frame create _costs
+	frame _costs: quietly import delimited "`costfile'", varnames(1) case(preserve) stringcols(_all) clear
+	frame _costs: quietly destring value, replace     // to double (avoids float import rounding)
+	foreach p in cVCd cVRd cRd cKd cDVd cPd cVd cOther cMNT cASCT ///
+	             cHosp_initial cHosp_continuing cHosp_terminal ///
+	             cMBS_initial  cMBS_continuing  cMBS_terminal ///
+	             cEmer_initial cEmer_continuing cEmer_terminal {
+		frame _costs: quietly summarize value if parameter == "`p'", meanonly
+		local `p' = r(mean)
+	}
+	frame drop _costs
+
 	local ln_r = ln(1 + $drate)
 
 * Treatment costs by line (undiscounted)
@@ -160,8 +182,30 @@ cap mata: mata drop mRN
 		qui replace cost_tx = cost_tx + cost_tx_L`l'
 	}
 
-* Non-treatment costs (undiscounted)
-	qui gen cost_nt = (`cHosp' + `cComm' + `cEmer') * (OC_TIME_L / 12)
+* Non-treatment costs (undiscounted) - Yap 2025 phase-based (initial / continuing / terminal).
+* Phases are defined on the diagnosis clock: initial = first 12 months, terminal = last 12 months of
+* life, continuing = between (Yap short-survivor rules: <2 yr -> last year terminal + remainder initial;
+* <1 yr -> all terminal). We cost only the survival window from the starting line, [w0, OC_TIME], where
+* w0 = OC_TIME - OC_TIME_L (=0 at L1). Each phase contributes rate x (months of overlap)/12.
+	qui gen double _w0 = OC_TIME - OC_TIME_L
+	qui gen double _i1 = cond(OC_TIME<12, 0, cond(OC_TIME<24, OC_TIME-12, 12))   // initial ends
+	qui gen double _c1 = cond(OC_TIME>=24, OC_TIME-12, 12)                       // continuing ends
+	qui gen double _t0 = cond(OC_TIME<12, 0, OC_TIME-12)                         // terminal starts
+	qui gen double _os_i = max(0,   _w0)
+	qui gen double _oe_i = min(_i1, OC_TIME)
+	qui gen double _os_c = max(12,  _w0)
+	qui gen double _oe_c = min(_c1, OC_TIME)
+	qui gen double _os_t = max(_t0, _w0)
+	qui gen double _oe_t = OC_TIME
+	* months of overlap in each phase (computed once, applied to every component)
+	qui gen double _mo_i = max(0, _oe_i-_os_i)/12
+	qui gen double _mo_c = max(0, _oe_c-_os_c)/12
+	qui gen double _mo_t = max(0, _oe_t-_os_t)/12
+	* kept split by component (Yap 2025): admitted-hospital + out-of-hospital Medicare + emergency
+	qui gen cost_nt_hosp = `cHosp_initial'*_mo_i + `cHosp_continuing'*_mo_c + `cHosp_terminal'*_mo_t
+	qui gen cost_nt_mbs  = `cMBS_initial' *_mo_i + `cMBS_continuing' *_mo_c + `cMBS_terminal' *_mo_t
+	qui gen cost_nt_emer = `cEmer_initial'*_mo_i + `cEmer_continuing'*_mo_c + `cEmer_terminal'*_mo_t
+	qui gen cost_nt = cost_nt_hosp + cost_nt_mbs + cost_nt_emer
 
 * Total undiscounted cost
 	qui gen cost_total = cost_tx + cost_nt
@@ -195,8 +239,18 @@ cap mata: mata drop mRN
 		qui replace cost_tx_d = cost_tx_d + cost_tx_mnt_d if cost_tx_mnt_d != .
 	}
 	
-	* Non-treatment costs (discounted)
-	qui gen cost_nt_d = (`cHosp' + `cComm' + `cEmer') * (1 - (1 + $drate)^(-OC_TIME_L/12)) / `ln_r'
+	* Non-treatment costs (discounted) - each phase discounted over its own sub-interval, in relative
+	* time from the starting line (a = os - w0, b = oe - w0). The uniform-over-interval factor
+	* ((1+r)^(-a/12) - (1+r)^(-b/12))/ln(1+r) tends to (b-a)/12 as r->0, matching the undiscounted amount.
+	* per-phase discount factor (uniform-over-interval), computed once and applied to every component
+	qui gen double _df_i = cond(_oe_i > _os_i, ((1+$drate)^(-(_os_i-_w0)/12) - (1+$drate)^(-(_oe_i-_w0)/12))/`ln_r', 0)
+	qui gen double _df_c = cond(_oe_c > _os_c, ((1+$drate)^(-(_os_c-_w0)/12) - (1+$drate)^(-(_oe_c-_w0)/12))/`ln_r', 0)
+	qui gen double _df_t = cond(_oe_t > _os_t, ((1+$drate)^(-(_os_t-_w0)/12) - (1+$drate)^(-(_oe_t-_w0)/12))/`ln_r', 0)
+	qui gen cost_nt_hosp_d = `cHosp_initial'*_df_i + `cHosp_continuing'*_df_c + `cHosp_terminal'*_df_t
+	qui gen cost_nt_mbs_d  = `cMBS_initial' *_df_i + `cMBS_continuing' *_df_c + `cMBS_terminal' *_df_t
+	qui gen cost_nt_emer_d = `cEmer_initial'*_df_i + `cEmer_continuing'*_df_c + `cEmer_terminal'*_df_t
+	qui gen cost_nt_d = cost_nt_hosp_d + cost_nt_mbs_d + cost_nt_emer_d
+	qui drop _w0 _i1 _c1 _t0 _os_i _oe_i _os_c _oe_c _os_t _oe_t _mo_i _mo_c _mo_t _df_i _df_c _df_t
 
 * Total discounted costs
 	qui gen cost_total_d = cost_tx_d + cost_nt_d

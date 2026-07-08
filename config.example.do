@@ -23,3 +23,7 @@ global data_cut     "251128"
 global drive_path   "/path/to/EpiMAP/Myeloma"
 global data_path     "${drive_path}/Data/${data_cut}"
 global registry_path "/path/to/MRDR/Registry data/MRDR Data/2025/${data_cut}_Data"
+
+* Raw PBS Schedule extract (public; not restricted) consumed by prep/extract_pbs_costs.do.
+* Point at the tables_as_csv dir of a dated PBS API CSV download.
+global pbs_src      "/path/to/PBS-API-CSV-files/tables_as_csv"

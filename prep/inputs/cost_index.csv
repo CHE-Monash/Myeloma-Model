@@ -1,2 +1,12 @@
 year,index,note
-2025,100,"Base placeholder (index is relative; any base works). Populate with an ABS price index — e.g. CPI All Groups Australia (ABS 6401.0) or the Health subgroup / an AIHW health price index — one row per year. Inflation factor applied to non-drug costs = index[target_year] / index[source_year]. Drug prices are NOT inflated (use actual PBS prices in drug_prices.csv)."
+2015,107.5,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2016,108.6,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2017,110.7,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2018,113.0,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2019,114.8,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12; Yap 2025 non-treatment source year"
+2020,114.4,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2021,118.8,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2022,126.1,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2023,133.7,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2024,138.8,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12"
+2025,141.7,"ABS CPI All groups Australia (series A2325846C, 6401.0/610101), June quarter, base 2011-12; latest target (2019->2025 factor 141.7/114.8 = 1.234)"
