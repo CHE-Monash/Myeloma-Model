@@ -143,7 +143,8 @@ cap mata: mata drop mRN
 	frame create _costs
 	frame _costs: quietly import delimited "`costfile'", varnames(1) case(preserve) stringcols(_all) clear
 	frame _costs: quietly destring value, replace     // to double (avoids float import rounding)
-	foreach p in cVCd cVRd cRd cKd cDVd cPd cVd cOther cMNT cASCT ///
+	foreach p in cVCd cVRd cRd cPd cVd cOther cMNT cASCT ///
+	             cKd_load cKd_maint cDVd_load cDVd_mid cDVd_tail ///
 	             cHosp_initial cHosp_continuing cHosp_terminal ///
 	             cMBS_initial  cMBS_continuing  cMBS_terminal ///
 	             cEmer_initial cEmer_continuing cEmer_terminal {
@@ -154,6 +155,19 @@ cap mata: mata drop mRN
 
 	local ln_r = ln(1 + $drate)
 
+* DVd and Kd are phase-based (front-loaded): the per-cycle cost changes over the course, so cost is
+* allocated to phase windows (months from regimen start) at each phase's per-month rate rather than a
+* single flat rate. DVd: load = cycles 1-3 (21-day, dara weekly), mid = cycles 4-8 (21-day, dara q3w),
+* tail = cycles 9+ (28-day, dara-only). Kd: load = cycle 1 (28-day step-up), maint = cycles 2+ (28-day).
+	local dvd_le = 3*21/30.4375                 // DVd load ends (months)
+	local dvd_me = 168/30.4375                  // DVd mid ends (months) = 8 x 21-day cycles
+	local dvd_lr = `cDVd_load' * 30.4375/21     // DVd per-month rate: load / mid / tail
+	local dvd_mr = `cDVd_mid'  * 30.4375/21
+	local dvd_tr = `cDVd_tail' * 30.4375/28
+	local kd_le  = 28/30.4375                   // Kd load ends (months) = 1 x 28-day cycle
+	local kd_lr  = `cKd_load'  * 30.4375/28
+	local kd_mr  = `cKd_maint' * 30.4375/28
+
 * Treatment costs by line (undiscounted)
 	forval l = `L'/`maxL' {
 		qui gen cost_tx_L`l' = 0
@@ -161,8 +175,8 @@ cap mata: mata drop mRN
 		qui replace cost_tx_L`l' = `cVCd' * min(4, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 4
 		qui replace cost_tx_L`l' = `cVRd' * min(5, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 31
 		qui replace cost_tx_L`l' = `cRd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 7
-		qui replace cost_tx_L`l' = `cKd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 49
-		qui replace cost_tx_L`l' = `cDVd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 80
+		qui replace cost_tx_L`l' = `kd_lr'*min(TXD_L`l',`kd_le') + `kd_mr'*max(0,TXD_L`l'-`kd_le') if TXR_L`l' == 49
+		qui replace cost_tx_L`l' = `dvd_lr'*min(TXD_L`l',`dvd_le') + `dvd_mr'*max(0,min(TXD_L`l',`dvd_me')-`dvd_le') + `dvd_tr'*max(0,TXD_L`l'-`dvd_me') if TXR_L`l' == 80
 		qui replace cost_tx_L`l' = `cPd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 56
 		qui replace cost_tx_L`l' = `cVd' * min(8, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 5
 		qui replace cost_tx_L`l' = `cOther' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 0
@@ -250,6 +264,29 @@ cap mata: mata drop mRN
 	qui gen cost_nt_mbs_d  = `cMBS_initial' *_df_i + `cMBS_continuing' *_df_c + `cMBS_terminal' *_df_t
 	qui gen cost_nt_emer_d = `cEmer_initial'*_df_i + `cEmer_continuing'*_df_c + `cEmer_terminal'*_df_t
 	qui gen cost_nt_d = cost_nt_hosp_d + cost_nt_mbs_d + cost_nt_emer_d
+
+	* Undiscounted cost accrued from diagnosis to 5 years (60 months) - comparable to the Yap 2025
+	* diagnosis-to-5-year excess cost. Only meaningful for a from-diagnosis run ($line == 1); each
+	* stream is truncated to its overlap with [0, 60] months on the diagnosis clock (missing otherwise).
+	if `L' == 1 {
+		qui gen double cost_5yr = 0
+		forval l = 1/`maxL' {
+			qui replace cost_5yr = cost_5yr + cost_tx_L`l' * ///
+				max(0, min(TSD_L`l'E_ref,60) - max(TSD_L`l'S_ref,0)) / (TSD_L`l'E_ref - TSD_L`l'S_ref) ///
+				if cost_tx_L`l' > 0 & TSD_L`l'E_ref > TSD_L`l'S_ref
+		}
+		qui replace cost_5yr = cost_5yr + cost_tx_asct if SCT_L1 == 1 & TSD_L1E_ref <= 60
+		qui replace cost_5yr = cost_5yr + cost_tx_mnt * ///
+			max(0, min(TSD_L2S_ref,60) - max(TSD_L1E_ref,0)) / TFI_L1 if cost_tx_mnt > 0 & TFI_L1 > 0
+		* non-treatment: phase rates over the window capped at min(60, OC_TIME) (reuse _i1/_c1/_t0)
+		qui replace cost_5yr = cost_5yr ///
+			+ (`cHosp_initial'   +`cMBS_initial'   +`cEmer_initial')    * max(0, min(_i1,60)-0 )/12 ///
+			+ (`cHosp_continuing'+`cMBS_continuing'+`cEmer_continuing') * max(0, min(_c1,60)-12)/12 ///
+			+ (`cHosp_terminal'  +`cMBS_terminal'  +`cEmer_terminal')   * max(0, min(OC_TIME,60)-_t0)/12
+		* death within the window => whole lifetime falls in [0,60], so 5-yr cost = lifetime total
+		qui replace cost_5yr = cost_total if OC_TIME <= 60
+	}
+	else qui gen double cost_5yr = .
 	qui drop _w0 _i1 _c1 _t0 _os_i _oe_i _os_c _oe_c _os_t _oe_t _mo_i _mo_c _mo_t _df_i _df_c _df_t
 
 * Total discounted costs

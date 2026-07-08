@@ -91,10 +91,28 @@ Unit costs below are the **2026 PBS DPMQ, whole-pack** values from `treatment_co
 | VRd (Bort/Lena/Dexa) | 31 | 1,013.23 | 21 d | 5 cycles | `cVRd · min(5, TXD·30.4375/21)` |
 | Vd (Bort/Dexa) | 5 | 491.00 | 21 d | 8 cycles | `cVd · min(8, TXD·30.4375/21)` |
 | Rd (Lena/Dexa) | 7 | 817.61 | 28 d | — | `cRd · TXD·30.4375/28` |
-| Kd (Carf/Dexa) | 49 | 12,629.70 | 28 d | — | `cKd · TXD·30.4375/28` |
-| DVd (Dara/Bort/Dexa) | 80 | 12,345.92 | 28 d | — | `cDVd · TXD·30.4375/28` |
+| Kd (Carf/Dexa) | 49 | phase-based ↓ | 28 d | — | see phase table below |
+| DVd (Dara/Bort/Dexa) | 80 | phase-based ↓ | 21/28 d | — | see phase table below |
 | Pd (Poma/Dexa) | 56 | 1,460.27 | 28 d | — | `cPd · TXD·30.4375/28` |
 | Other (VTd / TCd / Td / …) | 0 | 987.89 | 28 d | — | `cOther · TXD·30.4375/28` |
+
+**Phase-based regimens (DVd, Kd).** Daratumumab and carfilzomib are dosed on **front-loaded** schedules, so
+a single per-cycle cost applied flat over the treatment duration mis-costs short vs long courses badly (a
+short DVd course is mostly the expensive weekly-loading phase; a long one is mostly the cheap dara-only
+tail). Instead each has per-cycle costs by **phase**, and `process_data` allocates the treatment duration
+`TXD` to phase windows (months from regimen start) at each phase's per-month rate:
+
+| Regimen | Phase | Cycles | Cycle len | Per-cycle cost (AUD) | Window (months) |
+|---|---|---|---|---|---|
+| Kd | load | cycle 1 (step-up 20→56 mg/m²) | 28 d | `cKd_load` = 12,629.70 | 0 – 0.92 |
+| Kd | maint | cycles 2+ (56 mg/m², twice-weekly) | 28 d | `cKd_maint` = 15,040.68 | 0.92+ |
+| DVd | load | cycles 1–3 (dara weekly) | 21 d | `cDVd_load` = 22,393.46 | 0 – 2.07 |
+| DVd | mid | cycles 4–8 (dara q3w) | 21 d | `cDVd_mid` = 7,778.86 | 2.07 – 5.52 |
+| DVd | tail | cycles 9+ (dara only; bort/dexa stopped) | 28 d | `cDVd_tail` = 7,307.30 | 5.52+ |
+
+Cost = Σ over phases of `(per-cycle cost · 30.4375/cycle-len) × months-of-TXD-in-that-phase`. Discounting
+uses the existing uniform-over-window factor applied to this (correct) total — a small approximation for the
+front-loading, negligible because the load/mid phases span only ~5.5 months.
 
 ### How each per-cycle regimen cost is built (PBS DPMQ)
 

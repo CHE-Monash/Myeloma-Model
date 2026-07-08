@@ -79,7 +79,7 @@ keep if keep_it
 drop if missing(strength_mg) | missing(aemp)
 
 * cheapest brand within (drug, strength, program, pack)
-bysort DRUG strength_mg program_code psize (aemp): keep if _n==1
+bysort DRUG strength_mg program_code psize (aemp pbs_code): keep if _n==1  // pbs_code tie-break = reproducible
 
 * tidy output columns
 gen drug     = proper(lower(DRUG))

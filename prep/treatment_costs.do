@@ -68,12 +68,14 @@ import delimited "`IN'/pbs_copayments.csv", varnames(1) case(preserve) clear
 quietly summarize copay if type == "`copay_class'", meanonly
 scalar copay_amt = cond(`net_copay', r(mean), 0)
 
-* regimens
+* regimens (some are phased: DVd load/mid/tail, Kd load/maint - front-loaded schedules)
 import delimited "`IN'/treatment_regimens.csv", varnames(1) case(preserve) clear
-capture destring admins_override units_override, replace force
+capture confirm variable phase
+if _rc gen phase = ""
 frame copy default fregs, replace
 
-local reglist "VCd VRd Rd Kd DVd Pd Vd VTd TCd Td R T"
+* cost keys = regimen, or regimen_phase for phased regimens
+local reglist "VCd VRd Rd Kd_load Kd_maint DVd_load DVd_mid DVd_tail Pd Vd VTd TCd Td R T"
 
 * scalars the Mata block reads (locals are not visible inside mata:)
 scalar BSA_    = `BSA'
@@ -163,8 +165,7 @@ real scalar oral_packdpmq(real scalar aemp, string scalar prog,
 st_framecurrent("fregs")
 r_reg = st_sdata(., "regimen"); r_drug = st_sdata(., "drug"); r_basis = st_sdata(., "basis")
 r_str = st_data(., "strength_mg"); r_dose = st_data(., "dose")
-r_freq = st_data(., "freq_per_cycle"); r_cyc = st_data(., "cycles")
-r_ao = st_data(., "admins_override"); r_uo = st_data(., "units_override")
+r_freq = st_data(., "freq_per_cycle"); r_phase = st_sdata(., "phase")
 BSA = st_numscalar("BSA_"); WT = st_numscalar("WEIGHT_")
 policy = st_local("oral_policy")
 
@@ -172,10 +173,10 @@ regs = tokens(st_local("reglist"))
 totals = J(1, cols(regs), 0)
 
 for (i=1;i<=rows(r_reg);i++) {
-    // body size and dose
+    // body size and dose; per-cycle admins = freq_per_cycle (within this phase, if phased)
     bs = (r_basis[i]=="m2" ? BSA : (r_basis[i]=="kg" ? WT : 1))
     dose_mg = r_dose[i]*bs
-    admpc = (r_ao[i]!=. ? r_ao[i]/r_cyc[i] : r_freq[i])
+    admpc = r_freq[i]
 
     // injectable if this drug appears with kind=="injectable" in the price table
     isinj = anyof(select(p_kind, p_drug:==r_drug[i]), "injectable")
@@ -190,7 +191,7 @@ for (i=1;i<=rows(r_reg);i++) {
     else {
         sel = selectindex(p_drug:==r_drug[i] :& abs(p_str:-r_str[i]):<1e-6)
         packs = p_pack[sel]; aemps = p_aemp[sel]; progs = p_prog[sel]
-        units_admin = (r_uo[i]!=. ? r_uo[i] : round(dose_mg/r_str[i]))
+        units_admin = round(dose_mg/r_str[i])
         units_cyc = units_admin*admpc
         best = .
         for (j=1;j<=rows(sel);j++) {
@@ -201,8 +202,9 @@ for (i=1;i<=rows(r_reg);i++) {
         }
         pc = best
     }
-    // accumulate into the matching regimen total
-    for (g=1; g<=cols(regs); g++) if (regs[g]==r_reg[i]) totals[g] = totals[g] + pc
+    // accumulate into the matching cost key (regimen, or regimen_phase for phased regimens)
+    key = (r_phase[i]=="" ? r_reg[i] : r_reg[i]+"_"+r_phase[i])
+    for (g=1; g<=cols(regs); g++) if (regs[g]==key) totals[g] = totals[g] + pc
 }
 
 // export per-regimen totals to Stata scalars c_<reg>
@@ -214,8 +216,8 @@ scalar c_Other = (c_VTd + c_TCd + c_Td + c_Vd)/4
 scalar c_MNT   = (1002/1504)*c_R + (502/1504)*c_T          // MRDR R/T usage weights
 
 di as text _n "Per-cycle drug costs (full DPMQ, `oral_policy' orals):"
-foreach rg in VCd VRd Rd Kd DVd Pd Vd Other MNT {
-    di as text "  c`rg' " _col(12) %12.2f scalar(c_`rg')
+foreach rg in VCd VRd Rd Kd_load Kd_maint DVd_load DVd_mid DVd_tail Pd Vd Other MNT {
+    di as text "  c`rg' " _col(16) %12.2f scalar(c_`rg')
 }
 
 * ===========================================================================
@@ -295,7 +297,7 @@ st_numscalar("v_cb",  inj_vialcost(1.3*1.93,     p_str[selb], p_aemp[selb]) + pr
 st_numscalar("v_cd",  inj_vialcost(16*81.10597,  p_str[seld], p_aemp[seld]) + prepc)
 st_numscalar("v_lena", oral_packdpmq(p_aemp[sell[1]], p_prog[sell[1]], m_type,m_lo,m_pct,m_off,m_fix, f_prog,f_disp))
 end
-foreach pair in "carf56 v_c56 2503.54" "bort v_cb 113.03" "dara v_cd 7307.30" "lena25 v_lena 778.73" "Kd c_Kd 12629.70" {
+foreach pair in "carf56 v_c56 2503.54" "bort v_cb 113.03" "dara v_cd 7307.30" "lena25 v_lena 778.73" "Kd_load c_Kd_load 12629.70" {
     tokenize "`pair'"
     local got = scalar(`2')
     local d = abs(`got' - `3')
@@ -312,13 +314,13 @@ else di as text _n "(validation skipped: reference DPMQs are full-price; net_cop
 * Write the output cost set for this year
 * ===========================================================================
 clear
-set obs 19
+set obs 22
 gen str14 parameter = ""
 gen double value = .
 gen str8 unit = ""
 gen str48 note = ""
 local i 0
-foreach p in cVCd cVRd cRd cKd cDVd cPd cVd cOther cMNT {
+foreach p in cVCd cVRd cRd cKd_load cKd_maint cDVd_load cDVd_mid cDVd_tail cPd cVd cOther cMNT {
     local ++i
     local nm = subinstr("`p'", "c", "", 1)
     replace parameter = "`p'" in `i'

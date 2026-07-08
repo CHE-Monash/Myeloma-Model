@@ -434,8 +434,8 @@ forval i = 1/`n_regimens' {
     local reg_`i'_n_fmt = string(r(N), "%9.0fc")
     local reg_`i'_pct = string(100*r(N)/`l3_total', "%4.1f")
     
-    // Count BCR within this regimen (BCR 1=CR/VGPR, 3=PR/MR, 5=SD/PD)
-    forval b = 1(2)5 {
+    // Count BCR within this regimen (BCR 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD)
+    forval b = 1/6 {
         quietly count if TXR_L3 == `code' & BCR_L3 == `b'
         if `reg_`i'_n' > 0 {
             local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
@@ -446,9 +446,9 @@ forval i = 1/`n_regimens' {
     }
 }
 
-// Create table: 5 rows (header + N + 3 BCR) × (1 + n_regimens) columns
+// Create table: 8 rows (header + N + 6 BCR) × (1 + n_regimens) columns
 local n_cols = `n_regimens' + 1
-putpdf table txr_bcr_l3 = (5, `n_cols'), border(all)
+putpdf table txr_bcr_l3 = (8, `n_cols'), border(all)
 
 // Header row
 putpdf table txr_bcr_l3(1,1) = ("Line 3"), bold
@@ -465,8 +465,8 @@ forval i = 1/`n_regimens' {
 }
 
 // BCR rows
-local bcr_names `" "CR/VGPR" "PR/MR" "SD/PD"'
-forval b = 1/3 {
+local bcr_names `" "CR" "VGPR" "PR" "MR" "SD" "PD" "'
+forval b = 1/6 {
     local row = `b' + 2
     local bcr_label : word `b' of `bcr_names'
     putpdf table txr_bcr_l3(`row',1) = ("`bcr_label'")
@@ -508,8 +508,8 @@ forval i = 1/`n_regimens' {
     local reg_`i'_n_fmt = string(r(N), "%9.0fc")
     local reg_`i'_pct = string(100*r(N)/`l4_total', "%4.1f")
     
-    // Count BCR within this regimen (BCR 1=CR/VGPR, 3=PR/MR, 5=SD/PD)
-    forval b = 1(2)5 {
+    // Count BCR within this regimen (BCR 1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD)
+    forval b = 1/6 {
         quietly count if TXR_L4 == `code' & BCR_L4 == `b'
         if `reg_`i'_n' > 0 {
             local reg_`i'_bcr`b' = string(100*r(N)/`reg_`i'_n', "%4.1f")
@@ -520,9 +520,9 @@ forval i = 1/`n_regimens' {
     }
 }
 
-// Create table: 5 rows (header + N + 3 BCR) × (1 + n_regimens) columns
+// Create table: 8 rows (header + N + 6 BCR) × (1 + n_regimens) columns
 local n_cols = `n_regimens' + 1
-putpdf table txr_bcr_l4 = (5, `n_cols'), border(all)
+putpdf table txr_bcr_l4 = (8, `n_cols'), border(all)
 
 // Header row
 putpdf table txr_bcr_l4(1,1) = ("Line 4"), bold
@@ -539,8 +539,8 @@ forval i = 1/`n_regimens' {
 }
 
 // BCR rows
-local bcr_names `" "CR/VGPR" "PR/MR" "SD/PD"'
-forval b = 1/3 {
+local bcr_names `" "CR" "VGPR" "PR" "MR" "SD" "PD" "'
+forval b = 1/6 {
     local row = `b' + 2
     local bcr_label : word `b' of `bcr_names'
     putpdf table txr_bcr_l4(`row',1) = ("`bcr_label'")
@@ -1152,6 +1152,20 @@ putpdf table cost_comp(4,1) = ("  Maintenance (n=`n_mnt')")
 putpdf table cost_comp(4,2) = ("$`mean_mnt'")
 putpdf table cost_comp(5,1) = ("Non-Treatment Costs (Total)")
 putpdf table cost_comp(5,2) = ("$`mean_nt'")
+
+// Diagnosis-to-5-year cost (undiscounted) - benchmark against Yap 2025 (dx-to-5yr excess)
+quietly count if cost_5yr < .
+if r(N) > 0 {
+	quietly summarize cost_5yr
+	local mean_5yr = string(r(mean), "%12.0fc")
+	local sd_5yr   = string(r(sd), "%12.0fc")
+	local med_5yr  = string(r(p50), "%12.0fc")
+	putpdf paragraph
+	putpdf text ("Diagnosis-to-5-year cost (undiscounted): "), bold
+	putpdf text ("$`mean_5yr' mean ($`sd_5yr' SD); $`med_5yr' median")
+	putpdf paragraph
+	putpdf text ("Total cost (drugs + ASCT + non-treatment) accrued in the first 60 months from diagnosis, for comparison with Yap 2025 (which reports a diagnosis-to-5-year MM-attributable excess cost that also includes PBS, in 2019 AUD)."), font(,9) italic
+}
 
 // Treatment Costs by Line of Therapy
 putpdf paragraph

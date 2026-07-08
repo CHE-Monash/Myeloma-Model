@@ -106,6 +106,6 @@ bysort drug res_code: keep if _n==1
 gen sched = "`SCHED'"
 keep  drug condition line_signal treatment_phase likely_regimen combination authority_method n_items res_code criteria_summary sched
 order drug condition line_signal treatment_phase likely_regimen combination authority_method n_items res_code criteria_summary sched
-gsort drug condition treatment_phase
+gsort drug condition treatment_phase res_code  // res_code tie-break = reproducible row order
 export delimited "`OUT'/pbs_restrictions.csv", replace
 di as result _n "Wrote `OUT'/pbs_restrictions.csv (" _N " restrictions)"
