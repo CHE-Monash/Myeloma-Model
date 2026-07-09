@@ -8,14 +8,16 @@ The model is checked at three layers:
 2.  **Engine verification** — `core/tests/`: unit tests for the Mata/survival primitives plus extreme-value (stress) testing. Verifies the *machinery* with no calibration data.
 3.  **Calibration validation** — the **out-of-sample (70/30) analysis** in `analyses/default/`. This is the **mainstay validation, re-run for each model version** to confirm the model reproduces observed outcomes and nothing has regressed. The shared comparison engine is `analyses/default/validate_outcomes.do`.
 
+**This document is the source of truth for how the model is validated.** The strategy is deliberately *holistic*: rather than unit-testing each of the 50 risk equations in isolation, the mainstay simulates the whole composite model and checks it against **real held-out patient outcomes** (Layer 3). For a predictive microsimulation this is a stronger test than per-component checks — a mis-specified equation would surface as an out-of-sample miss — so the OOS validation subsumes per-equation accuracy testing. Layers 1–2 guard the *machinery* (in-run invariants, Mata/survival primitives, stress tests); Layer 3 guards the *predictions*. (An earlier, aspirational per-component test-suite plan was superseded by this approach and retired.)
+
 ## Layer 2 — engine verification (`core/tests/`)
 
 | File | Role |
 |----|----|
 | `core/tests/extreme_value.do` | Extreme-value / stress test: perturb one risk-equation intercept to an extreme and assert the engine responds in the right direction and stays bounded |
+| `core/tests/test_reproducibility.do` | Determinism guard: a fixed seed + fixed cohort must give byte-identical output (CRN matrix identical across builds; `run_pipeline` output signature identical on re-run) |
 | `core/tests/test_mata_functions.do` | Unit check: ordered-logit and survival helpers |
 | `core/tests/test_survival_functions.do` | Unit check: exponential / Weibull / Gompertz inverse-CDF sampling |
-| `core/tests/test_suite.md` | Test catalogue / specification |
 
 `extreme_value.do` needs **no MRDR data** — it runs the engine on a 3k slice of the in-repo `synthetic_1995_2040` cohort with the base coefficients, perturbing one intercept at a time in Mata, and self-checks the result. The latest run passes **7/7**: OS hazard → ∞ gives median OS ≈ 0 months and → 0 gives ≈ 367 months (the age limit); ASCT probability → 1 gives ≈ 98% transplanted and → 0 gives 0%; TXD and TFI hazard → ∞ collapse to median ≈ 0; and a monotone sweep of the OS intercept gives a smoothly decreasing median OS. Run it from the repository root:
 
