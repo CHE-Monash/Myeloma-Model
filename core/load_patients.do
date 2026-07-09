@@ -8,8 +8,14 @@
 capture program drop load_patients
 program define load_patients
 
-	// Handle population-specific requests (e.g., population_1, population_2)
-	if regexm("$data", "population_([0-9]+)") {
+	// Synthetic incidence population (default projection): "synthetic" or "synthetic_N" -> synthetic_1995_2040_N.
+	// Legacy "population" token kept for the archived base_model analysis (patients/population_1995_2040_*.dta).
+	if regexm("$data", "synthetic") {
+		global data_type = "synthetic"
+		if regexm("$data", "synthetic_([0-9]+)") global pop_number = regexs(1)
+		else global pop_number = 1
+	}
+	else if regexm("$data", "population_([0-9]+)") {
 		global pop_number = regexs(1)
 		global data_type = "population"
 		di as text "Using specific population: ${pop_number}"
@@ -20,12 +26,16 @@ program define load_patients
 	}
 
 	// Determine data source
-	if ("$data_type" == "population") {
+	if ("$data_type" == "synthetic") {
+		use "patients/synthetic_1995_2040_${pop_number}.dta", clear
+	}
+	else if ("$data_type" == "population") {
 		use "patients/population_1995_2040_${pop_number}.dta", clear
 	}
 	else if ("$cohort_file" != "") {
-		// $cohort_file lets a caller (e.g. ce_precision, analyses/oos) read a different cohort
-		// without overwriting the production file -- honoured for any non-population $data.
+		// $cohort_file lets a caller (e.g. the default outsample scenario -> patients_test.dta, or
+		// ce_precision) read a different cohort without overwriting the production file -- honoured for
+		// any non-synthetic/population $data.
 		use "$cohort_file", clear
 	}
 	else {

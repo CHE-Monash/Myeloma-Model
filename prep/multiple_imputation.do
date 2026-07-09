@@ -54,10 +54,10 @@ global imp `1'
 global boot `2'
 global min_bs `3'
 global max_bs `4'
-global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/oos/)
+global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
 
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
-* analyses/oos/prep/oos_split.do) and write outputs under ${data_path}/oos/. Empty = main model.
+* analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
 if "$sample" == "" {
 	global mi_outdir ""
 	global mi_outtag ""
@@ -127,12 +127,12 @@ program define multiple_imputation
 
 	// MI settings
 	mi set wide
-	mi register imputed Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore CM_CRD CM_PLM CM_DBT CM_MLG Male FISHRisk ExtraMedullaryD LyticLesion ECOGcc Para Lambda Kappa FLC dPara dLambda dKappa dFLC BCR
+	mi register imputed Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore CM_CRD CM_PLM CM_DBT Male FISHRisk ExtraMedullaryD LyticLesion ECOGcc Para Lambda Kappa FLC dPara dLambda dKappa dFLC BCR
 	mi register regular Age CLine
 	mi describe
 
 	// Diagnosis imputation
-	cap noi mi impute chained (regress) Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore Para Lambda Kappa FLC (logit, augment) Male CM_CRD CM_PLM CM_DBT CM_MLG FISHRisk ExtraMedullaryD LyticLesion (ologit, augment) ECOGcc = Age if Event0 == 3, add($imp) rseed(`RN1')
+	cap noi mi impute chained (regress) Albumin AlkalinePhosphatase BMPlasmaCells LactateDehydrogenase SerumB2Microglobulin SerumCalcium SerumCreatinine eGFR EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore Para Lambda Kappa FLC (logit, augment) Male CM_CRD CM_PLM CM_DBT FISHRisk ExtraMedullaryD LyticLesion (ologit, augment) ECOGcc = Age if Event0 == 3, add($imp) rseed(`RN1')
 	if _rc {
 		exit _rc
 	}
@@ -154,7 +154,7 @@ program define multiple_imputation
 		label variable CM_CKD "Chronic Kidney Disease"
 
 		// Carryforward (LOCF within patient by Date0). Sort once; direct-column fills (no mi xeq).
-		local vars "Male ECOGcc ISS CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG"
+		local vars "Male ECOGcc ISS CM_CKD CM_CRD CM_PLM CM_DBT"
 		sort ID_BS Date0
 		foreach v of local vars {
 			_cf `v'
@@ -190,7 +190,7 @@ program define multiple_imputation
 
 		// Generate BCR_L1..L9 (BCR at each line's start) and copy FORWARD only (LOCF), not a full
 		// broadcast. These are used in risk_equations.do only at Event0 >= the line's own start, and
-		// the simulation does not consume them (analyses/oos/prep/oos_cohort.do resets BCR_L* to
+		// the simulation does not consume them (analyses/default/prep/test_cohort.do resets BCR_L* to
 		// missing; the synthetic population never carries them). So filling rows *before* the line -
 		// the backward pass - is wasted. This drops one sort + 9 fill-passes vs _bcast_idbs. It leaves
 		// pre-line BCR_L* cells missing in the saved data, which nothing reads (fits/sims unaffected),
@@ -252,6 +252,7 @@ if "$boot" == "0" {
 
 	// Open MRDR Long Data
 	use "${data_path}/MRDR Long.dta"
+	cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities (engine uses only CM_CKD/CRD/PLM/DBT); dropped before mi set
 	gen ID_BS = ID
 
 	// OOS: restrict to the requested fold (train/test) before imputing
@@ -276,7 +277,7 @@ if "$boot" == "0" {
 	keep if Event0 == 3
 
 		// Convert _1_var to var_1
-		foreach v in Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG {
+		foreach v in Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT {
 			forvalues i = 1/$imp {
 				gen `v'_`i' = _`i'_`v'
 				drop _`i'_`v'
@@ -285,11 +286,11 @@ if "$boot" == "0" {
 
 		// Drop non-MI variables
 		keep ID Event0 Date0 Age Male* ECOGc* RISS* ISS* LDHRisk* FISHRisk* CM_* _mi_miss
-		drop Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
+		drop Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT
 
 		// Turn MI imps into rows
 		mi unset
-		reshape long Male_ ECOGcc_ RISS_ ISS_ LDHRisk_ FISHRisk_ CM_CKD_ CM_CRD_ CM_PLM_ CM_DBT_ CM_MLG_, i(ID) j(Imp)
+		reshape long Male_ ECOGcc_ RISS_ ISS_ LDHRisk_ FISHRisk_ CM_CKD_ CM_CRD_ CM_PLM_ CM_DBT_, i(ID) j(Imp)
 		rename Male_ Male
 		rename ECOGcc_ ECOGcc
 		rename RISS_ RISS
@@ -300,12 +301,11 @@ if "$boot" == "0" {
 		rename CM_CRD_ CM_CRD
 		rename CM_PLM_ CM_PLM
 		rename CM_DBT_ CM_DBT
-		rename CM_MLG_ CM_MLG
 		drop mi_miss
 
 		// Save Wide MI
 		gen MRDR = 1
-		order MRDR ID Imp Event0 Date0 Age Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_MLG
+		order MRDR ID Imp Event0 Date0 Age Male ECOGcc RISS ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT
 		save "${data_path}/${mi_outdir}MRDR Wide MI${mi_outtag}.dta", replace
 
 	// Return to the repo root, then delete temp folder
@@ -318,6 +318,7 @@ else if "$boot" == "1" {
 
 		// Open MRDR Long Data
 		use "${data_path}/MRDR Long.dta"
+		cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities (engine uses only CM_CKD/CRD/PLM/DBT)
 
 		// OOS: restrict to the requested fold before resampling/imputing
 		if "$sample" != "" {

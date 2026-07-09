@@ -133,9 +133,9 @@ cap mata: mata drop mRN
 			di as error "process_data: no prep/inputs/treatment_costs_*.csv - run prep/treatment_costs.do first"
 			exit 601
 		}
-		if "$_cost_fallback_note" != "`latest'" {   // note once per session (process_data runs many times)
+		if "$cost_fallback_note" != "`latest'" {   // note once per session (process_data runs many times)
 			di as text "  (cost year `cyear' not found; using `latest')"
-			global _cost_fallback_note "`latest'"
+			global cost_fallback_note "`latest'"
 		}
 		local costfile "prep/inputs/`latest'"
 	}

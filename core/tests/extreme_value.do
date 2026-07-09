@@ -17,11 +17,11 @@ capture run "config.do"
 **********
 * Configuration (small cohort for speed; deterministic)
 **********
-global analysis     "base_model"
+global analysis     "default"
 global int          "all"
 global line         "0"
-global coeffs       "base_model"
-global data         "population"
+global coeffs       "full"
+global data         "synthetic"
 global min_year     "1995"
 global max_year     "2040"
 global min_id       "1"

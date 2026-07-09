@@ -3,7 +3,7 @@
 *
 * Purpose: Generate a synthetic cohort of MM patients to be simulated: 1995-2020 from AIHW data,
 *          2021-2040 from Daffodil Centre data.
-* Notes:   Outputs population_1995_2040_(1 to 10).dta
+* Notes:   Outputs synthetic_1995_2040_(1 to 10).dta
 **********
 
 clear
@@ -115,6 +115,7 @@ program define population
 		
 		*Append and impute remaining variables
 			append using "${data_path}/MRDR Wide MI.dta"
+			cap drop CM_LVR CM_PNR CM_MLG   // unused comorbidities (engine uses only CM_CKD/CRD/PLM/DBT)
 			order MRDR ID Year AgeGroup Age Male ECOGcc RISS ISS LDHRisk FISHRisk
 			replace ID = _n if ID == .
 			
@@ -152,13 +153,13 @@ program define population
 		*MI set
 			mi set wide
 			*mi register imputed Age ECOGcc RISS CM_CKD
-			mi register imputed Age ECOGcc ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_LVR CM_PNR CM_MLG
+			mi register imputed Age ECOGcc ISS LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT
 			mi register regular AgeGroup Male Age_lower Age_upper
 			mi describe
 			
 		*Imputation
 			*local seed = 9854 * `Sample'
-			mi impute chained (truncreg, ll(Age_lower) ul(Age_upper)) Age (ologit) ECOGcc ISS (logit) LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT CM_LVR CM_PNR CM_MLG = AgeGroup Male, add(1) rseed(9854)
+			mi impute chained (truncreg, ll(Age_lower) ul(Age_upper)) Age (ologit) ECOGcc ISS (logit) LDHRisk FISHRisk CM_CKD CM_CRD CM_PLM CM_DBT = AgeGroup Male, add(1) rseed(9854)
 			mi unset
 			
 		*Drop MRDR and reshape Synthetic
@@ -256,5 +257,5 @@ forval s = 1/10 {
 		gen Sample = `s'	
 		
 	*Save
-		save "patients/population_1995_2040_`s'.dta", replace
+		save "patients/synthetic_1995_2040_`s'.dta", replace
 }

@@ -8,7 +8,7 @@
 
 * Optional positional args (read into locals, which survive clear all) let this script build either
 * the in-sample benchmarks (no args -> defaults below) or the held-out OOS targets, when called from
-* analyses/oos/prep/oos_targets.do:   arg 1 = input MI dataset, arg 2 = output directory.
+* analyses/default/prep/test_targets.do:   arg 1 = input MI dataset, arg 2 = output directory.
 local bench_in  `"`1'"'
 local bench_out `"`2'"'
 
@@ -75,7 +75,7 @@ matrix colnames OS_L1_NoASCT = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "
 matrix rownames OS_L1_NoASCT = "CR" "VG" "PR" "MR" "SD" "PD"
 
 forvalues bcr = 1/6 {
-	quietly count if BCR_L1 == `bcr' & SCT == 0 & first_record == 1
+	quietly count if BCR_L1 == `bcr' & SCT == 0 & _t0 == 0   // anchor at the L1-start origin: BCR_L1..L9 are LOCF forward from each line's start (not on the diagnosis record)
 	local n = r(N)
 	matrix OS_L1_NoASCT[`bcr', 1] = `n'
 	
@@ -147,7 +147,7 @@ matrix colnames OS_L2 = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "Y8" "Y1
 matrix rownames OS_L2 = "CR" "VG" "PR" "MR" "SD" "PD"
 
 forvalues bcr = 1/6 {
-	quietly count if BCR_L2 == `bcr' & !missing(BCR_L2) & first_record == 1
+	quietly count if BCR_L2 == `bcr' & !missing(BCR_L2) & _t0 == 0   // anchor at the L2-start origin (BCR_L2 is LOCF forward from L2 start)
 	local n = r(N)
 	matrix OS_L2[`bcr', 1] = `n'
 	
@@ -183,7 +183,7 @@ matrix colnames OS_L3 = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "Y8" "Y1
 matrix rownames OS_L3 = "CR" "VG" "PR" "MR" "SD" "PD"
 
 forvalues bcr = 1/6 {
-	quietly count if BCR_L3 == `bcr' & !missing(BCR_L3) & first_record == 1
+	quietly count if BCR_L3 == `bcr' & !missing(BCR_L3) & _t0 == 0   // anchor at the L3-start origin (BCR_L3 is LOCF forward from L3 start)
 	local n = r(N)
 	matrix OS_L3[`bcr', 1] = `n'
 	
@@ -219,13 +219,18 @@ matrix BCR = J(9, 7, .)
 matrix colnames BCR = "N" "CR" "VG" "PR" "MR" "SD" "PD"
 matrix rownames BCR = "L1" "ASCT" "L2" "L3" "L4" "L5" "L6" "L7" "L8"
 
-// L1 (count patients, not records: BCR_* is patient-level, repeated across rows)
-quietly count if !missing(BCR_L1) & first_record == 1
+// L1 (count patients, not records). BCR_L1..L9 are LOCF-forward from each line's start (not on the
+// diagnosis record), so reduce to one value per patient (egen max over the LOCF'd column) then count
+// once per patient at first_record.
+capture drop bcr_pt
+bysort ID_BS: egen bcr_pt = max(BCR_L1)
+quietly count if !missing(bcr_pt) & first_record == 1
 matrix BCR[1,1] = r(N)
 forvalues bcr = 1/6 {
-	quietly count if BCR_L1 == `bcr' & first_record == 1
+	quietly count if bcr_pt == `bcr' & first_record == 1
 	matrix BCR[1, `bcr'+1] = r(N) / BCR[1,1] * 100
 }
+drop bcr_pt
 
 // ASCT (only 4 categories)
 quietly count if !missing(BCR_SCT) & BCR_SCT != 0 & first_record == 1
@@ -235,18 +240,21 @@ forvalues bcr = 1/4 {
 	matrix BCR[2, `bcr'+1] = r(N) / BCR[2,1] * 100
 }
 
-// L2-L8
+// L2-L8 (same one-value-per-patient reduction as L1, since BCR_L`line' is LOCF-forward)
 forvalues line = 2/8 {
 	local row = `line' + 1
-	quietly count if !missing(BCR_L`line') & first_record == 1
+	capture drop bcr_pt
+	bysort ID_BS: egen bcr_pt = max(BCR_L`line')
+	quietly count if !missing(bcr_pt) & first_record == 1
 	matrix BCR[`row',1] = r(N)
 
 	if r(N) > 0 {
 		forvalues bcr = 1/6 {
-			quietly count if BCR_L`line' == `bcr' & first_record == 1
+			quietly count if bcr_pt == `bcr' & first_record == 1
 			matrix BCR[`row', `bcr'+1] = r(N) / BCR[`row',1] * 100
 		}
 	}
+	drop bcr_pt
 }
 
 **********
