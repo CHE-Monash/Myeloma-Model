@@ -29,15 +29,15 @@ The patient journey is discretised into 19 outcome-milestone checkpoints (OMC). 
 
 Each analysis ships a dispatcher do-file (`analyses/<name>/simulate.do`) that owns a configuration block of globals, loads the core programs, loads the relevant coefficient set, and runs the pipeline; a per-analysis `run.do` runbook drives the dispatcher (looping the arms of a comparison, or chaining prep steps). Interactive runs are globals-only; `run.do` and the HPC arrays additionally pass a few optional positional overrides (`boot`, `min_bs`, `max_bs`, `scenario`). Dispatchers assume the **working directory is the repository root** — all paths are repo-root-relative.
 
-The configuration block (canonical form in `analyses/base_model/simulate.do`):
+The configuration block (canonical form in `analyses/default/simulate.do`):
 
 | Global | Meaning | Default |
 |----|----|----|
-| `$analysis` | Analysis name (also sets the four `*_path` globals) | `base_model` |
+| `$analysis` | Analysis name (also sets the four `*_path` globals) | `default` |
 | `$int` | Intervention label (two-arm analyses use `$int1`/`$int0`) | `all` |
 | `$line` | Line of therapy assessed (`0` = full pathway from diagnosis; 1–9) | `0` |
-| `$coeffs` | Coefficient set loaded via `mata matuse` | `base_model` |
-| `$data` | Patient data: `population` or `predicted` | `population` |
+| `$coeffs` | Coefficient set loaded via `mata matuse` (e.g. `full`, `train`) | `full` |
+| `$data` | Patient cohort: `synthetic` (incidence population), `train`/`test` (registry folds), or `predicted` | `synthetic` |
 | `$min_year` / `$max_year` | Diagnosis-year range | `1995` / `2040` |
 | `$min_id` / `$max_id` | Patient ID range | `1` / `101212` |
 | `$cost_year` | Price year for costs (AUD) | `2026` |
@@ -53,7 +53,7 @@ Every dispatcher loads the core programs with `run "core/…"` and runs the lean
 
 A typical run proceeds:
 
-1.  **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `population_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
+1.  **`core/load_patients.do`** (`load_patients`) — reads the patient `.dta` (a `synthetic_1995_2040_<n>.dta` cohort or a predicted `patients_<analysis>_<line>.dta`), filters on diagnosis year, disease state and ID range, and **resets `ID = _n`** so row order is canonical. This ordering is load-bearing for CRN alignment.
 2.  **`core/mata_setup.do`** (`mata_setup`) — builds the Mata characteristic vectors and outcome matrices from the Stata data, and constructs the CRN matrix `mRN`. It asserts `ID == _n` (errors otherwise).
 3.  **`core/simulation_engine.do`** (`simulation`) — the deterministic event loop. At each of the 19 OMC points it sets the current `OMC` and `Line` and executes the relevant `core/outcomes/sim_*.do` module, filling the outcome matrices.
 4.  **`core/process_data.do`** (`process_data`) — drops `mRN`, stacks the outcome matrices into a summary matrix, writes them back to a flat Stata dataset with long variable names, and computes dates, costs, QALYs and discounting.
@@ -143,7 +143,7 @@ Parameter uncertainty is propagated through the coefficients. When `$boot == 1`,
 
 ## Analyses
 
-- **`base_model`** — the full treatment landscape, with all observed MRDR regimens in the risk equations. Used for population projections and as the baseline for the health-economic models. Its output, `analyses/base_model/simulated/all_0_population_1_101212.dta`, is the file the validation suite checks.
+- **`default`** — the reference analysis, run two ways via `$scenario`. **Projection** (`$scenario ""`): the full treatment landscape (all observed MRDR regimens), fit on the whole registry (`coeffs=full`) and applied to the synthetic incidence population (`data=synthetic`) — used for projections and as the baseline for the health-economic models; output `analyses/default/simulated/all_0_synthetic.dta`. **Out-of-sample validation** (`$scenario "outsample"`): the 70%-train fit (`coeffs=train`) applied to the held-out real 30% (`data=test`), compared to observed targets by `validate_outsample.do` — the mainstay calibration check.
 - **`transport_dvd`** — a two-arm comparative cost-effectiveness analysis of DVd versus Vd at line 2, built on the Calibrated Transport method (below). Runs under three scenarios (`A_trial`, `B_transport`, `C_mrdr`), each saved to its own `simulated/<scenario>/` subtree.
 
 ## Calibrated Transport
@@ -164,13 +164,13 @@ The definitive method specification, including the exact regression form and the
 
 ## Outputs
 
-`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd/simulate.do`), not by `base_model/simulate.do`.
+`core/export_results.do` (`export_results`) writes flat CSV outputs for downstream use — a response distribution (`bcr_*.csv`), an economic summary (`econ_*.csv`), and a per-patient export (`patients_*.csv`) — into `$simulated_path/$scenario/`, without modifying memory. It is point-estimate only: it exits early when `$boot == 1`, since bootstrap output is aggregated separately. It is wired into the pipeline by the orchestrators that call it (e.g. `transport_dvd/simulate.do`), not by `default/simulate.do`.
 
 `core/generate_report.do` produces a `putpdf` report (titled "Monash Myeloma Model v3.0") when `$report == 1`, covering the patient sample, treatments, overall survival (with figures), lines of therapy, treatment duration, treatment-free interval and economic outcomes.
 
 ## Validation
 
-Validation is described in `docs/validation.md`. In brief, three layers: `core/validation.do` runs lighter invariant checks within each simulation; `core/tests/` holds engine-verification tests (the Mata/survival unit checks plus `extreme_value.do` stress testing); and the **out-of-sample (70/30) analysis** in `analyses/oos/` is the mainstay calibration validation — it trains on 70% of MRDR, predicts the held-out 30%, and compares to observed outcomes across five families (overall survival, response, treatment duration, treatment-free interval and pathways) via the shared engine `analyses/oos/validate_outcomes.do` with documented tolerances. (The earlier in-sample registry acceptance test was retired; its debug diagnostics live in `scratch/`.)
+Validation is described in `docs/validation.md`. In brief, three layers: `core/validation.do` runs lighter invariant checks within each simulation; `core/tests/` holds engine-verification tests (the Mata/survival unit checks plus `extreme_value.do` stress testing); and the **out-of-sample (70/30) analysis** in `analyses/default/` is the mainstay calibration validation — it trains on 70% of MRDR, predicts the held-out 30%, and compares to observed outcomes across five families (overall survival, response, treatment duration, treatment-free interval and pathways) via the shared engine `analyses/default/validate_outcomes.do` with documented tolerances. (The earlier in-sample registry acceptance test was retired; its debug diagnostics live in `scratch/`.)
 
 ## Performance
 

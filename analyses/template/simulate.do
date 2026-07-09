@@ -7,7 +7,7 @@
 * Usage:   orchestrated by run.do; on the HPC it is sbatch'd directly (never sources run.do). Point
 *          estimate: $boot 0. Bootstrap: $boot 1 with $min_bs/$max_bs over coefficient resamples.
 *          Optional positional args (run.do / HPC arrays): boot min_bs max_bs [scenario].
-* Notes:   Worked examples -- analyses/base_model/ (simplest single-run dispatcher; start here);
+* Notes:   Worked examples -- analyses/default/ (simplest single-run dispatcher; start here);
 *          analyses/transport_dvd/ (scenarios A/B/C + outcome overrides, outcomes/sim_bcr_override.do).
 **********
 
@@ -32,7 +32,7 @@ global analysis     "template"          // <- your analysis name (this folder un
 global int          "all"               // Intervention label (drives regimen logic; e.g. all / VRd / dvd)
 global line         "0"                 // Line assessed (0 = all lines; 1-9 = a single line, e.g. for an override)
 global coeffs       "template"          // Coefficient set -> coefficients_<coeffs>.mmat + outcomes/txr_<coeffs>.do
-global data         "population"        // Patient data (population / predicted)
+global data         "synthetic"         // Patient cohort (synthetic / train / test / predicted)
 global min_year     "1995"              // Patients diagnosed from (>= 1995)
 global max_year     "2040"              // Patients diagnosed until (<= 2040)
 global min_id       "1"                 // First patient ID

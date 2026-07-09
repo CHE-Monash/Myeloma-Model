@@ -9,7 +9,7 @@ A copy-me skeleton for a **new analysis**. It follows the repo's [analysis layou
 3. **Edit** `simulate.do`'s Configuration block (`$analysis`, `$int`, `$line`, `$coeffs`, `$data`, cohort…) and `run.do`'s steps.
 4. **Fit** coefficients: `do "prep/risk_equations.do" <analysis> <coeffs> 1995 2040 0` → `coefficients/coefficients_<coeffs>.mmat`. It loads your `outcomes/txr_<coeffs>.do` regimen lists.
 5. **Provide** the simulation cohort under `patients/`:
-   - *Whole-population analysis* (like `base_model`) — point `$data` at a `patients/population_*.dta` cohort; nothing to build.
+   - *Whole-population analysis* (like `default`'s projection) — point `$data` at a `patients/synthetic_*.dta` cohort; nothing to build.
    - *Line-specific decision analysis* (like `transport_dvd`, assessing a drug at line L) — build a cohort that reaches line L: `patients/cohort_pool.do` (build the entry pool once) → `patients/draw_cohort.do` (draw a fixed-size, seeded cohort → `patients_<analysis>_<line>.dta`).
 6. **Run**: `do "analyses/<your_analysis>/run.do"` (or `simulate.do` alone for one point-estimate run).
 
@@ -27,7 +27,7 @@ Keep the two `outcomes/sim_*_override.do` files only if you need them (see below
 | `coefficients/` | Fitted `coefficients_<coeffs>.mmat` (+ `bootstrap/`). |
 | `patients/cohort_pool.do` | *(optional, line-specific)* Build once — simulate populations, keep line-L reachers → `cohort_pool_<line>.dta`. |
 | `patients/draw_cohort.do` | *(optional, line-specific)* Draw a fixed-size, seeded cohort from the pool → `patients_<analysis>_<line>.dta`. |
-| `patients/` | The simulation cohort `.dta` (built by the two scripts above, or a `population_*.dta` you point `$data` at). |
+| `patients/` | The simulation cohort `.dta` (built by the two scripts above, or a `synthetic_*.dta` you point `$data` at). |
 | `simulated/` | Run outputs (`bootstrap/` for resamples; a `<scenario>/` subfolder if you use scenarios). |
 | `results/` | Analysis-level CSVs / figures / `results.md`. |
 
@@ -46,6 +46,6 @@ If your analysis assesses an intervention at a specific line L (e.g. a new secon
 
 ## Reference analyses
 
-- `analyses/base_model/` — the simplest single-run analysis (no scenarios, no overrides).
+- `analyses/default/` — the reference analysis: a scenario-driven dispatcher (`$scenario ""` projection / `outsample` validation) selecting the coefficient set + cohort.
 - `analyses/transport_dvd/` — scenarios (`A_trial`/`B_transport`/`C_mrdr`), a coefficient-generation step, and both overrides.
-- `analyses/oos/run.do` — the complete HPC bootstrap shell block (rsync + `sbatch` array jobs) to copy from.
+- `analyses/default/run.do` — a runbook covering both deterministic tracks plus the HPC bootstrap shell block (rsync + `sbatch` array jobs) to copy from.

@@ -9,7 +9,7 @@
 *          (they point $data at a population cohort and go straight to simulate.do).
 * Notes:   Case-mix is set by the window (who reaches L) and held fixed -- do NOT widen it to change size
 *          (that shifts case-mix); size is draw_cohort.do's job. Needs fitted coefficients_<coeffs>.mmat
-*          and patients/population_<min>_<max>_<s>.dta (prep/population_1995_2040.do). Output ->
+*          and patients/synthetic_<min>_<max>_<s>.dta (prep/synthetic_1995_2040.do). Output ->
 *          analyses/template/patients/cohort_pool_<line>.dta. Example: analyses/transport_dvd/patients/sample_size/.
 **********
 
@@ -63,7 +63,7 @@ forval s = 1/`n_samples' {
 	mata: mata clear
 
 	global int      "all"            // natural-history setting only; the line-L regimen is blanked below
-	global data     "population_`s'" // INDEPENDENT population file s (NOT "population", which is file 1)
+	global data     "synthetic_`s'" // INDEPENDENT synthetic cohort file s (NOT "synthetic", which is file 1)
 	global min_year "1995"
 	global max_year "2020"
 	global min_id   "1"

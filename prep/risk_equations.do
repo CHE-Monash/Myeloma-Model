@@ -26,7 +26,7 @@ if "$repo_path" != "" cd "$repo_path"   // cd to repo root only if config.do set
 capture run "config.do"     // machine-specific paths: $data_path (git-ignored)
 
 * OOS routing: read the OOS-fold imputed data when $sample is set (output is already keyed by
-* $analysis, so OOS coefficients land in analyses/oos/coefficients/). Empty = main model.
+* $analysis, so OOS coefficients land in analyses/default/coefficients/). Empty = main model.
 if "$sample" == "" {
 	global re_indir ""
 	global re_intag ""

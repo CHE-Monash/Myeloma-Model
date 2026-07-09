@@ -6,7 +6,7 @@ The model is checked at three layers:
 
 1.  **In-simulation invariants** — `core/validation.do`, run inside every simulation: lightweight ordering/bounds sanity checks (e.g. event times non-decreasing, durations non-negative). Catches gross engine errors on every run.
 2.  **Engine verification** — `core/tests/`: unit tests for the Mata/survival primitives plus extreme-value (stress) testing. Verifies the *machinery* with no calibration data.
-3.  **Calibration validation** — the **out-of-sample (70/30) analysis** in `analyses/oos/`. This is the **mainstay validation, re-run for each model version** to confirm the model reproduces observed outcomes and nothing has regressed. The shared comparison engine is `analyses/oos/validate_outcomes.do`.
+3.  **Calibration validation** — the **out-of-sample (70/30) analysis** in `analyses/default/`. This is the **mainstay validation, re-run for each model version** to confirm the model reproduces observed outcomes and nothing has regressed. The shared comparison engine is `analyses/default/validate_outcomes.do`.
 
 ## Layer 2 — engine verification (`core/tests/`)
 
@@ -17,7 +17,7 @@ The model is checked at three layers:
 | `core/tests/test_survival_functions.do` | Unit check: exponential / Weibull / Gompertz inverse-CDF sampling |
 | `core/tests/test_suite.md` | Test catalogue / specification |
 
-`extreme_value.do` needs **no MRDR data** — it runs the engine on a 3k slice of the in-repo `population_1995_2040` cohort with the base coefficients, perturbing one intercept at a time in Mata, and self-checks the result. The latest run passes **7/7**: OS hazard → ∞ gives median OS ≈ 0 months and → 0 gives ≈ 367 months (the age limit); ASCT probability → 1 gives ≈ 98% transplanted and → 0 gives 0%; TXD and TFI hazard → ∞ collapse to median ≈ 0; and a monotone sweep of the OS intercept gives a smoothly decreasing median OS. Run it from the repository root:
+`extreme_value.do` needs **no MRDR data** — it runs the engine on a 3k slice of the in-repo `synthetic_1995_2040` cohort with the base coefficients, perturbing one intercept at a time in Mata, and self-checks the result. The latest run passes **7/7**: OS hazard → ∞ gives median OS ≈ 0 months and → 0 gives ≈ 367 months (the age limit); ASCT probability → 1 gives ≈ 98% transplanted and → 0 gives 0%; TXD and TFI hazard → ∞ collapse to median ≈ 0; and a monotone sweep of the OS intercept gives a smoothly decreasing median OS. Run it from the repository root:
 
 ``` stata
 do "core/tests/extreme_value.do"
@@ -25,28 +25,28 @@ do "core/tests/extreme_value.do"
 
 > Known engine-robustness gap (surfaced by this test): at *intermediate-extreme* OS hazard (intercept shift ≈ +2, not the +20 boundary) the engine throws `r(3301) subscript invalid` — high early mortality empties a downstream line and an unguarded `selectindex` fails. The harness self-protects (`capture` per point); the engine guard (`rows(idx) > 0` before indexing) is an open item.
 
-## Layer 3 — out-of-sample validation (`analyses/oos/`)
+## Layer 3 — out-of-sample validation (`analyses/default/`, `$scenario outsample`)
 
-Trains the model on a random **70%** of MRDR patients, predicts the held-out **30%**, and compares the predictions to those patients' **observed** outcomes — testing generalisation, not just in-sample fit. See `analyses/oos/README.md` for the full layout; the prep steps (split → train-70% imputation/risk-equations → 30% targets/cohort) run against the restricted registry data and are HPC-suited.
+The reference analysis's **out-of-sample scenario**. Trains the model on a random **70%** of MRDR patients, predicts the held-out **30%**, and compares the predictions to those patients' **observed** outcomes — testing generalisation, not just in-sample fit. See `analyses/default/README.md` for the full layout; the prep steps (split → train-70% imputation/risk-equations → 30% targets/cohort) run against the restricted registry data and are HPC-suited.
 
 ### How to run
 
-The full pipeline — split, train-70% fit, 30% targets + cohort, simulate, and compare — is the deterministic track of `analyses/oos/run.do` (its numbered steps 0–6); run that top to bottom, or the individual steps it lists:
+The full pipeline — split, train-70% fit, 30% targets + cohort, simulate, and compare — is the out-of-sample track of `analyses/default/run.do` (its numbered steps O0–O6); run that top to bottom, or the individual steps it lists:
 
 ``` stata
-// The whole deterministic OOS pipeline (see the numbered steps inside):
-do "analyses/oos/run.do"
+// The whole deterministic out-of-sample pipeline (see the O-numbered steps inside):
+do "analyses/default/run.do"
 
-// ... or just the final compare (steps 1-5 already done):
-//   step 5  do "analyses/oos/simulate.do"       // simulate the held-out 30% with the 70%-trained coefficients
-//   step 6  do "analyses/oos/validate_oos.do"   // compare the simulated 30% to the observed targets
+// ... or just the final compare (steps O0-O4 already done):
+//   step O5  do "analyses/default/simulate.do" 0 . . outsample   // simulate the held-out 30% with the 70%-trained coefficients
+//   step O6  do "analyses/default/validate_outsample.do"          // compare the simulated 30% to the observed targets
 ```
 
-`validate_oos.do` points the shared comparison engine `validate_outcomes.do` at the OOS targets (`$val_targets`) and the OOS simulation (`$val_simfile`); the engine imports the target CSVs inline, loads the simulated dataset, runs the checks below, and prints a pass/fail summary.
+`validate_outsample.do` points the shared comparison engine `validate_outcomes.do` at the OOS targets (`$val_targets`) and the OOS simulation (`$val_simfile`); the engine imports the target CSVs inline, loads the simulated dataset, runs the checks below, and prints a pass/fail summary.
 
 ### Targets
 
-`analyses/oos/targets/` holds 13 CSVs (the held-out 30%'s observed outcomes), built by `prep/generate_benchmarks.do` from the test-fold imputed data: `os_l1_noasct.csv`, `os_asct.csv`, `os_l2.csv`, `os_l3.csv`, `bcr.csv`, `txd_l1_noasct.csv`, `txd_l1_asct.csv`, `txd_l2.csv`, `tfi_l1_noasct.csv`, `tfi_l1_asct.csv`, `tfi_l2.csv`, `tfi_l3.csv`, `pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median, quartiles and the `M12`/`M24` horizon-survival columns; pathways carries the ASCT and subsequent-line reach rates. A further target, `os_wholepop_curve.csv`, holds the observed whole-population monthly Kaplan–Meier survivor (with Greenwood SE) over 0–120 months — the reference for the OS validation curve (below).
+`analyses/default/targets/` holds 13 CSVs (the held-out 30%'s observed outcomes), built by `prep/generate_benchmarks.do` from the test-fold imputed data: `os_l1_noasct.csv`, `os_asct.csv`, `os_l2.csv`, `os_l3.csv`, `bcr.csv`, `txd_l1_noasct.csv`, `txd_l1_asct.csv`, `txd_l2.csv`, `tfi_l1_noasct.csv`, `tfi_l1_asct.csv`, `tfi_l2.csv`, `tfi_l3.csv`, `pathways.csv`. Overall-survival files carry N, median and annual survival percentages; response carries N and the CR/VGPR/PR/MR/SD/PD percentages by line; treatment-duration and treatment-free-interval files carry N, mean, median, quartiles and the `M12`/`M24` horizon-survival columns; pathways carries the ASCT and subsequent-line reach rates. A further target, `os_wholepop_curve.csv`, holds the observed whole-population monthly Kaplan–Meier survivor (with Greenwood SE) over 0–120 months — the reference for the OS validation curve (below).
 
 The survival, treatment-duration and treatment-free-interval targets are all estimated with censoring-aware survival methods (Kaplan–Meier / `stsum`), so they are comparable to the run-to-death simulation despite the registry's incomplete follow-up. The **subsequent-line reach rates** in `pathways.csv` are estimated **one transition at a time, conditionally** — the Aalen–Johansen probability of reaching line *L* given the patient reached line *L−1*, with *death before reaching L* as the competing event and the *previous line's reach date* as the origin. Validating each transition on its own keeps line-to-line errors from compounding down the pathway (an earlier cumulative-from-L1 estimate let a single early miss cascade into every later line); the validator and the simulation are compared on the same conditional quantity. Each conditional rate is still a competing-risks cumulative incidence rather than a crude "ever reached ÷ total" count, which would understate reach because recently-diagnosed registry patients still in an earlier line would usually progress given more follow-up. The ASCT reach rate is a crude proportion, but its **denominator is patients who reach the end of L1** (the transplant decision point), not all diagnosed patients — transplant is decided at L1 end, the model's ASCT logit is fit on that conditional population, and the comparison uses the matching denominator. Dividing by all patients would understate the simulated rate because the \~8% who die during induction never reach the decision.
 
@@ -70,9 +70,9 @@ The script ends with a summary of tests run, passed and failed. As a guide: a pa
 
 ### Bootstrap prediction intervals and the OS validation curve
 
-The point estimate above uses one 70%-trained coefficient set. The **calibration** question — does each held-out observed value fall inside the *interval* the model predicts? — is answered by `analyses/oos/bootstrap_validation.do` on the HPC, using **500 bootstrap simulations** of the held-out 30% (each a patient-cluster resample of the 70%, re-imputed, re-fit and re-simulated). By the **percentile method** it asks whether each observed target lies within the bootstrap 95% interval [p2.5, p97.5]. Latest coverage: **105/171 (61.4%)** — in line with the model's history, dominated by the tight parameter-only intervals plus the known data artefacts above; aggregate OS passes.
+The point estimate above uses one 70%-trained coefficient set. The **calibration** question — does each held-out observed value fall inside the *interval* the model predicts? — is answered by `analyses/default/bootstrap_validation.do` on the HPC, using **500 bootstrap simulations** of the held-out 30% (each a patient-cluster resample of the 70%, re-imputed, re-fit and re-simulated). By the **percentile method** it asks whether each observed target lies within the bootstrap 95% interval [p2.5, p97.5]. Latest coverage: **105/171 (61.4%)** — in line with the model's history, dominated by the tight parameter-only intervals plus the known data artefacts above; aggregate OS passes.
 
-The same run also builds the **whole-population OS validation curve** (the 2024 PLOS ONE Fig 2 for this model): the held-out validation cohort's Kaplan–Meier **95% CI** against the simulated cohort's **95% CI** over 120 months, plus a **monthly two-sample z-test p-value** (observed Greenwood SE + simulated bootstrap SD) testing the difference. Result: **no significant difference in 118/120 months (98.3%)** — the simulated OS 95% CI sits within the observed CI across the full 10 years (p < 0.05 only in the first ~2–3 months), improving on the 2024 paper's 90%. It writes `results/os_wholepop_curve_validation.csv` and `os_wholepop_curve.png`; `analyses/oos/plot_os_curve.do` redraws the figure locally from the CSV when HPC batch graphics are off.
+The same run also builds the **whole-population OS validation curve** (the 2024 PLOS ONE Fig 2 for this model): the held-out validation cohort's Kaplan–Meier **95% CI** against the simulated cohort's **95% CI** over 120 months, plus a **monthly two-sample z-test p-value** (observed Greenwood SE + simulated bootstrap SD) testing the difference. Result: **no significant difference in 118/120 months (98.3%)** — the simulated OS 95% CI sits within the observed CI across the full 10 years (p < 0.05 only in the first ~2–3 months), improving on the 2024 paper's 90%. It writes `results/os_wholepop_curve_validation.csv` and `os_wholepop_curve.png`; `analyses/default/plot_os_curve.do` redraws the figure locally from the CSV when HPC batch graphics are off.
 
 ## When to re-validate
 

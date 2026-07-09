@@ -7,8 +7,8 @@
 * Usage:   run from the repository root; MRDR data via $data_path (config.do); simulate.do is the
 *          dispatcher. Needs shared prep outputs (built once by prep/): ${data_path}/MRDR Long MI.dta
 *          (prep/multiple_imputation.do 10 0) and analyses/template/patients/<your_cohort>.dta.
-* Notes:   Worked runbooks to copy from -- analyses/base_model/run.do (simplest); analyses/oos/run.do
-*          (full HPC shell block: rsync + sbatch arrays); analyses/transport_dvd/run.do (scenarios + an
+* Notes:   Worked runbooks to copy from -- analyses/default/run.do (projection + out-of-sample tracks,
+*          plus the full HPC shell block: rsync + sbatch arrays); analyses/transport_dvd/run.do (scenarios + an
 *          extra coefficient-generation step).
 **********
 
@@ -40,11 +40,11 @@ do "analyses/template/simulate.do"
 * BOOTSTRAP (prediction intervals) -- HEAVY; runs on the HPC.
 * The `do ...` lines below are the LOCAL (serial, slow) equivalent. For the full HPC plumbing -- rsync
 * code+data up, sbatch the generic array jobs (hpc/{multiple_imputation,risk_equations,simulate}.script),
-* pull results back -- copy the /* ... */ shell block from analyses/oos/run.do and swap in `template`.
+* pull results back -- copy the /* ... */ shell block from analyses/default/run.do and swap in `template`.
 **********
 
 *  (a) SHARED bootstrap MI (FULL data) -> ${data_path}/bootstrap/MRDR Long MI B1..500.dta
-*      Reuse the main-model bootstrap MI if base_model already produced it.
+*      Reuse the main-model bootstrap MI if the default/projection run already produced it.
 *      LOCAL:  do "prep/multiple_imputation.do" 10 1 1 500
 *
 *  (b) Bootstrap risk equations -> analyses/template/coefficients/bootstrap/coefficients_template_B1..500
@@ -56,4 +56,4 @@ do "analyses/template/simulate.do"
 *      HPC:    sbatch --export=ALL,ANALYSIS=template hpc/simulate.script
 *
 *  (d) Aggregate the 500 sims into prediction intervals -- add an aggregation script for your analysis
-*      (cf. analyses/oos/bootstrap_validation.do, analyses/transport_dvd/simulated/bootstrap_summary.do).
+*      (cf. analyses/default/bootstrap_validation.do, analyses/transport_dvd/simulated/bootstrap_summary.do).

@@ -6,7 +6,7 @@ This directory contains 10 different population realisations for multiple myelom
 
 ## Files
 
-- `population_1995_2040_1.dta` to `population_1995_2040_10.dta` — the 10 patient population datasets. These are **git-ignored** (regenerated locally by `prep/population_1995_2040.do`), not shipped in the public repo.
+- `synthetic_1995_2040_1.dta` to `synthetic_1995_2040_10.dta` — the 10 patient population datasets. These are **git-ignored** (regenerated locally by `prep/synthetic_1995_2040.do`), not shipped in the public repo.
 
 ## Population Characteristics
 
@@ -30,20 +30,20 @@ Each population dataset contains 101,212 patients with:
 
 ### Option 1: Use specific population
 ```stata
-use "patients/population_1995_2040_3.dta", clear
+use "patients/synthetic_1995_2040_3.dta", clear
 ```
 
 ### Option 2: Programmatic selection
 ```stata
 local pop_number = 1
-use "patients/population_1995_2040_`pop_number'.dta", clear
+use "patients/synthetic_1995_2040_`pop_number'.dta", clear
 ```
 
 ### Option 3: Parameter-driven selection
 ```stata
 // In analysis file, use global parameter
 global PopulationNumber = 5
-use "patients/population_1995_2040_${PopulationNumber}.dta", clear
+use "patients/synthetic_1995_2040_${PopulationNumber}.dta", clear
 ```
 
 ## Population Differences

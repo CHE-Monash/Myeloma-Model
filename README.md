@@ -52,7 +52,7 @@ Each analysis is driven by its own dispatcher in `analyses/<name>/`. Configure a
 
 ``` stata
 cd "path/to/myeloma-model"
-do "analyses/base_model/simulate.do"
+do "analyses/default/simulate.do"
 ```
 
 #### Configuration
@@ -61,11 +61,11 @@ The dispatcher's configuration block sets the run via globals. Interactive runs 
 
 | Global | Description | Example |
 |---|---|---|
-| `analysis` | Analysis name (folder under `analyses/`) | `base_model` |
+| `analysis` | Analysis name (folder under `analyses/`) | `default` |
 | `int` | Intervention | `all`, `VRd`, `SoC`, `DVd` |
 | `line` | Line of therapy assessed (1–9; `0` = all) | `0` |
-| `coeffs` | Coefficient set | `base_model` |
-| `data` | Patient data | `population`, `predicted` |
+| `coeffs` | Coefficient set | `full`, `train` |
+| `data` | Patient cohort | `synthetic`, `train`, `test`, `predicted` |
 | `min_year` / `max_year` | Diagnosis-year range | `1995` / `2040` |
 | `min_id` / `max_id` | Patient ID range | `1` / `101212` |
 | `cost_year` | Price year for costs (AUD) | `2025` |
@@ -79,9 +79,10 @@ The dispatcher's configuration block sets the run via globals. Interactive runs 
 
 | Dispatcher | Focus |
 |---|---|
-| `analyses/base_model/simulate.do` | All regimens — current-practice projections |
-| `analyses/oos/simulate.do` | Out-of-sample (70/30) validation — the mainstay |
+| `analyses/default/simulate.do` | The reference analysis — **projection** (all regimens, current practice) by default; **out-of-sample (70/30) validation** with `$scenario outsample` |
 | `analyses/transport_dvd/simulate.do` | DVd via Calibrated Transport |
+
+`default` is one model run two ways (see `analyses/default/README.md`): `$scenario ""` = full-registry fit on the synthetic incidence population (projection); `$scenario "outsample"` = 70%-train fit on the held-out real 30% (validation).
 
 Results are written to `analyses/<analysis>/simulated/`.
 
@@ -132,11 +133,10 @@ Myeloma-Model/
 │   └── tests/               # Engine verification: unit tests + extreme-value
 ├── analyses/                # Per-analysis dispatchers, data & results
 │   ├── template/            # Copy-me skeleton for a new analysis
-│   ├── base_model/          # All regimens (current practice)
-│   ├── transport_dvd/       # DVd Calibrated Transport
-│   └── oos/                 # Out-of-sample (70/30) validation — mainstay
+│   ├── default/             # Reference analysis: projection ($scenario "") + out-of-sample ($scenario "outsample")
+│   └── transport_dvd/       # DVd Calibrated Transport
 ├── prep/                    # MRDR → model inputs: imputation, risk equations, cohorts, benchmarks
-├── patients/                # Population cohorts (.dta; git-ignored)
+├── patients/                # Synthetic incidence cohorts (.dta; git-ignored)
 ├── docs/                    # Technical documentation
 ├── hpc/                     # MASSIVE M3 cluster scripts
 ├── README.md
