@@ -15,6 +15,565 @@ capture mkdir "`sim_out'"
 capture mkdir "`sim_out'/report"
 local report_dir "`sim_out'/report"
 
+**********
+* TWO-ARM MODE ($report_twoarm == "1"): a landscape comparison report that puts the
+* intervention ($int1) and comparator ($int0) outcomes side-by-side. Reloads each arm's
+* saved .dta itself, so it does not depend on what is in memory. The single-arm report
+* (the else branch below) is unchanged.
+**********
+if ("$report_twoarm" == "1") {
+
+    local arm1 "$int1"
+    local arm0 "$int0"
+    local L0   = ${line}                 // decision line: ignore everything before it
+    local drate_pct = string(${drate} * 100, "%3.1f")
+    * BCR shown at the decision line and the next two lines (e.g. L2 -> L2, L3, L4)
+    local rl1 = `L0'
+    local rl2 = `L0' + 1
+    local rl3 = `L0' + 2
+
+    * ---- Per-arm summaries -> locals suffixed _1 (intervention) / _0 (comparator) ----
+    foreach a in 1 0 {
+        local arm "`arm`a''"
+        capture confirm file "`sim_out'/`arm'_${line}_${data}.dta"
+        if _rc {
+            di as error "Two-arm report: arm file not found -> `sim_out'/`arm'_${line}_${data}.dta"
+            exit 601
+        }
+        qui use "`sim_out'/`arm'_${line}_${data}.dta", clear
+        qui count
+        local n_`a' = r(N)
+
+        * Overall survival FROM the decision line: OC_TIME_L = OC_TIME - time-to-L`L0' (months).
+        * This is the decision-relevant clock (matches the os_l`L0' benchmark and the discounted QALY/
+        * cost basis). Denominator = patients with OC_TIME_L observed (i.e. who reached the line).
+        capture confirm variable OC_TIME_L
+        if _rc {
+            gen double OC_TIME_L = OC_TIME
+            if `L0' > 1 {
+                capture replace OC_TIME_L = OC_TIME - TSD_L`L0'S
+            }
+        }
+        qui count if !missing(OC_TIME_L)
+        local nosl_`a' = r(N)
+        qui sum OC_TIME_L, detail
+        local osmean_`a' = r(mean)/12
+        local osmed_`a'  = r(p50)/12
+        local osp25_`a'  = r(p25)/12
+        local osp75_`a'  = r(p75)/12
+        foreach y in 1 2 3 5 10 {
+            qui count if OC_TIME_L/12 >= `y' & !missing(OC_TIME_L)
+            local surv`y'_`a' = cond(`nosl_`a'' > 0, 100 * r(N) / `nosl_`a'', .)
+        }
+        * From-diagnosis mean OS kept as an extra reference row (OC_TIME = months from diagnosis)
+        qui sum OC_TIME
+        local osmeandx_`a' = r(mean)/12
+
+        * QALYs (discounted): total + components (decision-line treatment + everything after)
+        qui sum qaly_total_d
+        local qaly_`a' = r(mean)
+        local qtxd_`a' = .
+        capture confirm variable qaly_txd_L`L0'_d
+        if !_rc {
+            qui sum qaly_txd_L`L0'_d
+            local qtxd_`a' = r(mean)
+        }
+        local qpost_`a' = .
+        capture confirm variable qaly_post_L`L0'_d
+        if !_rc {
+            qui sum qaly_post_L`L0'_d
+            local qpost_`a' = r(mean)
+        }
+
+        * Costs (discounted): total + treatment / non-treatment segments + 5-year (undisc.)
+        * Cost means are taken over patients with a non-missing TOTAL, so the segment parts add
+        * up to the total exactly and match the headline / ICER (which use cost_total_d).
+        qui sum cost_total_d
+        local cost_`a' = r(mean)
+        qui sum cost_tx_d if !missing(cost_total_d)
+        local ctx_`a' = r(mean)
+        qui sum cost_nt_d if !missing(cost_total_d)
+        local cnt_`a' = r(mean)
+        foreach seg in hosp mbs emer {
+            local cnt_`seg'_`a' = .
+            capture confirm variable cost_nt_`seg'_d
+            if !_rc {
+                qui sum cost_nt_`seg'_d if !missing(cost_total_d)
+                local cnt_`seg'_`a' = r(mean)
+            }
+        }
+        local c5yr_`a' = .
+        capture confirm variable cost_5yr
+        if !_rc {
+            qui sum cost_5yr
+            local c5yr_`a' = r(mean)
+        }
+
+        * Discounted treatment cost by line: txc = mean per patient TREATED at the line;
+        * txcpop = mean per ARM patient over the complete-cost population (r(sum)/N_complete, = 0 for
+        * uncosted lines). Using the same denominator as the segment/headline makes it sum to the
+        * treatment total exactly.
+        qui count if !missing(cost_total_d)
+        local ncomp_`a' = r(N)
+        forvalues L = `L0'/9 {
+            local txc`L'_`a' = .
+            local txcpop`L'_`a' = 0
+            capture confirm variable cost_tx_L`L'_d
+            if !_rc {
+                qui sum cost_tx_L`L'_d
+                local txc`L'_`a' = r(mean)
+                qui sum cost_tx_L`L'_d if !missing(cost_total_d)
+                local txcpop`L'_`a' = cond(`ncomp_`a'' > 0, r(sum) / `ncomp_`a'', 0)
+            }
+        }
+
+        * Mean treatment duration (TXD, months among patients treated at the line)
+        forvalues L = `L0'/9 {
+            local txd`L'_`a' = .
+            capture confirm variable TXD_L`L'
+            if !_rc {
+                qui sum TXD_L`L' if TXD_L`L' > 0 & !missing(TXD_L`L')
+                local txd`L'_`a' = r(mean)
+            }
+        }
+
+        * Mean treatment-free interval (TFI, months to next line among those who progress)
+        forvalues L = `L0'/8 {
+            local tfi`L'_`a' = .
+            capture confirm variable TFI_L`L'
+            if !_rc {
+                qui sum TFI_L`L' if !missing(TFI_L`L')
+                local tfi`L'_`a' = r(mean)
+            }
+        }
+
+        * BCR distribution at each of the three lines, as % of patients REACHING that line
+        foreach ln in `rl1' `rl2' `rl3' {
+            capture confirm variable BCR_L`ln'
+            if !_rc {
+                qui count if BCR_L`ln' >= 1 & BCR_L`ln' < .
+                local nresp`ln'_`a' = r(N)
+                forvalues b = 1/6 {
+                    qui count if BCR_L`ln' == `b'
+                    local bcr`ln'_`b'_`a' = cond(`nresp`ln'_`a'' > 0, 100 * r(N) / `nresp`ln'_`a'', .)
+                }
+            }
+        }
+
+        * Pathways: % reaching each line and max-line-reached distribution (% of arm)
+        capture drop LOT_MAX
+        gen LOT_MAX = 0
+        forvalues l = 1/9 {
+            qui replace LOT_MAX = `l' if !missing(TXR_L`l')
+            qui count if !missing(TXR_L`l')
+            local reach`l'_`a' = 100 * r(N) / `n_`a''
+        }
+        forvalues l = 1/9 {
+            qui count if LOT_MAX == `l'
+            local maxl`l'_`a' = 100 * r(N) / `n_`a''
+        }
+    }
+
+    * ---- Incrementals (intervention - comparator) ----
+    local d_os   = `osmean_1' - `osmean_0'
+    local d_osm  = `osmed_1'  - `osmed_0'
+    local d_osdx = `osmeandx_1' - `osmeandx_0'
+    local d_qaly = `qaly_1'   - `qaly_0'
+    local d_cost = `cost_1'   - `cost_0'
+    local icer   = `d_cost' / `d_qaly'
+
+    * ---- Overlaid OS Kaplan-Meier (build the figure before opening the PDF) ----
+    set graphics off
+    capture mkdir "$simulated_path/report"
+    capture mkdir "$simulated_path/report/figures"
+    foreach a in 1 0 {
+        qui use "`sim_out'/`arm`a''_${line}_${data}.dta", clear
+        capture confirm variable OC_TIME_L
+        if _rc {
+            gen double OC_TIME_L = OC_TIME
+            if `L0' > 1 {
+                capture replace OC_TIME_L = OC_TIME - TSD_L`L0'S
+            }
+        }
+        keep OC_TIME_L OC_MORT
+        gen arm = `a'
+        tempfile _os`a'
+        qui save `_os`a''
+    }
+    use `_os1', clear
+    append using `_os0'
+    stset OC_TIME_L if OC_TIME_L < 240 & !missing(OC_TIME_L), failure(OC_MORT)
+    sts graph, by(arm) ///
+        xtitle("Months from Line `L0'") ytitle("Survival probability") title("") ///
+        ylabel(0(0.2)1, angle(0) format(%3.1f)) xlabel(0(24)240) ///
+        legend(order(1 "`arm0'" 2 "`arm1'") rows(1) pos(6)) ///
+        graphregion(color(white)) name(os_cmp, replace)
+    graph export "$simulated_path/report/figures/os_compare.png", replace width(1600)
+
+    * ================= BUILD PDF (landscape) =================
+    capture putpdf clear
+    putpdf begin, landscape
+
+    putpdf paragraph, halign(center)
+    putpdf text ("Monash Myeloma Model v3.0"), bold font(,18)
+    putpdf paragraph, halign(center)
+    putpdf text ("Two-Arm Comparison Report"), bold font(,15)
+    putpdf paragraph, halign(center)
+    putpdf text ("`arm1' (intervention) vs `arm0' (comparator) - Line `L0' onwards"), font(,12)
+
+    * Run settings
+    putpdf paragraph
+    local n_fmt = trim(string(`n_1', "%12.0fc"))
+    putpdf table s = (6,2), border(all)
+    putpdf table s(1,1) = ("Setting"), bold
+    putpdf table s(1,2) = ("Value"), bold
+    putpdf table s(2,1) = ("Analysis")
+    putpdf table s(2,2) = ("$analysis")
+    putpdf table s(3,1) = ("Line / Data")
+    putpdf table s(3,2) = ("${line} / ${data}")
+    putpdf table s(4,1) = ("Scenario")
+    putpdf table s(4,2) = ("$scenario")
+    putpdf table s(5,1) = ("N per arm")
+    putpdf table s(5,2) = ("`n_fmt'")
+    putpdf table s(6,1) = ("Report date")
+    putpdf table s(6,2) = ("`c(current_date)'")
+
+    * ---- Headline outcomes: Outcome | Intervention | Comparator | Incremental ----
+    putpdf paragraph
+    putpdf text ("Outcomes per patient"), bold font(,13)
+    putpdf table h = (6,4), border(all)
+    putpdf table h(1,1) = ("Outcome"), bold
+    putpdf table h(1,2) = ("`arm1'"), bold
+    putpdf table h(1,3) = ("`arm0'"), bold
+    putpdf table h(1,4) = ("Incremental"), bold
+    local v1 = string(`osmean_1', "%4.2f")
+    local v0 = string(`osmean_0', "%4.2f")
+    local vd = string(`d_os', "%4.2f")
+    putpdf table h(2,1) = ("Mean OS from L`L0' (years, undisc.)")
+    putpdf table h(2,2) = ("`v1'")
+    putpdf table h(2,3) = ("`v0'")
+    putpdf table h(2,4) = ("`vd'")
+    local v1 = string(`osmed_1', "%4.2f")
+    local v0 = string(`osmed_0', "%4.2f")
+    local vd = string(`d_osm', "%4.2f")
+    putpdf table h(3,1) = ("Median OS from L`L0' (years, undisc.)")
+    putpdf table h(3,2) = ("`v1'")
+    putpdf table h(3,3) = ("`v0'")
+    putpdf table h(3,4) = ("`vd'")
+    local v1 = string(`qaly_1', "%5.2f")
+    local v0 = string(`qaly_0', "%5.2f")
+    local vd = string(`d_qaly', "%5.2f")
+    putpdf table h(4,1) = ("Mean QALYs (disc.)")
+    putpdf table h(4,2) = ("`v1'")
+    putpdf table h(4,3) = ("`v0'")
+    putpdf table h(4,4) = ("`vd'")
+    local v1 = trim(string(`cost_1', "%12.0fc"))
+    local v0 = trim(string(`cost_0', "%12.0fc"))
+    local vd = trim(string(`d_cost', "%12.0fc"))
+    putpdf table h(5,1) = ("Mean total cost (disc., AUD)")
+    putpdf table h(5,2) = ("$`v1'")
+    putpdf table h(5,3) = ("$`v0'")
+    putpdf table h(5,4) = ("$`vd'")
+    local vi = trim(string(`icer', "%12.0fc"))
+    putpdf table h(6,1) = ("ICER (disc., \$/QALY)"), bold
+    putpdf table h(6,4) = ("$`vi'"), bold
+    putpdf paragraph
+    putpdf text ("OS is undiscounted (descriptive); QALYs, costs and the ICER are discounted at `drate_pct'%."), font(,9) italic
+
+    * ---- Treatment pathways ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Treatment pathways (Line `L0' onwards)"), bold font(,14)
+    local nprows = 9 - `L0' + 2
+    putpdf table pw = (`nprows',5), border(all)
+    putpdf table pw(1,1) = ("Line"), bold
+    putpdf table pw(1,2) = ("Reached % (`arm1')"), bold
+    putpdf table pw(1,3) = ("Reached % (`arm0')"), bold
+    putpdf table pw(1,4) = ("Max line % (`arm1')"), bold
+    putpdf table pw(1,5) = ("Max line % (`arm0')"), bold
+    local prow 1
+    forvalues l = `L0'/9 {
+        local prow = `prow' + 1
+        local r1 = string(`reach`l'_1', "%4.1f")
+        local r0 = string(`reach`l'_0', "%4.1f")
+        local m1 = string(`maxl`l'_1', "%4.1f")
+        local m0 = string(`maxl`l'_0', "%4.1f")
+        putpdf table pw(`prow',1) = ("L`l'")
+        putpdf table pw(`prow',2) = ("`r1'%")
+        putpdf table pw(`prow',3) = ("`r0'%")
+        putpdf table pw(`prow',4) = ("`m1'%")
+        putpdf table pw(`prow',5) = ("`m0'%")
+    }
+    putpdf paragraph
+    putpdf text ("Reached % = of the arm; Max line % = of the arm whose last treated line is that line."), font(,9) italic
+
+    * ---- Overall survival ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Overall survival (from Line `L0')"), bold font(,14)
+    putpdf table os = (9,3), border(all)
+    putpdf table os(1,1) = ("Statistic"), bold
+    putpdf table os(1,2) = ("`arm1'"), bold
+    putpdf table os(1,3) = ("`arm0'"), bold
+    local v1 = string(`osmean_1', "%4.2f")
+    local v0 = string(`osmean_0', "%4.2f")
+    putpdf table os(2,1) = ("Mean OS from L`L0' (years)")
+    putpdf table os(2,2) = ("`v1'")
+    putpdf table os(2,3) = ("`v0'")
+    local v1 = string(`osmed_1', "%4.2f") + " [" + string(`osp25_1', "%4.2f") + "-" + string(`osp75_1', "%4.2f") + "]"
+    local v0 = string(`osmed_0', "%4.2f") + " [" + string(`osp25_0', "%4.2f") + "-" + string(`osp75_0', "%4.2f") + "]"
+    putpdf table os(3,1) = ("Median OS from L`L0' [IQR], years")
+    putpdf table os(3,2) = ("`v1'")
+    putpdf table os(3,3) = ("`v0'")
+    local v1 = string(`osmeandx_1', "%4.2f")
+    local v0 = string(`osmeandx_0', "%4.2f")
+    putpdf table os(4,1) = ("Mean OS from diagnosis (years)")
+    putpdf table os(4,2) = ("`v1'")
+    putpdf table os(4,3) = ("`v0'")
+    local orow 4
+    foreach y in 1 2 3 5 10 {
+        local orow = `orow' + 1
+        local v1 = string(`surv`y'_1', "%4.1f")
+        local v0 = string(`surv`y'_0', "%4.1f")
+        putpdf table os(`orow',1) = ("`y'-year survival (from L`L0')")
+        putpdf table os(`orow',2) = ("`v1'%")
+        putpdf table os(`orow',3) = ("`v0'%")
+    }
+    putpdf paragraph
+    putpdf text ("OS is measured from Line `L0' (the decision point), matching the discounted QALY/cost basis; mean OS from diagnosis is shown as a reference row. From-L`L0' survival denominator = patients reaching L`L0'."), font(,9) italic
+    putpdf paragraph
+    putpdf image "$simulated_path/report/figures/os_compare.png", width(7)
+
+    * ---- Best clinical response at the decision line, L+1 and L+2 ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Best clinical response by line (% of patients reaching each line)"), bold font(,14)
+    putpdf table bc = (7,7), border(all)
+    putpdf table bc(1,1) = ("Response"), bold
+    putpdf table bc(1,2) = ("L`rl1' `arm1'"), bold
+    putpdf table bc(1,3) = ("L`rl1' `arm0'"), bold
+    putpdf table bc(1,4) = ("L`rl2' `arm1'"), bold
+    putpdf table bc(1,5) = ("L`rl2' `arm0'"), bold
+    putpdf table bc(1,6) = ("L`rl3' `arm1'"), bold
+    putpdf table bc(1,7) = ("L`rl3' `arm0'"), bold
+    local rlab1 "CR"
+    local rlab2 "VGPR"
+    local rlab3 "PR"
+    local rlab4 "MR"
+    local rlab5 "SD"
+    local rlab6 "PD"
+    forvalues b = 1/6 {
+        local row = `b' + 1
+        putpdf table bc(`row',1) = ("`rlab`b''")
+        local col 1
+        foreach ln in `rl1' `rl2' `rl3' {
+            local col1 = `col' + 1
+            local col2 = `col' + 2
+            local col = `col' + 2
+            local p1 = string(`bcr`ln'_`b'_1', "%4.1f")
+            local p0 = string(`bcr`ln'_`b'_0', "%4.1f")
+            putpdf table bc(`row',`col1') = ("`p1'%")
+            putpdf table bc(`row',`col2') = ("`p0'%")
+        }
+    }
+
+    * ---- QALYs (discounted) ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Quality-adjusted life years (discounted at `drate_pct'%)"), bold font(,14)
+    putpdf table q = (4,4), border(all)
+    putpdf table q(1,1) = ("QALY component"), bold
+    putpdf table q(1,2) = ("`arm1'"), bold
+    putpdf table q(1,3) = ("`arm0'"), bold
+    putpdf table q(1,4) = ("Incremental"), bold
+    local v1 = string(`qtxd_1', "%5.3f")
+    local v0 = string(`qtxd_0', "%5.3f")
+    local vd = string(`qtxd_1' - `qtxd_0', "%5.3f")
+    putpdf table q(2,1) = ("Line `L0' treatment")
+    putpdf table q(2,2) = ("`v1'")
+    putpdf table q(2,3) = ("`v0'")
+    putpdf table q(2,4) = ("`vd'")
+    local v1 = string(`qpost_1', "%5.3f")
+    local v0 = string(`qpost_0', "%5.3f")
+    local vd = string(`qpost_1' - `qpost_0', "%5.3f")
+    putpdf table q(3,1) = ("Post-Line `L0' (all later lines)")
+    putpdf table q(3,2) = ("`v1'")
+    putpdf table q(3,3) = ("`v0'")
+    putpdf table q(3,4) = ("`vd'")
+    local v1 = string(`qaly_1', "%5.2f")
+    local v0 = string(`qaly_0', "%5.2f")
+    local vd = string(`d_qaly', "%5.2f")
+    putpdf table q(4,1) = ("Total"), bold
+    putpdf table q(4,2) = ("`v1'"), bold
+    putpdf table q(4,3) = ("`v0'"), bold
+    putpdf table q(4,4) = ("`vd'"), bold
+    putpdf paragraph
+    putpdf text ("The model does not decompose QALYs by line beyond Line `L0'; later lines are pooled into Post-Line `L0'."), font(,9) italic
+
+    * ---- Costs (discounted) ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Costs (discounted at `drate_pct'%)"), bold font(,14)
+
+    * Cost by segment
+    putpdf paragraph
+    putpdf text ("Cost by segment (mean, AUD)"), bold font(,13)
+    putpdf table cs = (7,4), border(all)
+    putpdf table cs(1,1) = ("Segment"), bold
+    putpdf table cs(1,2) = ("`arm1'"), bold
+    putpdf table cs(1,3) = ("`arm0'"), bold
+    putpdf table cs(1,4) = ("Incremental"), bold
+    local v1 = trim(string(`ctx_1', "%12.0fc"))
+    local v0 = trim(string(`ctx_0', "%12.0fc"))
+    local vd = trim(string(`ctx_1' - `ctx_0', "%12.0fc"))
+    putpdf table cs(2,1) = ("Treatment (regimens)")
+    putpdf table cs(2,2) = ("$`v1'")
+    putpdf table cs(2,3) = ("$`v0'")
+    putpdf table cs(2,4) = ("$`vd'")
+    local v1 = trim(string(`cnt_1', "%12.0fc"))
+    local v0 = trim(string(`cnt_0', "%12.0fc"))
+    local vd = trim(string(`cnt_1' - `cnt_0', "%12.0fc"))
+    putpdf table cs(3,1) = ("Non-treatment (total)")
+    putpdf table cs(3,2) = ("$`v1'")
+    putpdf table cs(3,3) = ("$`v0'")
+    putpdf table cs(3,4) = ("$`vd'")
+    local segrow 3
+    local slab_hosp "  Hospital"
+    local slab_mbs  "  MBS"
+    local slab_emer "  Emergency"
+    foreach seg in hosp mbs emer {
+        local segrow = `segrow' + 1
+        local v1 = trim(string(`cnt_`seg'_1', "%12.0fc"))
+        local v0 = trim(string(`cnt_`seg'_0', "%12.0fc"))
+        local vd = trim(string(`cnt_`seg'_1' - `cnt_`seg'_0', "%12.0fc"))
+        putpdf table cs(`segrow',1) = ("`slab_`seg''")
+        putpdf table cs(`segrow',2) = ("$`v1'")
+        putpdf table cs(`segrow',3) = ("$`v0'")
+        putpdf table cs(`segrow',4) = ("$`vd'")
+    }
+    local v1 = trim(string(`cost_1', "%12.0fc"))
+    local v0 = trim(string(`cost_0', "%12.0fc"))
+    local vd = trim(string(`d_cost', "%12.0fc"))
+    putpdf table cs(7,1) = ("Total"), bold
+    putpdf table cs(7,2) = ("$`v1'"), bold
+    putpdf table cs(7,3) = ("$`v0'"), bold
+    putpdf table cs(7,4) = ("$`vd'"), bold
+
+    * Treatment cost by line - per patient treated at the line
+    putpdf paragraph
+    putpdf text ("Treatment cost by line - per patient treated at the line (mean, AUD)"), bold font(,13)
+    local nclrows = 9 - `L0' + 2
+    putpdf table cl = (`nclrows',4), border(all)
+    putpdf table cl(1,1) = ("Line"), bold
+    putpdf table cl(1,2) = ("`arm1'"), bold
+    putpdf table cl(1,3) = ("`arm0'"), bold
+    putpdf table cl(1,4) = ("Incremental"), bold
+    local crow 1
+    forvalues L = `L0'/9 {
+        local crow = `crow' + 1
+        local v1 = cond(missing(`txc`L'_1'), "n/a", "$" + trim(string(`txc`L'_1', "%12.0fc")))
+        local v0 = cond(missing(`txc`L'_0'), "n/a", "$" + trim(string(`txc`L'_0', "%12.0fc")))
+        local vd = cond(missing(`txc`L'_1') | missing(`txc`L'_0'), "n/a", "$" + trim(string(`txc`L'_1' - `txc`L'_0', "%12.0fc")))
+        putpdf table cl(`crow',1) = ("L`L'")
+        putpdf table cl(`crow',2) = ("`v1'")
+        putpdf table cl(`crow',3) = ("`v0'")
+        putpdf table cl(`crow',4) = ("`vd'")
+    }
+    putpdf paragraph
+    putpdf text ("n/a = line not costed (e.g. a forced/unmodelled regimen at the decision line has no drug cost)."), font(,9) italic
+
+    * Treatment cost by line - per ARM patient (population; = per-treated cost x proportion reaching)
+    putpdf paragraph
+    putpdf text ("Treatment cost by line - per arm patient (population mean, AUD; sums to the treatment total)"), bold font(,13)
+    putpdf table pl = (`nclrows',4), border(all)
+    putpdf table pl(1,1) = ("Line"), bold
+    putpdf table pl(1,2) = ("`arm1'"), bold
+    putpdf table pl(1,3) = ("`arm0'"), bold
+    putpdf table pl(1,4) = ("Incremental"), bold
+    local plrow 1
+    forvalues L = `L0'/9 {
+        local plrow = `plrow' + 1
+        local v1 = trim(string(`txcpop`L'_1', "%12.0fc"))
+        local v0 = trim(string(`txcpop`L'_0', "%12.0fc"))
+        local vd = trim(string(`txcpop`L'_1' - `txcpop`L'_0', "%12.0fc"))
+        putpdf table pl(`plrow',1) = ("L`L'")
+        putpdf table pl(`plrow',2) = ("$`v1'")
+        putpdf table pl(`plrow',3) = ("$`v0'")
+        putpdf table pl(`plrow',4) = ("$`vd'")
+    }
+    putpdf paragraph
+    putpdf text ("Population cost = per-treated cost x the fraction of the arm reaching that line, so it reflects both dynamics at once (e.g. an intervention that treats fewer patients downstream but each for longer)."), font(,9) italic
+
+    * Diagnosis-to-5-year cost (undiscounted) - only if the analysis populates it
+    if !missing(`c5yr_1') | !missing(`c5yr_0') {
+        putpdf paragraph
+        putpdf text ("Diagnosis-to-5-year cost (undiscounted, mean AUD)"), bold font(,13)
+        putpdf table c5 = (2,3), border(all)
+        putpdf table c5(1,1) = ("`arm1'"), bold
+        putpdf table c5(1,2) = ("`arm0'"), bold
+        putpdf table c5(1,3) = ("Incremental"), bold
+        local v1 = trim(string(`c5yr_1', "%12.0fc"))
+        local v0 = trim(string(`c5yr_0', "%12.0fc"))
+        local vd = trim(string(`c5yr_1' - `c5yr_0', "%12.0fc"))
+        putpdf table c5(2,1) = ("$`v1'")
+        putpdf table c5(2,2) = ("$`v0'")
+        putpdf table c5(2,3) = ("$`vd'")
+    }
+
+    * ---- Treatment duration & treatment-free interval by line (explains the per-line cost gap) ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Treatment duration and treatment-free interval by line"), bold font(,14)
+
+    putpdf paragraph
+    putpdf text ("Mean treatment duration (TXD, months among patients treated at the line)"), bold font(,13)
+    local ntdrows = 9 - `L0' + 2
+    putpdf table td = (`ntdrows',4), border(all)
+    putpdf table td(1,1) = ("Line"), bold
+    putpdf table td(1,2) = ("`arm1'"), bold
+    putpdf table td(1,3) = ("`arm0'"), bold
+    putpdf table td(1,4) = ("Incremental"), bold
+    local trow 1
+    forvalues L = `L0'/9 {
+        local trow = `trow' + 1
+        local v1 = cond(missing(`txd`L'_1'), "n/a", string(`txd`L'_1', "%5.1f"))
+        local v0 = cond(missing(`txd`L'_0'), "n/a", string(`txd`L'_0', "%5.1f"))
+        local vd = cond(missing(`txd`L'_1') | missing(`txd`L'_0'), "n/a", string(`txd`L'_1' - `txd`L'_0', "%5.1f"))
+        putpdf table td(`trow',1) = ("L`L'")
+        putpdf table td(`trow',2) = ("`v1'")
+        putpdf table td(`trow',3) = ("`v0'")
+        putpdf table td(`trow',4) = ("`vd'")
+    }
+
+    putpdf paragraph
+    putpdf text ("Mean treatment-free interval (TFI, months to next line among those who progress)"), bold font(,13)
+    local ntfrows = 8 - `L0' + 2
+    putpdf table tf = (`ntfrows',4), border(all)
+    putpdf table tf(1,1) = ("Interval"), bold
+    putpdf table tf(1,2) = ("`arm1'"), bold
+    putpdf table tf(1,3) = ("`arm0'"), bold
+    putpdf table tf(1,4) = ("Incremental"), bold
+    local frow 1
+    forvalues L = `L0'/8 {
+        local frow = `frow' + 1
+        local nx = `L' + 1
+        local v1 = cond(missing(`tfi`L'_1'), "n/a", string(`tfi`L'_1', "%5.1f"))
+        local v0 = cond(missing(`tfi`L'_0'), "n/a", string(`tfi`L'_0', "%5.1f"))
+        local vd = cond(missing(`tfi`L'_1') | missing(`tfi`L'_0'), "n/a", string(`tfi`L'_1' - `tfi`L'_0', "%5.1f"))
+        putpdf table tf(`frow',1) = ("L`L' to L`nx'")
+        putpdf table tf(`frow',2) = ("`v1'")
+        putpdf table tf(`frow',3) = ("`v0'")
+        putpdf table tf(`frow',4) = ("`vd'")
+    }
+    putpdf paragraph
+    putpdf text ("Longer TXD at a line reflects better response carried forward (higher BCR -> longer time on treatment), which raises per-patient treatment cost at that line even when fewer patients reach it."), font(,9) italic
+
+    set graphics on
+    putpdf save "`report_dir'/compare_${line}_${data}.pdf", replace
+    di as text "Two-arm comparison report -> `report_dir'/compare_${line}_${data}.pdf"
+}
+else {
+
 * Load Data
 qui use "`sim_out'/${int}_${line}_${data}.dta", clear
 
@@ -1419,3 +1978,6 @@ set graphics on
 local output_file "`report_dir'/${int}_${line}_${data}.pdf"
 putpdf save "`output_file'", replace
 n di as result _n "Report saved at `output_file'."
+
+}
+* end of single-arm ($report_twoarm != "1") report branch

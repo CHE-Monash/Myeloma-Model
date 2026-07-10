@@ -39,6 +39,45 @@ program define bcr_from_distribution
     }
 end
 
+* ---- Example A-inline: assign BCR from six numbers typed straight in (must sum to 1) ----
+*   Same rank-by-prognosis logic as Example A, but the distribution is entered directly as
+*   six arguments instead of being loaded from a .mmat file -- handy for a quick assumption or
+*   a scenario you don't want to ship a matrix file for. Order is category 1..6
+*   (1=CR, 2=VGPR, 3=PR, 4=MR, 5=SD, 6=PD). Assignment is deterministic by vXB rank (no CRN draw).
+capture program drop bcr_from_numbers
+program define bcr_from_numbers
+    args p1 p2 p3 p4 p5 p6
+    mata {
+        mBCR_probs = (strtoreal(st_local("p1")), strtoreal(st_local("p2")),
+                      strtoreal(st_local("p3")), strtoreal(st_local("p4")),
+                      strtoreal(st_local("p5")), strtoreal(st_local("p6")))
+
+        // Guard: six non-missing probabilities that sum to 1 (catches a typo or a dropped arg)
+        if (missing(mBCR_probs) | abs(rowsum(mBCR_probs) - 1) > 1e-6) {
+            errprintf("sim_bcr_override: need six BCR probabilities summing to 1 (got sum %g)\n", rowsum(mBCR_probs))
+            exit(198)
+        }
+
+        // Alive, non-prevalent patients at this stage
+        idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC))
+        if (rows(idx) > 0) {
+            nPatients = rows(idx)
+
+            // Rank by linear predictor (1 = worst prognosis) -> percentile -> category
+            ranks       = invorder(order(vXB, -1))
+            percentiles = ranks :/ nPatients
+            cumProbs    = runningsum(mBCR_probs)
+            vOC = 1 :* (percentiles :<= cumProbs[1]) +
+                  2 :* (percentiles :>  cumProbs[1] :& percentiles :<= cumProbs[2]) +
+                  3 :* (percentiles :>  cumProbs[2] :& percentiles :<= cumProbs[3]) +
+                  4 :* (percentiles :>  cumProbs[3] :& percentiles :<= cumProbs[4]) +
+                  5 :* (percentiles :>  cumProbs[4] :& percentiles :<= cumProbs[5]) +
+                  6 :* (percentiles :>  cumProbs[5])
+            mBCR[idx, Line] = vOC                                   // <- the override
+        }
+    }
+end
+
 * ---- Example B: assign BCR from a fitted ordered logit (indicator design) ----
 *   Pass the name of a coefficient row vector = (betas | cutpoints).
 capture program drop bcr_from_ologit
@@ -71,8 +110,12 @@ end
 * under $outcomes_path/<scenario>/bootstrap/ suffixed _B$b (see transport_dvd for the full pattern).
 if ($boot == 0) {
     if ("$scenario" == "<YOUR_SCENARIO>") {
+        // From a .mmat file:
         // mata: mata matuse "$outcomes_path/<scenario>/<your_probs>.mmat", replace
         // bcr_from_distribution <your_probs>
+        //
+        // Or just type the six probabilities (category 1..6, must sum to 1):
+        // bcr_from_numbers 0.10 0.25 0.30 0.15 0.15 0.05
     }
 }
 else if ($boot == 1) {

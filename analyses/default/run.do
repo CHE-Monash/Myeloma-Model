@@ -127,7 +127,6 @@ do "analyses/default/validate_outsample.do"
    # == Step (b): 500 bootstrap simulations of the held-out 30% (after step a's coefficients are on hpc) ==
    # Needs core/ + simulate.do + cost inputs + the test cohort, which the MI/risk phase did not send:
    rsync -auvzce ssh "$repo_path"/core/ $hpc:~/em76/$user/core/
-   # Cost inputs process_data.do reads at simulate time (treatment_costs_<year>.csv; latest-file fallback)
    rsync -auvzce ssh "$repo_path"/prep/inputs/ $hpc:~/em76/$user/prep/inputs/
    rsync -auvzce ssh "$repo_path"/analyses/$analysis/simulate.do $hpc:~/em76/$user/analyses/$analysis/
    rsync -auvzce ssh "$repo_path"/analyses/$analysis/patients/patients_test.dta $hpc:~/em76/$user/analyses/$analysis/patients/

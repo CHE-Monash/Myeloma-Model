@@ -20,6 +20,10 @@ analyses/transport_dvd/patients/sample_size/
 # until journal submission, then remove this line and tag a release. Local copy retained.
 analyses/transport_dvd/
 
+# car_t: WORK IN PROGRESS (CAR-T / cilta-cel L2 paper) — kept OFF GitHub until journal
+# submission, then remove this line and tag a release. Local copy retained.
+analyses/car_t/
+
 # Machine-specific local config (real paths; never committed — see config.example.do / env.example.sh)
 /config.do
 /env.sh
