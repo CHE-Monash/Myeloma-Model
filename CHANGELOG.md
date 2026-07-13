@@ -20,7 +20,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Integration with R for post-processing analysis
 - Extended documentation for health economic applications
 - Daratumumab **SC** regimen option (a regimen-file switch; cheaper at this body weight and closer to current practice)
-- Migrate the cost extraction to the PBS REST API (a drop-in swap at `$pbs_src`)
 
 ## [3.0] - 2026-07-07
 
