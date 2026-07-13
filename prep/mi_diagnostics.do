@@ -31,10 +31,20 @@ cap mkdir "scratch"
 cap log close mi_diag
 log using "scratch/mi_diagnostics.log", replace text name(mi_diag)
 
+* Fail fast (and close the log) if the MRDR share is not mounted -- otherwise the first `use` throws
+* a bare r(601) and leaves this log open to catch whatever runs next in the session.
+capture confirm file "${data_path}/MRDR Long.dta"
+if _rc {
+    di as error "MRDR data not found at ${data_path}/ -- is the MRDR share mounted?"
+    di as error "  Mount/authenticate the drive, confirm 'MRDR Long.dta' is visible, then re-run."
+    cap log close mi_diag
+    exit 601
+}
+
 * Baseline covariates entering the risk equations, at the diagnosis record (Event0 == 3, one row
 * per patient), grouped by how the FMI is best summarised:
 *   binary / continuous -> mean ;  ordinal (>2 levels) -> proportion (FMI per level).
-local mean_vars  Male FISHRisk CM_CRD CM_PLM CM_DBT eGFR CM_CKD   // 0/1 + eGFR; CM_CKD passive (from eGFR)
+local mean_vars  Male FISHRisk Albumin SerumB2Microglobulin LactateDehydrogenase CM_CRD CM_PLM CM_DBT eGFR CM_CKD   // 0/1 + continuous; CM_CKD passive (from eGFR). Labs (Albumin/B2M/LDH) feed R-ISS.
 local prop_vars  ECOGcc RISS                                      // ordinal; ECOGcc imputed, RISS passive
 * Directly-imputed inputs listed for the missingness table (labs feed ISS/R-ISS):
 local miss_vars  Male FISHRisk ECOGcc eGFR CM_CRD CM_PLM CM_DBT Albumin SerumB2Microglobulin LactateDehydrogenase
@@ -45,6 +55,16 @@ di as text _n(2) "{hline 74}"
 di as text "Percent missing at diagnosis (Event0 == 3), before imputation"
 di as text "{hline 74}"
 misstable summarize `miss_vars' if Event0 == 3
+
+* Response (BCR) missingness. BCR is stochastically imputed only at treatment starts (CStart==1 &
+* Duration != ., per multiple_imputation.do); at the line-start records (Event0==L0) missing BCR is
+* instead LOCF-carried (deterministic), so it returns FMI=0. Show both so the distinction is logged.
+di as text _n "  BCR at treatment starts (CStart==1 & Duration != .) -- the imputation sample:"
+misstable summarize BCR if CStart == 1 & Duration != .
+foreach L in 1 2 {
+    di as text _n "  BCR at L`L' start record (Event0 == `L'0) -- LOCF-carried, deterministic:"
+    misstable summarize BCR if Event0 == `L'0
+}
 
 * -- MI diagnostics at the current M --
 use "${data_path}/MRDR Long MI.dta", clear
@@ -65,12 +85,41 @@ di as text "Ordinal covariates (ECOGcc, R-ISS) -- variance information, FMI per 
 di as text "{hline 74}"
 mi estimate, vartable: proportion `prop_vars' if Event0 == 3
 
-* First-line best clinical response (BCR_L1), among patients reaching L1 (Event0 == 10). Reported
-* separately: BCR is time-varying (imputed at line starts), not a diagnosis-record covariate.
+* Best clinical response, measured over the imputation sample where BCR carries genuine imputation
+* uncertainty (CStart==1 & Duration != .): pooled, then by line via CLine (the current-line predictor
+* the BCR imputation model uses). Measuring at Event0==10/20 gave FMI=0 (LOCF-carried there).
 di as text _n(2) "{hline 74}"
-di as text "First-line response (BCR_L1) -- variance information, FMI per level (at L1 start)"
+di as text "Best clinical response -- imputation sample (CStart==1 & Duration != .), pooled"
 di as text "{hline 74}"
-mi estimate, vartable: proportion BCR_L1 if Event0 == 10
+mi estimate, vartable: proportion BCR if CStart == 1 & Duration != .
+foreach L in 1 2 {
+    di as text _n(2) "{hline 74}"
+    di as text "Best clinical response at line `L' (CStart==1 & Duration != . & CLine==`L')"
+    di as text "{hline 74}"
+    mi estimate, vartable: proportion BCR if CStart == 1 & Duration != . & CLine == `L'
+}
+
+* SANITY: does BCR actually vary across the imputations? Zero between-imputation variance everywhere,
+* even where ~26% is imputed, usually means the draws collapsed. Count rows whose m-th imputed value
+* differs from the first imputation, for BCR and for a known-varying imputed control (eGFR). If BCR is
+* ~0 while eGFR is large, the response imputations are (near-)identical -- a real issue in the response
+* imputation, not a diagnostic artefact. (M = 10 imputations in the main model.)
+di as text _n(2) "{hline 74}"
+di as text "SANITY: rows differing from imputation 1 (BCR vs the eGFR control)"
+di as text "{hline 74}"
+tempvar bd ed
+qui gen byte `bd' = 0
+qui gen byte `ed' = 0
+forvalues m = 2/10 {
+    capture confirm variable _`m'_BCR
+    if !_rc  qui replace `bd' = 1 if _`m'_BCR  != _1_BCR
+    capture confirm variable _`m'_eGFR
+    if !_rc  qui replace `ed' = 1 if _`m'_eGFR != _1_eGFR
+}
+qui count if `bd'
+di as text "  rows where BCR differs across imputations:  " %9.0fc r(N)
+qui count if `ed'
+di as text "  rows where eGFR differs across imputations: " %9.0fc r(N)
 
 di as text _n "Diagnostics log saved to scratch/mi_diagnostics.log"
 cap log close mi_diag

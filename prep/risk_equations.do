@@ -214,7 +214,7 @@ program define risk_equations
 	mata: _matrix_list(bDN_SCT, rbDN_SCT, cbDN_SCT)
 
 	// L1
-	mi estimate: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
+	mi estimate, esampvaryok: logit SCT Age Age2 Male i.ECOGcc i.RISS i.BCR Age70 Age75 CM_CKD CM_CRD CM_PLM CM_DBT if(Event1 == 11 & TXR_L1 != 7 & BCR != 6)
 	save_coefs L1_SCT
 	mata: _matrix_list(bL1_SCT, rbL1_SCT, cbL1_SCT)
 
@@ -296,7 +296,7 @@ program define risk_equations
 	mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
 
 	// ASCT (post-transplant response)
-	mi estimate: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 if(Event0 == 100 & BCR_L1 != 6)
+	mi estimate, esampvaryok: ologit BCR Age Age2 Male i.ECOGcc i.RISS i.BCR_L1 if(Event0 == 100 & BCR_L1 != 6)
 	save_coefs SCT_BCR
 	mata: _matrix_list(bSCT_BCR, rbSCT_BCR, cbSCT_BCR)
 

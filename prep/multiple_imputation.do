@@ -45,17 +45,17 @@ local Data "$data_cut"
 
 **********
 // Settings
-/*
-global imp 2
-global boot 0
-*/
 
+global imp 10
+global boot 0
+
+/*
 global imp `1'
 global boot `2'
 global min_bs `3'
 global max_bs `4'
 global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
-
+*/
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
 * analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
 if "$sample" == "" {
@@ -81,11 +81,15 @@ else {
 
 // _cf: temporal LOCF within ID_BS for one variable, across m=0..M. Caller must have sorted so that
 //      rows are in the desired order within ID_BS. Optional extra `if` condition (e.g. Duration!=.).
+//      Third arg "nomaster" skips the m=0 (master) fill: for a REGISTERED IMPUTED variable, filling
+//      the master at imputed rows makes mi update treat them as observed and reset the imputations to
+//      the single master value (the BCR collapse). Imputed vars must keep a missing master at imputed
+//      rows, so pass "nomaster" for them; leave it off for observed/derived vars (the covariates).
 cap program drop _cf
 program define _cf
-	args v extra
+	args v extra nomaster
 	if "`extra'" != "" local extra "& `extra'"
-	qui by ID_BS: replace `v' = `v'[_n-1] if `v' == . `extra'
+	if "`nomaster'" == "" qui by ID_BS: replace `v' = `v'[_n-1] if `v' == . `extra'
 	forvalues m = 1/$imp {
 		qui by ID_BS: replace _`m'_`v' = _`m'_`v'[_n-1] if _`m'_`v' == . `extra'
 	}
@@ -181,9 +185,11 @@ program define multiple_imputation
 			exit _rc
 		}
 
-		// Carryforward (temporal LOCF; sort once, direct-column fills)
+		// Carryforward (temporal LOCF; sort once, direct-column fills). BCR is a registered IMPUTED
+		// variable, so carry only the imputation columns (nomaster) -- filling the master would make the
+		// mi update below collapse the imputations to a single value.
 		sort ID_BS Date0
-		_cf BCR "Duration != ."
+		_cf BCR "Duration != ." nomaster
 
 		// Collapse BCR for ASCT - small n
 		qui mi xeq 0/$imp: replace BCR = 4 if (BCR == 5 | BCR == 6) & Event0 == 100

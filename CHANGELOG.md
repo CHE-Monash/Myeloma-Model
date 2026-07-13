@@ -16,6 +16,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Line-entry cohort pools (`analyses/*/patients/cohort_pool.do`) now loop the synthetic cohorts. A pool built from the old `population_*` files is not reproducible against the current inputs and must be rebuilt.
 - **Removed the dead `$data == "population"` early-exits** from `core/simulation_engine.do` (four line-truncation branches belonging to the archived `base_model` analysis; they never fired for the `population_<n>` / `synthetic_<n>` cohort-pool tokens).
 
+### Fixed
+- **Best clinical response (BCR) was collapsing to a single imputation.** In `prep/multiple_imputation.do` the direct-column LOCF carry-forward filled BCR's m=0 master, so the subsequent `mi update` reset the per-imputation values to that single master value — only ~24 of ~5,000 imputed response rows varied across the 10 imputations (every covariate imputed correctly). Fixed by carrying forward only the imputation columns for BCR (`_cf … nomaster`), leaving the master missing as a registered imputed variable requires; the response now varies correctly (FMI ≈ 0.1–0.45). The two ASCT equations whose estimation sample conditions on imputed BCR (`if BCR != 6` at L1 end, `if BCR_L1 != 6` at ASCT; `prep/risk_equations.do`) now use `esampvaryok`, since the eligible sample legitimately varies across imputations. Out-of-sample validation is unchanged at **139/172 (80.8%)** — the pooled point estimates are stable, so the correction acts on the between-imputation variance (standard errors / prediction intervals), not the point predictions. Coefficients regenerated.
+
 ### Planned
 - Integration with R for post-processing analysis
 - Extended documentation for health economic applications
