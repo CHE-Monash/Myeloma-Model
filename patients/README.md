@@ -1,16 +1,25 @@
-# Population Datasets
+# Synthetic Cohorts
 
 ## Overview
 
-This directory contains 10 different population realisations for multiple myeloma patients diagnosed in Australia between 1995 and 2040. These are base datasets that can be used across different analyses without modification. Each dataset contains 101,212 patients.
+This directory contains 10 independent realisations of the synthetic incident-MM cohort — patients diagnosed in Australia between 1995 and 2040. These are base datasets that can be used across different analyses without modification. Each dataset contains 101,212 patients.
 
 ## Files
 
-- `synthetic_1995_2040_1.dta` to `synthetic_1995_2040_10.dta` — the 10 patient population datasets. These are **git-ignored** (regenerated locally by `prep/synthetic_1995_2040.do`), not shipped in the public repo.
+**Cohorts** (the simulation inputs, read by `core/load_patients.do`):
 
-## Population Characteristics
+- `synthetic_1995_2040_1.dta` to `synthetic_1995_2040_10.dta` — the 10 cohort realisations. **Git-ignored** (regenerated locally by `prep/synthetic_1995_2040.do`), not shipped in the public repo.
 
-Each population dataset contains 101,212 patients with:
+**Incidence inputs** (read *by* `prep/synthetic_1995_2040.do` to build the cohorts — despite the name, these are *not* cohort files and must not be deleted with them):
+
+- `population_historical.csv` / `.xlsx` — observed incidence, AIHW, 1995–2020.
+- `population_forecast.csv` — projected incidence, Daffodil Centre, 2010–2043.
+
+The superseded `population_1995_2040_*.dta` cohorts were deleted in July 2026: they carried the retired ordinal comorbidity score (`CMc`) and the unused `CM_LVR` / `CM_PNR` / `CM_MLG` flags, and their covariates came from an imputation model that included them. The `synthetic_*` files replace them; there is no `population` cohort token any more.
+
+## Cohort Characteristics
+
+Each cohort contains 101,212 patients with:
 
 | Variable | Description | Range/Categories |
 |----------|-------------|------------------|
@@ -46,33 +55,13 @@ global PopulationNumber = 5
 use "patients/synthetic_1995_2040_${PopulationNumber}.dta", clear
 ```
 
-## Population Differences
+## Why ten realisations
 
-Each population represents a different random realisation of the same underlying demographic and clinical distributions. They can be used for:
+Each file is a different random realisation of the same underlying demographic and clinical distributions. `$data = "synthetic"` loads file 1 and is the default for a single projection run (`analyses/default`, `$scenario ""`).
 
-1. **Sensitivity Analysis** - Test model robustness across different populations
-2. **Uncertainty Quantification** - Multiple runs with different base populations  
-3. **Scenario Testing** - Different starting populations for interventions
-4. **Validation** - Cross-validation using different population samples
-
-## Integration with Analyses
-
-Analyses can reference these populations in several ways:
-
-1. **Base Model**: Uses populations as-is for standard projections
-2. **Intervention Studies**: Applies intervention logic to population data
-3. **Comparative Studies**: Runs same population through different treatment scenarios
-4. **Sensitivity Analysis**: Tests intervention across multiple populations
-
-## Selection Recommendations
-
-- **Base Model**: Use Population 1 as default
-- **Sensitivity Analysis**: Use Populations 1-5 for primary sensitivity
-- **Extensive Testing**: Use all 10 populations for comprehensive analysis
-- **Quick Testing**: Use Population 1 with reduced sample size
+The other nine exist for the **line-entry cohort pools**: a line-specific decision analysis needs enough patients who *reach* line L within a fixed case-mix window, and one incident cohort does not supply them. `patients/cohort_pool.do` (in `template`, `car_t` and `transport_dvd`) loops `$data = "synthetic_1..10"` and pools the line-L entrants. Widen the sample count, never the case-mix window.
 
 ## Maintenance
 
-- Populations should be regenerated when underlying demographic assumptions change
-- Version control should track when populations were last updated
-- Summary statistics should be regenerated after any population updates
+- Regenerate (`prep/synthetic_1995_2040.do`) whenever the incidence inputs, the covariate imputation model or the cohort schema change. The schema must stay in step with `core/load_patients.do` and `core/mata_setup.do`.
+- Regenerating changes the realisation, so any cohort pool built from these files must be rebuilt with them.

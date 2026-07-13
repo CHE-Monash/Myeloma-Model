@@ -1,41 +1,32 @@
 **********
 * Monash Myeloma Model - Load Patients
 *
-* Purpose: Load the cohort (population, $cohort_file override, or production file) and
+* Purpose: Load the cohort (synthetic, $cohort_file override, or production file) and
 *          filter by year of diagnosis, disease stage and ID range; reset ID = _n.
 **********
 
 capture program drop load_patients
 program define load_patients
 
-	// Synthetic incidence population (default projection): "synthetic" or "synthetic_N" -> synthetic_1995_2040_N.
-	// Legacy "population" token kept for the archived base_model analysis (patients/population_1995_2040_*.dta).
+	// Synthetic incidence cohort (default projection): "synthetic" or "synthetic_N" -> synthetic_1995_2040_N.
 	if regexm("$data", "synthetic") {
 		global data_type = "synthetic"
 		if regexm("$data", "synthetic_([0-9]+)") global pop_number = regexs(1)
 		else global pop_number = 1
 	}
-	else if regexm("$data", "population_([0-9]+)") {
-		global pop_number = regexs(1)
-		global data_type = "population"
-		di as text "Using specific population: ${pop_number}"
-	}
 	else {
 		global data_type = "$data" // Predicted
-		global pop_number = 1  // Default population
+		global pop_number = 1  // Default cohort
 	}
 
 	// Determine data source
 	if ("$data_type" == "synthetic") {
 		use "patients/synthetic_1995_2040_${pop_number}.dta", clear
 	}
-	else if ("$data_type" == "population") {
-		use "patients/population_1995_2040_${pop_number}.dta", clear
-	}
 	else if ("$cohort_file" != "") {
 		// $cohort_file lets a caller (e.g. the default outsample scenario -> patients_test.dta, or
 		// ce_precision) read a different cohort without overwriting the production file -- honoured for
-		// any non-synthetic/population $data.
+		// any non-synthetic $data.
 		use "$cohort_file", clear
 	}
 	else {

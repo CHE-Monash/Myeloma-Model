@@ -28,6 +28,9 @@ analyses/car_t/
 /config.do
 /env.sh
 
+# CLAUDE.md — Claude Code orientation notes; kept local (our use only), not shipped in the public repo
+/CLAUDE.md
+
 # Data-prep scripts (MRDR → model inputs). The model-input scripts, README and outputs (.mmat) are
 # tracked. Scripts that operate on RAW MRDR data stay out of the repo (data-governance): the sub/
 # helpers and data_extraction.do; plus restricted DATA and machine-specific paths (config.do).

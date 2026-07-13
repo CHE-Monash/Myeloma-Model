@@ -6,9 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Added
+- **Reproducible treatment-cost engine** (`prep/`): treatment costs rebuilt from first principles as the PBS **Dispensed Price for Maximum Quantity**, derived from a dated PBS Schedule extract rather than a manual spreadsheet — `build_cost_index.do` (ABS CPI deflator), `extract_pbs_costs.do` (Schedule → drug prices), `extract_pbs_restrictions.do` (eligibility reference) and `treatment_costs.do [year] [wholepack|prorata]` → `prep/inputs/treatment_costs_<year>.csv`. Non-treatment costs are phase-of-care (Yap 2025), with the initial phase netted of the transplant admission to avoid double-counting. Perspective is the Australian health system, so the full DPMQ is used with the co-payment **not** netted off; oral packs default to whole packs (dispensing wastage costed, per PBAC convention), with pro-rata as a sensitivity. Derivations in `docs/economic_inputs.md`.
+  - **`$cost_year` falls back to the latest available file** when the requested year has no cost CSV. Check the cost year before re-running any near-submission analysis: 2026 generic price disclosure moved drug costs materially, so a re-run can silently reprice an older analysis.
+
+### Changed
+- **Simulation cohorts migrated from `population_*` to `synthetic_*`.** The `population` cohort token is retired: `core/load_patients.do` now resolves `$data` to `synthetic` / `synthetic_<n>` (the incidence cohorts), `$cohort_file` (an explicit override) or a predicted patient file. `patients/population_1995_2040_*.dta` are superseded and deleted — they carried the retired ordinal comorbidity score (`CMc`) and the unused `CM_LVR` / `CM_PNR` / `CM_MLG` flags, and their covariates came from an imputation model that still included them. `patients/synthetic_1995_2040_1..10.dta` (from `prep/synthetic_1995_2040.do`) replace them.
+  - The `patients/population_historical.csv` and `population_forecast.csv` **incidence inputs** (AIHW and Daffodil Centre) keep their names: they are inputs *to* the cohort build, not cohorts.
+  - Line-entry cohort pools (`analyses/*/patients/cohort_pool.do`) now loop the synthetic cohorts. A pool built from the old `population_*` files is not reproducible against the current inputs and must be rebuilt.
+- **Removed the dead `$data == "population"` early-exits** from `core/simulation_engine.do` (four line-truncation branches belonging to the archived `base_model` analysis; they never fired for the `population_<n>` / `synthetic_<n>` cohort-pool tokens).
+
 ### Planned
 - Integration with R for post-processing analysis
 - Extended documentation for health economic applications
+- Daratumumab **SC** regimen option (a regimen-file switch; cheaper at this body weight and closer to current practice)
+- Migrate the cost extraction to the PBS REST API (a drop-in swap at `$pbs_src`)
 
 ## [3.0] - 2026-07-07
 

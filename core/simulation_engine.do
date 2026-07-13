@@ -49,8 +49,6 @@ di "Running simulation"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL1_TXR, rbL1_TXR, cbL1_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		if ("$data" == "population" & $line == 1) exit
-		
 	di "L1S - Best Clinical Response"
 		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL1_BCR, rbL1_BCR, cbL1_BCR)
@@ -122,8 +120,6 @@ di "Running simulation"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		if ("$data" == "population" & $line == 2) exit
-			
 	di "L2S - Best Clinical Response"
 		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL2_BCR, rbL2_BCR, cbL2_BCR)
@@ -180,8 +176,6 @@ di "Running simulation"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		if ("$data" == "population" & $line == 3) exit
-		
 	di "L3S - Best Clinical Response"
 		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL3_BCR, rbL3_BCR, cbL3_BCR)
@@ -238,8 +232,6 @@ di "Running simulation"
 		qui do "core/outcomes/sim_txr.do"
 		*mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 		*mata: _matrix_list(mTXR, rmTXR, cmTXR)
-		if ("$data" == "population" & $line == 4) exit
-		
 	di "L4S - Best Clinical Response"
 		qui do "core/outcomes/sim_bcr.do"
 		*mata: _matrix_list(bL4_BCR, rbL4_BCR, cbL4_BCR)
