@@ -166,6 +166,7 @@ if ("$report_twoarm" == "1") {
         forvalues l = 1/9 {
             qui replace LOT_MAX = `l' if !missing(TXR_L`l')
             qui count if !missing(TXR_L`l')
+            local nreach`l'_`a' = r(N)                       // patients receiving line l
             local reach`l'_`a' = 100 * r(N) / `n_`a''
         }
         forvalues l = 1/9 {
@@ -209,6 +210,92 @@ if ("$report_twoarm" == "1") {
         legend(order(1 "`arm0'" 2 "`arm1'") rows(1) pos(6)) ///
         graphregion(color(white)) name(os_cmp, replace)
     graph export "$simulated_path/report/figures/os_compare.png", replace width(1600)
+
+    * ---- Cost-over-time figure: mean undiscounted cost per patient by year since Line L0 ----
+    * Per-patient cost trajectory (no uptake): treatment cost allocated across each line's relative-time
+    * window; non-treatment across the survival window at the phase rate. Building block for a budget-impact
+    * analysis. Built here (before the PDF) alongside the OS figure; embedded in the Costs section below.
+    local ct_ry = "$cost_year"
+    if "`ct_ry'" == "" local ct_ry 2026
+    local ctfile "prep/inputs/treatment_costs_`ct_ry'.csv"
+    capture confirm file "`ctfile'"
+    if _rc {
+        local ctavail : dir "prep/inputs" files "treatment_costs_*.csv"
+        local ctlatest ""
+        foreach f of local ctavail {
+            if "`f'" > "`ctlatest'" local ctlatest "`f'"
+        }
+        local ctfile "prep/inputs/`ctlatest'"
+    }
+    capture frame drop _ctcosts
+    frame create _ctcosts
+    frame _ctcosts: quietly import delimited "`ctfile'", varnames(1) case(preserve) stringcols(_all) clear
+    frame _ctcosts: quietly destring value, replace
+    foreach p in cHosp_initial cHosp_continuing cHosp_terminal cMBS_initial cMBS_continuing cMBS_terminal cEmer_initial cEmer_continuing cEmer_terminal {
+        frame _ctcosts: quietly summarize value if parameter == "`p'", meanonly
+        local `p' = r(mean)
+    }
+    frame drop _ctcosts
+    local ct_ri = `cHosp_initial'    + `cMBS_initial'    + `cEmer_initial'    // annual non-tx rate, initial phase
+    local ct_rc = `cHosp_continuing' + `cMBS_continuing' + `cEmer_continuing' //   continuing phase
+    local ct_rt = `cHosp_terminal'   + `cMBS_terminal'   + `cEmer_terminal'   //   terminal phase
+
+    local ctY = 10                              // years since Line L0 to show (matches the projection window)
+    tempfile _ctall
+    local ctfirst 1
+    foreach a in 1 0 {
+        quietly use "`sim_out'/`arm`a''_${line}_${data}.dta", clear
+        quietly {
+            gen double _w0 = OC_TIME - OC_TIME_L                                   // diagnosis -> Line L0 (months)
+            gen double _i1 = cond(OC_TIME<12, 0, cond(OC_TIME<24, OC_TIME-12, 12)) // initial phase ends
+            gen double _c1 = cond(OC_TIME>=24, OC_TIME-12, 12)                     // continuing phase ends
+            gen double _t0 = cond(OC_TIME<12, 0, OC_TIME-12)                       // terminal phase starts
+            forval y = 0/`=`ctY'-1' {
+                local lo = 12*`y'
+                local hi = 12*(`y'+1)
+                gen double _tx`y' = 0
+                forval l = `L0'/9 {
+                    replace _tx`y' = _tx`y' + cost_tx_L`l' * ///
+                        max(0, min(`hi', TSD_L`l'E_ref) - max(`lo', TSD_L`l'S_ref)) / (TSD_L`l'E_ref - TSD_L`l'S_ref) ///
+                        if cost_tx_L`l' > 0 & TSD_L`l'E_ref > TSD_L`l'S_ref
+                }
+                gen double _oi = max(0, min(_w0+`hi', _i1, OC_TIME) - max(_w0+`lo', 0,   _w0))
+                gen double _oc = max(0, min(_w0+`hi', _c1, OC_TIME) - max(_w0+`lo', 12,  _w0))
+                gen double _ot = max(0, min(_w0+`hi', OC_TIME)      - max(_w0+`lo', _t0, _w0))
+                gen double _nt`y' = (`ct_ri'*_oi + `ct_rc'*_oc + `ct_rt'*_ot)/12
+                drop _oi _oc _ot
+            }
+            collapse (mean) _tx* _nt*
+            gen arm = "`arm`a''"
+        }
+        if `ctfirst' {
+            save `_ctall', replace
+            local ctfirst 0
+        }
+        else {
+            append using `_ctall'
+            save `_ctall', replace
+        }
+    }
+    use `_ctall', clear
+    reshape long _tx _nt, i(arm) j(_yr0)
+    gen _year = _yr0 + 1                          // year 1 = first 12 months from Line L0
+    gen double tx1 = _tx if arm=="`arm1'"
+    gen double nt1 = _nt if arm=="`arm1'"
+    gen double tx0 = _tx if arm=="`arm0'"
+    gen double nt0 = _nt if arm=="`arm0'"
+    collapse (firstnm) tx1 nt1 tx0 nt0, by(_year)
+    twoway ///
+        (line tx1 _year, lcolor(maroon) lwidth(medthick) lpattern(solid)) ///
+        (line nt1 _year, lcolor(maroon) lwidth(medthick) lpattern(dash))  ///
+        (line tx0 _year, lcolor(navy)   lwidth(medthick) lpattern(solid)) ///
+        (line nt0 _year, lcolor(navy)   lwidth(medthick) lpattern(dash)), ///
+        xtitle("Years from Line `L0' start") ytitle("Mean cost per patient (AUD, undiscounted)") ///
+        xlabel(1(1)`ctY') ylabel(, angle(0) format(%9.0fc)) ///
+        legend(order(1 "`arm1' treatment" 2 "`arm1' non-treatment" 3 "`arm0' treatment" 4 "`arm0' non-treatment") ///
+               rows(2) pos(6) size(small)) ///
+        graphregion(color(white)) title("") name(cost_time, replace)
+    graph export "$simulated_path/report/figures/cost_over_time.png", replace width(1600)
 
     * ================= BUILD PDF (landscape) =================
     capture putpdf clear
@@ -296,16 +383,20 @@ if ("$report_twoarm" == "1") {
         local prow = `prow' + 1
         local r1 = string(`reach`l'_1', "%4.1f")
         local r0 = string(`reach`l'_0', "%4.1f")
+        local n1 = trim(string(`nreach`l'_1', "%12.0fc"))
+        local n0 = trim(string(`nreach`l'_0', "%12.0fc"))
         local m1 = string(`maxl`l'_1', "%4.1f")
         local m0 = string(`maxl`l'_0', "%4.1f")
         putpdf table pw(`prow',1) = ("L`l'")
         putpdf table pw(`prow',2) = ("`r1'%")
+        putpdf table pw(`prow',2) = ("(n=`n1')"), append          // count receiving the line, below the %
         putpdf table pw(`prow',3) = ("`r0'%")
+        putpdf table pw(`prow',3) = ("(n=`n0')"), append
         putpdf table pw(`prow',4) = ("`m1'%")
         putpdf table pw(`prow',5) = ("`m0'%")
     }
     putpdf paragraph
-    putpdf text ("Reached % = of the arm; Max line % = of the arm whose last treated line is that line."), font(,9) italic
+    putpdf text ("Reached % = of the arm, with the patient count receiving that line (n) shown below it; Max line % = of the arm whose last treated line is that line."), font(,9) italic
 
     * ---- Overall survival ----
     putpdf pagebreak
@@ -519,6 +610,15 @@ if ("$report_twoarm" == "1") {
         putpdf table c5(2,2) = ("$`v0'")
         putpdf table c5(2,3) = ("$`vd'")
     }
+
+    * ---- Cost over time (per-patient trajectory; building block for a budget-impact analysis) ----
+    putpdf pagebreak
+    putpdf paragraph
+    putpdf text ("Cost over time (mean per patient, from Line `L0')"), bold font(,14)
+    putpdf paragraph
+    putpdf image "$simulated_path/report/figures/cost_over_time.png", width(8)
+    putpdf paragraph
+    putpdf text ("Mean undiscounted cost per patient incurred in each year after the Line `L0' decision, by arm and split into treatment vs non-treatment. Treatment cost is spread across each line's treatment window; non-treatment across the survival window at the phase rate (initial / continuing / terminal). The population mean falls over time as patients die. This is a per-patient trajectory with no uptake -- the building block a calendar-year budget-impact analysis would layer across annual initiations. If a decision-line regimen is not costed (see the n/a in the treatment-cost table), that arm's early treatment line understates the true cost."), font(,9) italic
 
     * ---- Treatment duration & treatment-free interval by line (explains the per-line cost gap) ----
     putpdf pagebreak

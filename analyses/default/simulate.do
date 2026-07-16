@@ -53,7 +53,7 @@ if ("$scenario" == "outsample") {
 else {
     global coeffs       "full"                                      // fit on the full (100%) registry
     global data         "synthetic"                                 // simulate the synthetic incidence population
-    global cost_year    "2026"                                      // Cost year (AUD); falls back to latest treatment_costs_*.csv
+    global cost_year    "2025"                                      // Cost year (AUD); falls back to latest treatment_costs_*.csv
     global report       "1"                                         // costed PDF projection report
 }
 
