@@ -23,12 +23,12 @@ di as text "Processing Simulated Data (Starting Line: `L')"
 cap mata: mata drop mRN
 
 * Create mSum in Mata
-	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , ///
+	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , vMNR , vMNS , ///
 			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
 * Column names for mSum, in assembly order below.
 * (getmata errors on a name/column count mismatch, which guards this alignment.)
-	local varnames ID Male ECOGcc RISS ISS CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT ///
+	local varnames ID Male ECOGcc RISS ISS CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT MNR_L1 MNS_L1 ///
 		Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
 		OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
 		TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E ///
@@ -187,7 +187,21 @@ cap mata: mata drop mRN
 	qui gen cost_tx_mnt = 0
 	if `L' == 1 {
 		qui replace cost_tx_asct = `cASCT' if SCT_L1 == 1
-		qui replace cost_tx_mnt = `cMNT' * (TFI_L1 * 30.4375 / 28) if MNT == 1
+		// Bill the maintenance actually delivered, not the whole L1-to-L2 gap. MND_L1 is
+		// formed here rather than in sim_mnd.do so that it inherits TFI_L1's death
+		// curtailment: a patient who dies mid-gap is billed only for the gap they lived.
+		// Billing TFI_L1 overstated maintenance by 69% population-wide (docs/refractory.md 7).
+		// The !mi() guard matters: MNS_L1 is missing for MNT == 0 and for every patient if
+		// L1_MND was never fitted, and an unguarded multiply would propagate missing through
+		// cost_tx into every downstream total. Leaving cost_tx_mnt at its 0 initialisation is
+		// the safe direction - no maintenance cost beats a silently missing total.
+		// INTERIM: still the blended cMNT (67% lenalidomide / 33% thalidomide - roughly the
+		// all-years mix, and so wrong for any single year). MNR_L1 is simulated and carried
+		// out of the engine, but regimen-specific pricing needs maintenance DPMQs that mostly
+		// do not exist: per the MSAG guideline only lenalidomide has a PBS maintenance
+		// listing. See docs/refractory.md 7.4 and the Costs todo in the programme note.
+		qui gen double MND_L1 = MNS_L1 * TFI_L1 if MNT == 1 & !mi(MNS_L1)
+		qui replace cost_tx_mnt = `cMNT' * (MND_L1 * 30.4375 / 28) if MNT == 1 & !mi(MND_L1)
 	}
 
 * Total undiscounted treatment cost

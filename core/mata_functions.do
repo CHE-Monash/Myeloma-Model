@@ -46,6 +46,47 @@ real scalar txr_model_exists(real scalar line) {
 
 end
 
+*Functions for sim_mnr.do / sim_mnd.do
+mata:
+
+// Same `external` trick as the TXR helpers above, and for the same reason: when an analysis
+// declares no maintenance regimens, risk_equations.do stores oL1_MNR = 0 and never creates
+// bL1_MNR, so it is absent from the coefficient file. Referencing it directly would fail on
+// an undefined symbol; declaring it external creates it empty, so rows() can be tested.
+
+// Helper function: Get MNR coefficients (empty matrix if the analysis modelled no regimens)
+real matrix get_mnr_coef() {
+	external bL1_MNR
+	if (rows(bL1_MNR) > 0) return(bL1_MNR)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get MNR outcome codes (the drug codes the analysis modelled)
+real rowvector get_mnr_outcome() {
+	external oL1_MNR
+	if (cols(oL1_MNR) > 0) return(oL1_MNR)
+	return(J(1, 0, .))
+}
+
+// Helper function: Check if MNR model exists
+real scalar mnr_model_exists() {
+	return(rows(get_mnr_coef()) > 0)
+}
+
+// Helper function: Get MND (maintenance duration share) coefficients
+real matrix get_mnd_coef() {
+	external bL1_MND
+	if (rows(bL1_MND) > 0) return(bL1_MND)
+	return(J(0, 0, .))
+}
+
+// Helper function: Check if MND model exists
+real scalar mnd_model_exists() {
+	return(rows(get_mnd_coef()) > 0)
+}
+
+end
+
 mata:
 //=============================================================================
 // SURVIVAL DISTRIBUTION FUNCTIONS

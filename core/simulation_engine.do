@@ -88,9 +88,19 @@ di "Running simulation"
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - MNT"
-		qui do "core/outcomes/sim_mnt.do"		
+		qui do "core/outcomes/sim_mnt.do"
 		*mata: _matrix_list(bMNT, rbMNT, cbMNT)
 		*mata: _matrix_list(vMNT)
+
+	di "L1E - MNT Regimen"
+		qui do "core/outcomes/sim_mnr.do"
+		*mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
+		*mata: _matrix_list(vMNR)
+
+	di "L1E - MNT Duration (share of TFI_L1)"
+		qui do "core/outcomes/sim_mnd.do"
+		*mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
+		*mata: _matrix_list(vMNS)
 
 	di "L1E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi_l1.do"			

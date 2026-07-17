@@ -334,5 +334,14 @@ program define mata_setup
 		vSCT_DN = st_data(., "SCT_DN")            // Intent for ASCT at DN (0/1)
 		vSCT_L1 = st_data(., "SCT_L1")            // Receipt of ASCT at L1 (0/1)
 		vMNT = st_data(., "MNT")                  // Receipt of Maintenance therapy at L1 (0/1)
+
+		// Maintenance regimen and duration share at L1. Pure OUTPUTS - unlike the vectors
+		// above there is no cohort column to read, so they are initialised missing and
+		// filled by sim_mnr.do / sim_mnd.do among MNT == 1. Missing is the correct resting
+		// value: a patient with MNT == 0 has no maintenance regimen and no share.
+		// vMNS is the SHARE of TFI_L1, not a duration - process_data.do multiplies it by the
+		// realised (death-curtailed) TFI_L1 at billing time. See docs/refractory.md 7.4.
+		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (drug code, 0 = other)
+		vMNS = J(Obs, 1, .)                       // L1 maintenance duration as a share of TFI_L1
 	}
 end

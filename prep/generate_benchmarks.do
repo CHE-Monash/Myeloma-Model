@@ -726,6 +726,64 @@ if _rc == 0 {
 	drop _cmn _cmnp _cmg
 }
 
+
+// MND benchmark - L1 maintenance duration as a SHARE of TFI_L1 (docs/refractory.md 7.4).
+//
+// Scored by regimen x GAP BAND, not marginally, and the band is the whole point. L1_MND
+// imposes proportionality (the share is constant in gap length). That was tested: it holds
+// for the continuous regimens (b1 = 0.985, p = 0.88 against 1) and fails for the
+// fixed-duration ones (b1 = 0.461, p < 0.0001). A marginal share by regimen would hide it,
+// because the registry and the simulated cohort differ in BOTH regimen mix and gap
+// distribution, and the two effects cancel in a marginal. Bands are FIXED months, not
+// quantiles, so a cell means the same thing on both sides of the comparison.
+//
+// Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 4 5"): lenalidomide,
+// bortezomib, thalidomide, everything else pooled to 0. If that list changes, this must change
+// with it - the simulated MNR_L1 only ever holds the levels the analysis declared.
+//
+// CAVEAT the registry can barely score the range the model actually runs in. MNS_L1 needs an
+// OBSERVED L2 start, and follow-up truncation means few complete gaps beyond ~40 months (fit
+// sample p75 = 40.3) - while simulated TFI_L1 sits at a median near 40. So band 4 is thin here
+// and is exactly where most simulated maintenance lives. Proportionality is testable INSIDE
+// the observed range; beyond it, it stays an assumption, not a validated fact.
+preserve
+	keep if Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1 & !mi(MNS_L1)
+
+	// MRDR Long carries TFI in DAYS; the engine works in months, and the bands must mean the
+	// same thing in both. This conversion is the trap in this block.
+	gen double bench_tfi_mo = TFI_L1 / 30.4375
+
+	gen byte bench_gband = .
+	replace bench_gband = 1 if bench_tfi_mo <  12
+	replace bench_gband = 2 if bench_tfi_mo >= 12 & bench_tfi_mo < 24
+	replace bench_gband = 3 if bench_tfi_mo >= 24 & bench_tfi_mo < 42
+	replace bench_gband = 4 if bench_tfi_mo >= 42 & !mi(bench_tfi_mo)
+
+	gen byte bench_mgrp = 0
+	replace bench_mgrp = 1 if MNR_L1 == 1
+	replace bench_mgrp = 4 if MNR_L1 == 4
+	replace bench_mgrp = 5 if MNR_L1 == 5
+
+	matrix MND_L1 = J(16, 5, .)
+	matrix colnames MND_L1 = "N" "Mean" "Median" "P25" "P75"
+
+	local mrow = 0
+	foreach g in 1 4 5 0 {
+		forvalues b = 1/4 {
+			local ++mrow
+			quietly count if bench_mgrp == `g' & bench_gband == `b'
+			matrix MND_L1[`mrow', 1] = r(N)
+			if r(N) > 0 {
+				quietly summarize MNS_L1 if bench_mgrp == `g' & bench_gband == `b', detail
+				matrix MND_L1[`mrow', 2] = r(mean)
+				matrix MND_L1[`mrow', 3] = r(p50)
+				matrix MND_L1[`mrow', 4] = r(p25)
+				matrix MND_L1[`mrow', 5] = r(p75)
+			}
+		}
+	}
+restore
+
 **********
 // 6. EXPORT TO CSV
 **********
@@ -827,6 +885,21 @@ svmat TXD_L4, names(col)
 gen BCR = _n
 order BCR
 export delimited using "`bench_out'/txd_l4.csv", replace
+
+clear
+svmat MND_L1, names(col)
+gen MNR = .
+gen GapBand = .
+local mrow = 0
+foreach g in 1 4 5 0 {
+	forvalues b = 1/4 {
+		local ++mrow
+		quietly replace MNR = `g' in `mrow'
+		quietly replace GapBand = `b' in `mrow'
+	}
+}
+order MNR GapBand
+export delimited using "`bench_out'/mnd_l1.csv", replace
 
 // BCR distributions
 clear

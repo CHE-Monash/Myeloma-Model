@@ -80,6 +80,14 @@ mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_NoASCT_bench)
 import delimited "${val_targets}/txd_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_ASCT_bench)
 
+// MND benchmark - maintenance duration share by regimen x gap band. Optional, so target sets
+// generated before the maintenance work still validate.
+capture confirm file "${val_targets}/mnd_l1.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/mnd_l1.csv", clear case(preserve)
+	mkmat MNR GapBand N Mean Median P25 P75, matrix(MND_L1_bench)
+}
+
 * L2-L4 TXD (now with M12/M24 on-treatment cols); optional so older target sets still run
 foreach L in 2 3 4 {
 	capture confirm file "${val_targets}/txd_l`L'.csv"
@@ -589,6 +597,58 @@ qui forvalues bcr = 1/4 {
         local ++c
     }
     qui drop surv_h
+}
+
+// MND - L1 maintenance duration as a share of TFI_L1, by regimen x gap band.
+// Scored on the MEDIAN share within a cell. Cells are compared only where the registry has
+// enough patients to mean anything (N >= 20): the target is thin at long gaps because a
+// complete gap needs an observed L2 start, which follow-up truncation denies. See the caveat
+// in prep/generate_benchmarks.do - this scores proportionality INSIDE the observed range only.
+// Simulated TFI_L1 is already in months here; the target's bands were built from days.
+capture confirm matrix MND_L1_bench
+if _rc == 0 {
+	local tol_share = 0.05
+	n di ""
+	n di "MND_L1 maintenance share | regimen x gap band (median; tol +/- `tol_share')"
+	n di "grp  | band |    bench |      sim |  diff | status"
+	qui forvalues r = 1/16 {
+		local g     = MND_L1_bench[`r', 1]
+		local b     = MND_L1_bench[`r', 2]
+		local bn    = MND_L1_bench[`r', 3]
+		local bench = MND_L1_bench[`r', 5]
+
+		// Rebuild the same cell on the simulated side
+		capture drop mnd_cell
+		qui gen byte mnd_cell = 0
+		if `g' == 0 qui replace mnd_cell = 1 if MNT == 1 & !inlist(MNR_L1, 1, 4, 5) & !mi(MNS_L1)
+		else        qui replace mnd_cell = 1 if MNT == 1 & MNR_L1 == `g' & !mi(MNS_L1)
+		if `b' == 1 qui replace mnd_cell = 0 if !(TFI_L1 <  12)
+		if `b' == 2 qui replace mnd_cell = 0 if !(TFI_L1 >= 12 & TFI_L1 < 24)
+		if `b' == 3 qui replace mnd_cell = 0 if !(TFI_L1 >= 24 & TFI_L1 < 42)
+		if `b' == 4 qui replace mnd_cell = 0 if !(TFI_L1 >= 42 & !mi(TFI_L1))
+
+		qui count if mnd_cell == 1
+		local simn = r(N)
+		if `bn' >= 20 & `simn' > 0 & !missing(`bench') {
+			qui summarize MNS_L1 if mnd_cell == 1, detail
+			local sim = r(p50)
+			local diff = `sim' - `bench'
+			if abs(`diff') <= `tol_share' {
+				local status "PASS"
+				local tests_passed = `tests_passed' + 1
+			}
+			else {
+				local status "FAIL"
+				local tests_failed = `tests_failed' + 1
+			}
+			local tests_run = `tests_run' + 1
+			n di %4.0f `g' " | " %4.0f `b' " | " %8.3f `bench' " | " %8.3f `sim' " | " %5.3f `diff' " | `status'"
+		}
+		else if `bn' < 20 & `bn' > 0 {
+			n di %4.0f `g' " | " %4.0f `b' " | " %8.3f `bench' " |        . |     . | skipped (target N = " %2.0f `bn' ")"
+		}
+	}
+	capture drop mnd_cell
 }
 
 // TXD_L2 / L3 / L4  (no ASCT split at later lines); optional -- only if the target was generated
