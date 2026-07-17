@@ -74,6 +74,43 @@ Non-treatment (phase-of-care) costs come from Yap 2025 and are applied in `core/
 - **Synthetic cohorts** → `core/load_patients.do` (`use "patients/synthetic_1995_2040_<n>.dta"`).
 - **Benchmarks** → `analyses/default/validate_outcomes.do` (imports the target CSVs as comparison matrices).
 
+## `data_extraction.do` — known inefficiencies and traps
+
+`data_extraction.do` is **git-ignored** under the data-governance rule (it reads the raw registry), so
+it cannot carry tracked notes of its own and this is the only durable home for them. It is ~1,100
+lines and predates most of the repo's conventions. **None of the below is a defect** — the script
+produces correct output, verified against `scratch/mnd_check.log` — but each is either a runtime cost
+or a trap that has already bitten someone.
+
+**Runtime**
+
+- **Rows are inserted one at a time, in two places** (the death-register censor block, and the L1E
+  imputation before SCT). Both loop over `levelsof` and, per patient, run
+  `gen temp = _n` → `sum temp` → `set obs` → `drop temp`. Every `set obs` reallocates the whole
+  dataset, so this is quadratic in the number of patients needing a row. Build the new rows as a
+  dataset and `append` once. Almost certainly the biggest single win.
+- **The carryforward idiom appears 24 times**: `bysort ID (X): replace X = X[_n-1] if X == .`. Each
+  one re-sorts. `multiple_imputation.do` already defines a `_cf` program for exactly this (its L88) —
+  hoist it into a shared include and call it from both.
+- **`Reset Event1 & Date1` appears 7 times**, the same three lines each. A `reset_events` program.
+- **34 longhand `replace Event = <code> if … CLine == n` lines** across three blocks, all mechanical;
+  `forval` collapses them.
+
+**Fragility**
+
+- **13 × `mmerge`**, a user-written command. Base `merge` does the same and drops the dependency.
+- **The final `keep` names `Year`, but the variable is `YearDN`.** It only resolves through Stata's
+  variable-name abbreviation, so it breaks silently under `set varabbrev off`. Name it explicitly.
+- **`Daratumamab` (chemotherapy) vs `Daratumumab` (maintenance).** Both columns exist after the forms
+  are appended and only the chemotherapy spelling survives the final `keep`. Reading the wrong one on
+  maintenance rows yields zero daratumumab episodes, which looks plausible rather than broken. Fixing
+  the spelling means touching `MRDR Chemo Regimen.do` too. See `docs/refractory.md` 7.6.
+- **Order dependency around the maintenance rows.** They are dropped mid-script, so anything derived
+  from them must be lifted into patient-level columns *before* the drop — and then carried forward
+  *again* afterwards, because the SCT cleaning inserts rows that would otherwise never receive them.
+  The script already does this twice for `MNT` and the diagnosis variables; the `MND` block is the
+  third. Anything new added near the drop needs the same treatment, and the failure is silent.
+
 ## Paths & config
 
 All MRDR/machine paths go through the git-ignored `config.do` at the repo root (see `config.example.do`). Each prep script does `capture run "config.do"` and reads:

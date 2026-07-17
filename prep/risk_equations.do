@@ -77,6 +77,34 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
+cap program drop gen_mnr
+program define gen_mnr
+	// MNR_L1 arrives from the extraction as a RAW 6-level maintenance drug code (see
+	// docs/refractory.md 2). Keep that as MNR_drug and rebuild MNR_L1 as the levels this
+	// analysis models, per $MNR_L1 from outcomes/mnr_<coeffs>.do; anything unlisted falls to
+	// 0 = 'other'. Mirrors gen_txr, and is what lets one extraction serve both the historical
+	// window the OOS validation scores against and a current-paradigm window: the maintenance
+	// mix stepped in 2020, so no single fixed list serves both (docs/refractory.md 7.4).
+	// Re-entrant: rebuilds from MNR_drug if already called.
+	cap confirm variable MNR_drug
+	if _rc {
+		cap confirm variable MNR_L1
+		if _rc {
+			di as err "gen_mnr: MNR_L1 is not in the MI data."
+			di as err "         Rebuild MRDR Long (prep/data_extraction.do), then re-run"
+			di as err "         prep/multiple_imputation.do - its keep list must name MNR_L1."
+			exit 111
+		}
+		rename MNR_L1 MNR_drug
+	}
+	cap drop MNR_L1
+	gen byte MNR_L1 = 0 if !mi(MNR_drug)
+	foreach r of global MNR_L1 {
+		replace MNR_L1 = `r' if MNR_drug == `r'
+	}
+	cap label values MNR_L1 MNR_label
+end
+
 cap program drop gen_txr
 program define gen_txr
 	// Build TXR_L1..L9 from the per-line regimen code lists in $TXR_L1..$TXR_L9 (declared by the
@@ -109,6 +137,13 @@ program define risk_equations
 	}
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
 	gen_txr
+
+	// MNR variable. Not every analysis declares a maintenance regimen list; without one every
+	// regimen falls to 'other' and L1_MNR is skipped below, which is right for the $line 2
+	// analyses where maintenance is never costed (docs/refractory.md 7.3).
+	global MNR_L1 ""
+	cap qui do "analyses/$analysis/outcomes/mnr_$coeffs.do"
+	gen_mnr
 
 	// Reset global
 	global Coeffs
@@ -457,6 +492,45 @@ program define risk_equations
 	mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_L1 if(Event1 == 11 & SCT == 0)
 	save_coefs MNT_NoASCT
 	mata: _matrix_list(bMNT_NoASCT, rbMNT_NoASCT, cbMNT_NoASCT)
+
+	***** MAINTENANCE REGIMEN AND DURATION (MNR / MND) *****
+	di "Maintenance regimen and duration"
+	// The maintenance analogue of TXR_L1 / TXD_L1, sat here because both condition on the MNT
+	// logit above: MNT decides WHETHER, L1_MNR WHICH, L1_MND HOW LONG. Both fit at the same
+	// Event1 == 11 row as MNT, and only among MNT == 1. Consumed only by cost_tx_mnt, so the
+	// out-of-sample validation fits them but never uses them. See docs/refractory.md 7.4.
+
+	// Which regimen. Year-windowed exactly as TXR_L1 is, so the regimen mix reflects the era the
+	// analysis is about; the list itself comes from outcomes/mnr_$coeffs.do. As with TXR, if the
+	// list leaves only 'other' (r(r) == 1) an empty oL1_MNR = 0 is stored instead.
+	qui tab MNR_L1 if(Event1 == 11 & MNT == 1)
+	if `r(r)' > 1 {
+		mi estimate: mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT ///
+			if(Event1 == 11 & MNT == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		save_coefs L1_MNR
+		mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
+	}
+	else {
+		mata: oL1_MNR = 0
+		global Coeffs $Coeffs oL1_MNR
+	}
+
+	// How long, as a SHARE of TFI_L1 - not a duration. TFI_L1 contains the duration, so a
+	// duration drawn independently overshoots the gap 42.5% of the time against an observed
+	// 0.7%, and every overshoot is truncated back to the whole gap, which is the defect being
+	// fixed. MNS_L1 is bounded by construction and cannot do that.
+	// The sample is MNT == 1 with MNS_L1 strictly inside (0,1): MNS_L1 == 0 is 'maintenance, but
+	// none of it inside the L1 gap' and MNS_L1 == 1 is maintenance running to the gap's end.
+	// betareg refuses both. Missing MNS_L1 (no observed L2 start, so no TFI_L1) is excluded by
+	// `MNS_L1 < 1`, since missing is larger than any number.
+	// NOT year-windowed, unlike L1_MNR: MNS_L1 needs an observed L2 start, so a recent window
+	// would empty the sample. Safe only because MNR_L1 is a covariate - the equation returns the
+	// share CONDITIONAL on regimen, so the fitted mix does not carry through (7.4).
+	// cmdok: betareg is not on mi estimate's supported-command list.
+	mi estimate, cmdok: betareg MNS_L1 Age Age2 Male i.ECOGcc i.RISS SCT i.MNR_L1 ///
+		if(Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1)
+	save_coefs L1_MND
+	mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"
