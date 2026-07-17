@@ -342,6 +342,6 @@ program define mata_setup
 		// vMNS is the SHARE of TFI_L1, not a duration - process_data.do multiplies it by the
 		// realised (death-curtailed) TFI_L1 at billing time. See docs/refractory.md 7.4.
 		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (drug code, 0 = other)
-		vMNS = J(Obs, 1, .)                       // L1 maintenance duration as a share of TFI_L1
+		vMNS = J(Obs, 1, .)                       // L1 maintenance duration as a share of the WINDOW
 	}
 end

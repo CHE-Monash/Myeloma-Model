@@ -97,17 +97,21 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
 		*mata: _matrix_list(vMNR)
 
-	di "L1E - MNT Duration (share of TFI_L1)"
-		qui do "core/outcomes/sim_mnd.do"
-		*mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
-		*mata: _matrix_list(vMNS)
-
 	di "L1E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi_l1.do"			
 		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
-	
+
+	// MND MUST follow sim_tfi_l1: it keys on the window W = TFI_L1 - TTM, and TFI_L1 (mTFI
+	// column 2) does not exist until it has run. It must also PRECEDE sim_mort, so the gap it
+	// reads is the drawn one rather than the death-curtailed one - process_data.do applies the
+	// curtailment at billing instead.
+	di "L1E - MNT Duration (share of the window)"
+		qui do "core/outcomes/sim_mnd.do"
+		*mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
+		*mata: _matrix_list(vMNS)
+
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)

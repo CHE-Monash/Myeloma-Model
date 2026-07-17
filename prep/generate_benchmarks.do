@@ -727,31 +727,45 @@ if _rc == 0 {
 }
 
 
-// MND benchmark - L1 maintenance duration as a SHARE of TFI_L1 (docs/refractory.md 7.4).
+// MND benchmark - L1 maintenance duration as a share of the GAP (docs/refractory.md 7).
 //
-// Scored by regimen x GAP BAND, not marginally, and the band is the whole point. L1_MND
-// imposes proportionality (the share is constant in gap length). That was tested: it holds
-// for the continuous regimens (b1 = 0.985, p = 0.88 against 1) and fails for the
-// fixed-duration ones (b1 = 0.461, p < 0.0001). A marginal share by regimen would hide it,
-// because the registry and the simulated cohort differ in BOTH regimen mix and gap
-// distribution, and the two effects cancel in a marginal. Bands are FIXED months, not
-// quantiles, so a cell means the same thing on both sides of the comparison.
+// Scored by regimen x GAP BAND, not marginally, and the band is the whole point. L1_MND carries
+// a regimen-specific slope precisely because the share is NOT flat in gap length: lenalidomide
+// runs to progression so its share of the gap RISES (0.564 -> 0.831 across bands), while
+// thalidomide runs ~10 months whatever the gap so its share FALLS (0.516 -> 0.227). A marginal
+// share by regimen hides both, because the registry and the simulated cohort differ in regimen
+// mix AND gap distribution and the two effects cancel - which is how the first simulated run
+// passed every existing target while over-billing bortezomib 3.6x in band 4. Bands are FIXED
+// months, not quantiles, so a cell means the same thing on both sides.
 //
-// Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 4 5"): lenalidomide,
-// bortezomib, thalidomide, everything else pooled to 0. If that list changes, this must change
-// with it - the simulated MNR_L1 only ever holds the levels the analysis declared.
+// SHARE OF THE GAP, deliberately, even though the MODEL parameterises the share of the WINDOW
+// (the gap less TTM). The window needs the two TTM constants, which are fitted in
+// risk_equations.do and are not available here; whereas MND_L1 / TFI_L1 is computable
+// identically on both sides - from the MI data here, from the simulated output in
+// validate_outcomes.do. A validation metric need not match the model's internal
+// parameterisation, and this one is better for not doing so: it scores the delivered duration
+// against the gap, which is what the fix is about.
 //
-// CAVEAT the registry can barely score the range the model actually runs in. MNS_L1 needs an
-// OBSERVED L2 start, and follow-up truncation means few complete gaps beyond ~40 months (fit
-// sample p75 = 40.3) - while simulated TFI_L1 sits at a median near 40. So band 4 is thin here
-// and is exactly where most simulated maintenance lives. Proportionality is testable INSIDE
-// the observed range; beyond it, it stays an assumption, not a validated fact.
+// Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 5"): lenalidomide,
+// thalidomide, everything else (mostly bortezomib) pooled to 0. If that list changes this must
+// change with it - the simulated MNR_L1 only ever holds the levels the analysis declared.
+//
+// CAVEAT the registry can barely score the range the model runs in. The share needs an OBSERVED
+// L2 start, and follow-up truncation means few complete gaps beyond ~40 months (fit sample
+// p75 = 40.3) - while simulated TFI_L1 sits at a median near 40, with 48.5% of maintenance in
+// band 4. Proportionality is testable INSIDE the observed range; beyond it it is an assumption.
+// See docs/refractory.md 5(5).
 preserve
-	keep if Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1 & !mi(MNS_L1)
+	keep if Event1 == 11 & MNT == 1 & !mi(MND_L1) & !mi(TFI_L1) & TFI_L1 > 0
 
-	// MRDR Long carries TFI in DAYS; the engine works in months, and the bands must mean the
-	// same thing in both. This conversion is the trap in this block.
+	// MRDR Long carries MND_L1 and TFI_L1 in DAYS, so the share is unitless and needs no
+	// conversion - but the BANDS are months, and that conversion is the trap in this block.
+	gen double bench_share  = MND_L1 / TFI_L1
 	gen double bench_tfi_mo = TFI_L1 / 30.4375
+
+	// Same sample as the L1_MND fit: a share strictly inside (0,1). 0 = maintenance but none of
+	// it inside the L1 gap; 1 = maintenance running to the gap's end.
+	keep if bench_share > 0 & bench_share < 1
 
 	gen byte bench_gband = .
 	replace bench_gband = 1 if bench_tfi_mo <  12
@@ -761,20 +775,19 @@ preserve
 
 	gen byte bench_mgrp = 0
 	replace bench_mgrp = 1 if MNR_L1 == 1
-	replace bench_mgrp = 4 if MNR_L1 == 4
 	replace bench_mgrp = 5 if MNR_L1 == 5
 
-	matrix MND_L1 = J(16, 5, .)
+	matrix MND_L1 = J(12, 5, .)
 	matrix colnames MND_L1 = "N" "Mean" "Median" "P25" "P75"
 
 	local mrow = 0
-	foreach g in 1 4 5 0 {
+	foreach g in 1 5 0 {
 		forvalues b = 1/4 {
 			local ++mrow
 			quietly count if bench_mgrp == `g' & bench_gband == `b'
 			matrix MND_L1[`mrow', 1] = r(N)
 			if r(N) > 0 {
-				quietly summarize MNS_L1 if bench_mgrp == `g' & bench_gband == `b', detail
+				quietly summarize bench_share if bench_mgrp == `g' & bench_gband == `b', detail
 				matrix MND_L1[`mrow', 2] = r(mean)
 				matrix MND_L1[`mrow', 3] = r(p50)
 				matrix MND_L1[`mrow', 4] = r(p25)
@@ -891,7 +904,7 @@ svmat MND_L1, names(col)
 gen MNR = .
 gen GapBand = .
 local mrow = 0
-foreach g in 1 4 5 0 {
+foreach g in 1 5 0 {
 	forvalues b = 1/4 {
 		local ++mrow
 		quietly replace MNR = `g' in `mrow'

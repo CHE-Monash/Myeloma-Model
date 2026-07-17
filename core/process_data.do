@@ -200,7 +200,30 @@ cap mata: mata drop mRN
 		// out of the engine, but regimen-specific pricing needs maintenance DPMQs that mostly
 		// do not exist: per the MSAG guideline only lenalidomide has a PBS maintenance
 		// listing. See docs/refractory.md 7.4 and the Costs todo in the programme note.
-		qui gen double MND_L1 = MNS_L1 * TFI_L1 if MNT == 1 & !mi(MNS_L1)
+		// The window, not the gap: MNS_L1 is a share of TFI_L1 LESS the time to maintenance
+		// starting (TTM), which is two constants keyed on transplant, fitted in
+		// risk_equations.do and carried in the coefficient file. Billing the gap would
+		// over-charge lenalidomide's ~4.8 months of post-transplant recovery as maintenance.
+		// TFI_L1 here is the REALISED gap - sim_mort has curtailed it at death by now - so a
+		// patient who dies mid-gap is billed only for the maintenance they lived to receive.
+		// That is why the multiply is here and not in sim_mnd.do.
+		// The TTM constants live in the coefficient file as MATA scalars (risk_equations.do puts
+		// them in $Coeffs; mata matuse restores them to Mata). process_data runs in STATA, so
+		// pull them across. Guarded: a coefficient set fitted before the offset existed has
+		// neither, and billing the whole gap silently would restore the very defect this fixes.
+		capture mata: st_numscalar("_mnd_ttm0", L1_MND_TTM0)
+		local _ttmok = (_rc == 0)
+		capture mata: st_numscalar("_mnd_ttm1", L1_MND_TTM1)
+		if _rc local _ttmok = 0
+		if `_ttmok' == 0 {
+			di as error "process_data: L1_MND_TTM0/1 not in the coefficient set - re-run prep/risk_equations.do."
+			di as error "  Refusing to bill maintenance rather than fall back to charging the whole gap."
+			scalar _mnd_ttm0 = .
+			scalar _mnd_ttm1 = .
+		}
+		qui gen double MND_W = TFI_L1 - cond(SCT_L1 == 1, scalar(_mnd_ttm1), scalar(_mnd_ttm0))
+		qui replace MND_W = 0 if MND_W < 0
+		qui gen double MND_L1 = MNS_L1 * MND_W if MNT == 1 & !mi(MNS_L1)
 		qui replace cost_tx_mnt = `cMNT' * (MND_L1 * 30.4375 / 28) if MNT == 1 & !mi(MND_L1)
 	}
 

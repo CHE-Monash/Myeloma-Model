@@ -611,17 +611,24 @@ if _rc == 0 {
 	n di ""
 	n di "MND_L1 maintenance share | regimen x gap band (median; tol +/- `tol_share')"
 	n di "grp  | band |    bench |      sim |  diff | status"
-	qui forvalues r = 1/16 {
+	// The share the target holds is MND_L1 / TFI_L1 - the share of the GAP, not the share of the
+	// window the model parameterises. Deliberate: see prep/generate_benchmarks.do. Both sides
+	// compute it the same way, so no TTM constant is needed to score.
+	capture drop mnd_share
+	qui gen double mnd_share = MND_L1 / TFI_L1 if MNT == 1 & !mi(MND_L1) & TFI_L1 > 0 & !mi(TFI_L1)
+
+	qui forvalues r = 1/12 {
 		local g     = MND_L1_bench[`r', 1]
 		local b     = MND_L1_bench[`r', 2]
 		local bn    = MND_L1_bench[`r', 3]
 		local bench = MND_L1_bench[`r', 5]
 
-		// Rebuild the same cell on the simulated side
+		// Rebuild the same cell on the simulated side. Groups follow $MNR_L1 "1 5": lenalidomide,
+		// thalidomide, everything else (mostly bortezomib) pooled to 0.
 		capture drop mnd_cell
 		qui gen byte mnd_cell = 0
-		if `g' == 0 qui replace mnd_cell = 1 if MNT == 1 & !inlist(MNR_L1, 1, 4, 5) & !mi(MNS_L1)
-		else        qui replace mnd_cell = 1 if MNT == 1 & MNR_L1 == `g' & !mi(MNS_L1)
+		if `g' == 0 qui replace mnd_cell = 1 if !mi(mnd_share) & !inlist(MNR_L1, 1, 5)
+		else        qui replace mnd_cell = 1 if !mi(mnd_share) & MNR_L1 == `g'
 		if `b' == 1 qui replace mnd_cell = 0 if !(TFI_L1 <  12)
 		if `b' == 2 qui replace mnd_cell = 0 if !(TFI_L1 >= 12 & TFI_L1 < 24)
 		if `b' == 3 qui replace mnd_cell = 0 if !(TFI_L1 >= 24 & TFI_L1 < 42)
@@ -630,7 +637,7 @@ if _rc == 0 {
 		qui count if mnd_cell == 1
 		local simn = r(N)
 		if `bn' >= 20 & `simn' > 0 & !missing(`bench') {
-			qui summarize MNS_L1 if mnd_cell == 1, detail
+			qui summarize mnd_share if mnd_cell == 1, detail
 			local sim = r(p50)
 			local diff = `sim' - `bench'
 			if abs(`diff') <= `tol_share' {
@@ -648,7 +655,7 @@ if _rc == 0 {
 			n di %4.0f `g' " | " %4.0f `b' " | " %8.3f `bench' " |        . |     . | skipped (target N = " %2.0f `bn' ")"
 		}
 	}
-	capture drop mnd_cell
+	capture drop mnd_cell mnd_share
 }
 
 // TXD_L2 / L3 / L4  (no ASCT split at later lines); optional -- only if the target was generated

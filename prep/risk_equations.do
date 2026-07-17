@@ -515,20 +515,66 @@ program define risk_equations
 		global Coeffs $Coeffs oL1_MNR
 	}
 
-	// How long, as a SHARE of TFI_L1 - not a duration. TFI_L1 contains the duration, so a
-	// duration drawn independently overshoots the gap 42.5% of the time against an observed
-	// 0.7%, and every overshoot is truncated back to the whole gap, which is the defect being
-	// fixed. MNS_L1 is bounded by construction and cannot do that.
-	// The sample is MNT == 1 with MNS_L1 strictly inside (0,1): MNS_L1 == 0 is 'maintenance, but
-	// none of it inside the L1 gap' and MNS_L1 == 1 is maintenance running to the gap's end.
-	// betareg refuses both. Missing MNS_L1 (no observed L2 start, so no TFI_L1) is excluded by
-	// `MNS_L1 < 1`, since missing is larger than any number.
-	// NOT year-windowed, unlike L1_MNR: MNS_L1 needs an observed L2 start, so a recent window
+	// TTM: L1 end -> maintenance start, as TWO CONSTANTS keyed on transplant. Fitted here rather
+	// than hard-coded so a new cut re-derives them, and stored in $Coeffs the same way
+	// L1_TXD_ASCT_C1/C2 are (above). TTM is NOT modelled as an event - 7.5's parity argument
+	// needs it not to be - but a constant is not an event.
+	//
+	// TWO constants, not one. TTM is a function of transplant and essentially nothing else:
+	// ~0.5 months without ASCT (maintenance follows induction directly) against ~4.8 with it
+	// (transplant, then recover, then start). A single pooled constant is ~9x too big for the
+	// no-ASCT arm: it drives windows negative, pushes shares past 1 and betareg refuses them.
+	//
+	// UNITS. MRDR Long carries MND_L1 / MNT_TTM_L1 / TFI_L1 in DAYS; the engine works in MONTHS.
+	// Everything below is converted first, so the stored scalars are MONTHS and sim_mnd.do can
+	// use them directly against mTFI. This is the trap in this block.
+	// NOTE this is the OPPOSITE convention to the neighbouring L1_TXD_ASCT_C1/C2, which are
+	// stored in DAYS and divided by 30.4375 at every use in sim_txd_l1.do. Converting once here
+	// is deliberate; do not assume the two scalar pairs share a unit.
+	qui gen double MND_ttm_mo = MNT_TTM_L1 / 30.4375
+	qui gen double MND_mnd_mo = MND_L1 / 30.4375
+	qui gen double MND_tfi_mo = TFI_L1 / 30.4375
+
+	qui summarize MND_ttm_mo if(Event1 == 11 & MNT == 1 & SCT == 0), detail
+	scalar L1_MND_TTM0 = r(p50)
+	mata: L1_MND_TTM0 = st_numscalar("L1_MND_TTM0")
+
+	qui summarize MND_ttm_mo if(Event1 == 11 & MNT == 1 & SCT == 1), detail
+	scalar L1_MND_TTM1 = r(p50)
+	mata: L1_MND_TTM1 = st_numscalar("L1_MND_TTM1")
+
+	global Coeffs $Coeffs L1_MND_TTM0 L1_MND_TTM1
+	di "  TTM constants (months): no ASCT = " L1_MND_TTM0 "   ASCT = " L1_MND_TTM1
+
+	// The WINDOW maintenance can occupy, and the share of it. Formed here, not in the
+	// extraction, because the constants above are estimated - the extraction cannot know them.
+	qui gen double MND_W    = MND_tfi_mo - cond(SCT == 1, L1_MND_TTM1, L1_MND_TTM0)
+	qui gen double MND_lnW  = ln(MND_W) if MND_W > 0
+	qui gen double MNS_L1   = MND_mnd_mo / MND_W if MND_W > 0
+
+	// How long, as a SHARE OF THE WINDOW - not a duration, and not a share of the gap.
+	// Not a duration: TFI_L1 contains the duration, so a duration drawn independently overshoots
+	// the gap 42.5% of the time against an observed 0.7%, and every overshoot is truncated back
+	// to the whole gap, which is the defect being fixed. A share is bounded and cannot do that.
+	// Not the gap: share-of-gap RISES with gap length for lenalidomide (0.564 -> 0.831) purely as
+	// arithmetic - maintenance runs to progression, so the share is 1 - TTM/gap. Share of the
+	// WINDOW is flat (0.883 -> 0.906). The offset also makes the maintenance END date computable,
+	// which is what the definitional refractory rule keys on (4.4) - the real reason it is here.
+	// The regimen SLOPE is required: lenalidomide is proportional to the window (b1 = 0.878) but
+	// the fixed-duration regimens are not (bortezomib 0.478, thalidomide 0.557), so a single
+	// share is wrong in both directions at once. Offset and slope are a package - the offset
+	// alone scores WORSE than neither (+9.5% against +2.3%).
+	// SCT stays a covariate: it is dead for lenalidomide once the offset is in (+0.017, p = 0.888
+	// - the transplant effect WAS the TTM effect) but still real for bortezomib.
+	// Sample: MNT == 1 with the share strictly inside (0,1). 0 = maintenance but none inside the
+	// gap; 1 = maintenance running to the window's end. betareg refuses both. Missing (no observed
+	// L2 start, so no TFI_L1) is excluded by `< 1`, since missing exceeds any number.
+	// NOT year-windowed, unlike L1_MNR: the share needs an observed L2 start, so a recent window
 	// would empty the sample. Safe only because MNR_L1 is a covariate - the equation returns the
-	// share CONDITIONAL on regimen, so the fitted mix does not carry through (7.4).
+	// share CONDITIONAL on regimen, so the fitted mix does not carry through (7.4, and 5(5)).
 	// cmdok: betareg is not on mi estimate's supported-command list.
-	mi estimate, cmdok: betareg MNS_L1 Age Age2 Male i.ECOGcc i.RISS SCT i.MNR_L1 ///
-		if(Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1)
+	mi estimate, cmdok: betareg MNS_L1 Age Age2 Male i.ECOGcc i.RISS SCT c.MND_lnW##i.MNR_L1 ///
+		if(Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1 & MND_W > 0)
 	save_coefs L1_MND
 	mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
 
