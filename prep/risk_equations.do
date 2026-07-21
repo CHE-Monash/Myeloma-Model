@@ -186,37 +186,37 @@ program define risk_equations
 
 	// OS_L2S: L2S -> L2E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 20) exit(Event1 == 21) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L2S
 	mata: _matrix_list(bOS_L2S, rbOS_L2S, cbOS_L2S)
 
 	// OS_L2E: L2E -> L3S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 21) exit(Event1 == 30) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L2E
 	mata: _matrix_list(bOS_L2E, rbOS_L2E, cbOS_L2E)
 
 	// OS_L3S: L3S -> L3E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 30) exit(Event1 == 31) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L3S
 	mata: _matrix_list(bOS_L3S, rbOS_L3S, cbOS_L3S)
 
 	// OS_L3E: L3E -> L4S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 31) exit(Event1 == 40) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L3E
 	mata: _matrix_list(bOS_L3E, rbOS_L3E, cbOS_L3E)
 
 	// OS_L4S: L4S -> L4E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 40) exit(Event1 == 41) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L4S
 	mata: _matrix_list(bOS_L4S, rbOS_L4S, cbOS_L4S)
 
 	// OS_L4E: L4E -> L5S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 41) exit(Event1 == 50) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_Tx_in, d($dOS)
 	save_coefs OS_L4E
 	mata: _matrix_list(bOS_L4E, rbOS_L4E, cbOS_L4E)
 
@@ -256,9 +256,11 @@ program define risk_equations
 	***** TREATMENT REGIMEN (TXR) *****
 	di "Treatment Regimen"
 	// Regimen choice is availability-driven; L1 carries Age Age2 SCT (transplant gates some
-	// regimens), L2+ carry Age only - Male/ECOG/RISS/prior-BCR carried no signal (see
-	// scratch/txr_predictor_check.do). Engine design mPat in core/outcomes/sim_txr.do must match.
-	// If a line has only 'other' (r(r) == 1) an empty o<L>_TXR = 0 is stored instead.
+	// regimens), L2+ carry Age plus LenRefr_Tx_in - Male/ECOG/RISS/prior-BCR carried no signal (see
+	// scratch/txr_predictor_check.do), but len-refractory status drives L2/L3 regimen choice almost
+	// deterministically (docs/refractory.md 3.4), which Age alone cannot reproduce. L1 gets no flag:
+	// LenRefr_Tx_in is 0 at L1 by construction. Engine design mPat in core/outcomes/sim_txr.do must
+	// match. If a line has only 'other' (r(r) == 1) an empty o<L>_TXR = 0 is stored instead.
 
 	// L1
 	qui tab TXR_L1 // Check if modelling specific regimens
@@ -275,7 +277,7 @@ program define risk_equations
 	// L2
 	qui tab TXR_L2 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L2 Age Age2 if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L2 Age Age2 LenRefr_Tx_in if(Event0 == 20 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L2_TXR
 		mata: _matrix_list(bL2_TXR, rbL2_TXR, cbL2_TXR)
 	}
@@ -287,7 +289,7 @@ program define risk_equations
 	// L3
 	qui tab TXR_L3 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L3 Age Age2 if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L3 Age Age2 LenRefr_Tx_in if(Event0 == 30 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L3_TXR
 		mata: _matrix_list(bL3_TXR, rbL3_TXR, cbL3_TXR)
 	}
@@ -299,7 +301,7 @@ program define risk_equations
 	// L4
 	qui tab TXR_L4 // Check if modelling specific regimens
 	if `r(r)' > 1 {
-		mi estimate: mlogit TXR_L4 Age Age2 if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+		mi estimate: mlogit TXR_L4 Age Age2 LenRefr_Tx_in if(Event0 == 40 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
 		save_coefs L4_TXR
 		mata: _matrix_list(bL4_TXR, rbL4_TXR, cbL4_TXR)
 	}
@@ -366,6 +368,49 @@ program define risk_equations
 	save_coefs L6_BCR
 	mata: _matrix_list(bL6_BCR, rbL6_BCR, cbL6_BCR)
 */
+
+	***** LENALIDOMIDE-REFRACTORY, TREATMENT LINES (LENREFR_TX) *****
+	di "Lenalidomide-refractory (treatment lines)"
+	// LenRefr_Tx is a LATCHED state: once refractory to a lenalidomide treatment line the patient
+	// stays refractory (cumulative-any, and downstream TXR/OS read only that latched flag). So the
+	// only event to model is the 0 -> 1 FLIP, which can only happen to a NOT-YET-REFRACTORY patient.
+	// The engine (sim_lenrefr.do) therefore draws only where LenRefr_Tx_in == 0:
+	//     BCR in {5,6}  -> refractory        (definitional, no equation)
+	//     BCR in {1-4}  -> Bernoulli(this logit)
+	// and leaves already-refractory patients latched at 1. This logit is fitted on exactly that
+	// population - not-yet-refractory (LenRefr_Tx_in == 0), responding (BCR 1-4), len line-start
+	// rows - so prior state is NOT a covariate (it is 0 by construction here). Fitting it on the
+	// full sample with LenRefr_Tx_in as a covariate, as an earlier draft did, mismatches the engine's
+	// application population (the 4.4 "test with what the engine will have" rule).
+	//
+	// POOLED across lines with the line collapsed to L1 / L2 / L3+ (LENREFR_line): docs/refractory.md
+	// 3.5 settles that shape - full line resolution and the L4+ split each add nothing (LR p > 0.95),
+	// and line is the dominant predictor. Carries the pre-specified baseline set REGARDLESS of
+	// significance (selecting on in-sample p-values does not replicate out of sample; the OOS
+	// validation is the arbiter), plus i.BCR.
+	//
+	// FIT vs ENGINE gate: the fit conditions on Lenalidomide == 1 (the true drug binary, the clean
+	// residual-arm definition). The engine has no drug binary, so sim_lenrefr applies this where the
+	// DRAWN regimen is a lenalidomide code (analysis-declared, 'other' treated as non-len). That
+	// asymmetry is deliberate and noted in docs/refractory.md 3.5 / 4.
+	cap drop LENREFR_line
+	gen byte LENREFR_line = min(Line, 3)
+	// esampvaryok: the residual arm (BCR 1-4) is defined on imputed BCR, so its membership varies
+	// across imputations - legitimate, and pooled the same way the ASCT equations are (docs note).
+	mi estimate, esampvaryok: logit LineRefr Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT ///
+		i.LENREFR_line i.BCR ///
+		if(CStart == 1 & inlist(Event0, 10, 20, 30, 40, 50, 60, 70, 80, 90) & Lenalidomide == 1 & inlist(BCR, 1, 2, 3, 4) & LenRefr_Tx_in == 0)
+	save_coefs LENREFR_TX
+	mata: _matrix_list(bLENREFR_TX, rbLENREFR_TX, cbLENREFR_TX)
+
+	// Store the len-regimen codes alongside the coefficients so sim_lenrefr.do knows which drawn
+	// regimens count as lenalidomide (the engine analogue of the fit's Lenalidomide == 1 gate).
+	// Declared per analysis in outcomes/txr_$coeffs.do (default "7 31"); an analysis that declares
+	// none saves nothing here, and sim_lenrefr.do becomes a no-op via lenrefr_model_exists().
+	if ("$LENREFR_regimens" != "") {
+		mata: LENREFR_regimens = strtoreal(tokens(st_global("LENREFR_regimens")))
+		global Coeffs $Coeffs LENREFR_regimens
+	}
 
 	***** TREATMENT DURATION (TXD) *****
 	di "Treatment Duration"
@@ -500,83 +545,74 @@ program define risk_equations
 	// Event1 == 11 row as MNT, and only among MNT == 1. Consumed only by cost_tx_mnt, so the
 	// out-of-sample validation fits them but never uses them. See docs/refractory.md 7.4.
 
-	// Which regimen. Year-windowed exactly as TXR_L1 is, so the regimen mix reflects the era the
-	// analysis is about; the list itself comes from outcomes/mnr_$coeffs.do. As with TXR, if the
-	// list leaves only 'other' (r(r) == 1) an empty oL1_MNR = 0 is stored instead.
-	qui tab MNR_L1 if(Event1 == 11 & MNT == 1)
+	// Which regimen. Lenalidomide and thalidomide only (docs/refractory.md 7.4) - lenalidomide
+	// is the base, thalidomide the alternative, so this is effectively a logit and the engine
+	// never produces an 'other' maintenance regimen. Year-windowed exactly as TXR_L1 is, so the
+	// mix reflects the era; the list comes from outcomes/mnr_$coeffs.do ("1 5"). If a window
+	// leaves only one regimen (r(r) == 1, e.g. thalidomide empty in a modern window) then
+	// oL1_MNR = 1 is stored and sim_mnr assigns every maintenance patient lenalidomide.
+	qui tab MNR_L1 if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5))
 	if `r(r)' > 1 {
 		mi estimate: mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT ///
-			if(Event1 == 11 & MNT == 1 & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(0)
+			if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5) & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(1)
 		save_coefs L1_MNR
 		mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
 	}
 	else {
-		mata: oL1_MNR = 0
+		mata: oL1_MNR = 1
 		global Coeffs $Coeffs oL1_MNR
 	}
 
-	// TTM: L1 end -> maintenance start, as TWO CONSTANTS keyed on transplant. Fitted here rather
-	// than hard-coded so a new cut re-derives them, and stored in $Coeffs the same way
-	// L1_TXD_ASCT_C1/C2 are (above). TTM is NOT modelled as an event - 7.5's parity argument
-	// needs it not to be - but a constant is not an event.
+	// How long: maintenance DURATION via parametric survival on the maintenance EVENTS in the
+	// skeleton, exactly as L1_TFI is fitted (docs/refractory.md 4.4). The extraction keeps the L1
+	// maintenance start (110) and end (111) events, so this is a normal stset:
+	//     origin(Event1 == 110)          maintenance start
+	//     failure(Event1 == 20 111)      maintenance end - the recorded end (111), or L2 start (20)
 	//
-	// TWO constants, not one. TTM is a function of transplant and essentially nothing else:
-	// ~0.5 months without ASCT (maintenance follows induction directly) against ~4.8 with it
-	// (transplant, then recover, then start). A single pooled constant is ~9x too big for the
-	// no-ASCT arm: it drives windows negative, pushes shares past 1 and betareg refuses them.
+	// GAP-DEPENDENT via ln(gap). Lenalidomide maintenance runs to progression, so its duration
+	// scales with the gap; thalidomide is a fixed ~10-month course and does not. Without a gap term
+	// the survival draw is gap-INDEPENDENT and the simulated share falls with gap length while the
+	// registry share rises - so ln(gap) enters with a REGIMEN INTERACTION (MND_lntfi_thal), giving
+	// lenalidomide a slope near 1 and thalidomide a slope near 0. In MONTHS, to match the engine's
+	// mTFI (sim_mnd.do reads ln(drawn TFI_L1)).
 	//
-	// UNITS. MRDR Long carries MND_L1 / MNT_TTM_L1 / TFI_L1 in DAYS; the engine works in MONTHS.
-	// Everything below is converted first, so the stored scalars are MONTHS and sim_mnd.do can
-	// use them directly against mTFI. This is the trap in this block.
-	// NOTE this is the OPPOSITE convention to the neighbouring L1_TXD_ASCT_C1/C2, which are
-	// stored in DAYS and divided by 30.4375 at every use in sim_txd_l1.do. Converting once here
-	// is deliberate; do not assume the two scalar pairs share a unit.
-	qui gen double MND_ttm_mo = MNT_TTM_L1 / 30.4375
-	qui gen double MND_mnd_mo = MND_L1 / 30.4375
-	qui gen double MND_tfi_mo = TFI_L1 / 30.4375
+	// COMPLETE GAPS. ln(gap) uses TFI_L1 (L1E to L2), which is missing for patients still on
+	// maintenance at the cut, so they drop from this fit. That is the price of a gap covariate that
+	// is NOT derived from the censoring point: a censor-filled gap was tried and pinned the share at
+	// 1.0, because for a censored patient the filled gap IS their own censoring time, and the
+	// survival likelihood then inflates the predicted duration above the gap (docs/refractory.md 4.4).
+	// The engine still uses the drawn (complete) gap, so the relationship transfers.
+	//
+	// SPLIT BY TRANSPLANT, exactly as L1_TFI is: the ASCT arm keys on the post-transplant response
+	// (i.BCR_SCT), the no-ASCT arm on the post-induction response (i.BCR_L1). Otherwise the
+	// covariates match. Lenalidomide and thalidomide only (inlist(MNR_L1, 1, 5)). Log-normal.
+	//
+	// The engine design matrices (sim_mnd.do) carry every factor level, so a level EMPTY in an arm
+	// (e.g. no-ASCT SD/PD patients rarely get maintenance) drops from e(b) and trips the design
+	// guard - collapse that level if so.
+	qui gen double MND_lntfi      = ln(TFI_L1 / 30.4375)     // L1E-to-L2 gap, months; missing (dropped) where no L2
+	qui gen double MND_lntfi_thal = MND_lntfi * (MNR_L1 == 5)
 
-	qui summarize MND_ttm_mo if(Event1 == 11 & MNT == 1 & SCT == 0), detail
-	scalar L1_MND_TTM0 = r(p50)
-	mata: L1_MND_TTM0 = st_numscalar("L1_MND_TTM0")
+	// ASCT
+	mi stset Date1 if(SCT == 1 & BCR_SCT != 0 & MNT == 1 & inlist(MNR_L1, 1, 5)), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max L1_MND_ASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_SCT MND_lntfi MND_lntfi_thal, d($dTFI)
+	save_coefs L1_MND_ASCT
+	mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
 
-	qui summarize MND_ttm_mo if(Event1 == 11 & MNT == 1 & SCT == 1), detail
-	scalar L1_MND_TTM1 = r(p50)
-	mata: L1_MND_TTM1 = st_numscalar("L1_MND_TTM1")
-
-	global Coeffs $Coeffs L1_MND_TTM0 L1_MND_TTM1
-	di "  TTM constants (months): no ASCT = " L1_MND_TTM0 "   ASCT = " L1_MND_TTM1
-
-	// The WINDOW maintenance can occupy, and the share of it. Formed here, not in the
-	// extraction, because the constants above are estimated - the extraction cannot know them.
-	qui gen double MND_W    = MND_tfi_mo - cond(SCT == 1, L1_MND_TTM1, L1_MND_TTM0)
-	qui gen double MND_lnW  = ln(MND_W) if MND_W > 0
-	qui gen double MNS_L1   = MND_mnd_mo / MND_W if MND_W > 0
-
-	// How long, as a SHARE OF THE WINDOW - not a duration, and not a share of the gap.
-	// Not a duration: TFI_L1 contains the duration, so a duration drawn independently overshoots
-	// the gap 42.5% of the time against an observed 0.7%, and every overshoot is truncated back
-	// to the whole gap, which is the defect being fixed. A share is bounded and cannot do that.
-	// Not the gap: share-of-gap RISES with gap length for lenalidomide (0.564 -> 0.831) purely as
-	// arithmetic - maintenance runs to progression, so the share is 1 - TTM/gap. Share of the
-	// WINDOW is flat (0.883 -> 0.906). The offset also makes the maintenance END date computable,
-	// which is what the definitional refractory rule keys on (4.4) - the real reason it is here.
-	// The regimen SLOPE is required: lenalidomide is proportional to the window (b1 = 0.878) but
-	// the fixed-duration regimens are not (bortezomib 0.478, thalidomide 0.557), so a single
-	// share is wrong in both directions at once. Offset and slope are a package - the offset
-	// alone scores WORSE than neither (+9.5% against +2.3%).
-	// SCT stays a covariate: it is dead for lenalidomide once the offset is in (+0.017, p = 0.888
-	// - the transplant effect WAS the TTM effect) but still real for bortezomib.
-	// Sample: MNT == 1 with the share strictly inside (0,1). 0 = maintenance but none inside the
-	// gap; 1 = maintenance running to the window's end. betareg refuses both. Missing (no observed
-	// L2 start, so no TFI_L1) is excluded by `< 1`, since missing exceeds any number.
-	// NOT year-windowed, unlike L1_MNR: the share needs an observed L2 start, so a recent window
-	// would empty the sample. Safe only because MNR_L1 is a covariate - the equation returns the
-	// share CONDITIONAL on regimen, so the fitted mix does not carry through (7.4, and 5(5)).
-	// cmdok: betareg is not on mi estimate's supported-command list.
-	mi estimate, cmdok: betareg MNS_L1 Age Age2 Male i.ECOGcc i.RISS SCT c.MND_lnW##i.MNR_L1 ///
-		if(Event1 == 11 & MNT == 1 & MNS_L1 > 0 & MNS_L1 < 1 & MND_W > 0)
-	save_coefs L1_MND
-	mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
+	// No ASCT. Restrict to RESPONDERS (BCR_L1 in 1-4 = CR/VGPR/PR/MR): maintenance is a
+	// post-response therapy, so SD/PD (5/6) do not get it by definition. The handful in the data
+	// are noise, and on the small no-ASCT sample (smaller still on the OOS train fold) an SD or PD
+	// cell empties and drops from i.BCR_L1, which trips the engine design guard. Dropping them
+	// keeps i.BCR_L1 at a full 4 levels. sim_mnd.do excludes the same patients (docs 4.4). The
+	// ASCT arm already needs no filter - BCR_SCT is collapsed to 1-4 at transplant.
+	mi stset Date1 if(SCT == 0 & MNT == 1 & inlist(MNR_L1, 1, 5) & inlist(BCR_L1, 1, 2, 3, 4)), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max L1_MND_NoASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_L1 MND_lntfi MND_lntfi_thal, d($dTFI)
+	save_coefs L1_MND_NoASCT
+	mata: _matrix_list(bL1_MND_NoASCT, rbL1_MND_NoASCT, cbL1_MND_NoASCT)
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"

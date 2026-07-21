@@ -14,6 +14,10 @@ set more off
 if "$repo_path" != "" cd "$repo_path"
 capture run "config.do"
 
+* Log so the run can be reviewed after the fact (scratch/ is git-ignored). Mirrors validate_insample.do.
+capture log close _all
+log using "scratch/validate_outsample.log", replace text
+
 * Point the shared validator at the out-of-sample targets + the out-of-sample simulated dataset
 global val_targets "analyses/default/targets"
 global val_simfile "analyses/default/simulated/outsample/all_0_test.dta"
@@ -23,6 +27,8 @@ do "analyses/default/validate_outcomes.do"
 * Reset the globals after the run
 global val_targets ""
 global val_simfile ""
+
+capture log close _all
 
 * ----------------------------------------------------------------------------------------------
 * PREDICTION-INTERVAL CALIBRATION (the headline out-of-sample metric) is in bootstrap_validation.do.

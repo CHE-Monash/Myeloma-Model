@@ -1,124 +1,124 @@
 **********
-* Monash Myeloma Model - Sim MND
+* Monash Myeloma Model - Sim MND (L1 maintenance duration)
 *
-* Purpose: Draw the L1 maintenance duration among patients receiving maintenance (MNT == 1),
-*          as a SHARE OF THE WINDOW the maintenance can occupy. The maintenance analogue of
-*          sim_txd_l1.do.
+* Purpose: Draw L1 maintenance DURATION by parametric survival, among patients on maintenance
+*          (MNT == 1). Continuous time in months. The maintenance analogue of sim_txd_l1.do, and
+*          split by transplant exactly as sim_tfi_l1.do is.
 *
-* Notes:   THIS DRAWS A SHARE OF THE WINDOW, NOT A DURATION AND NOT A SHARE OF THE GAP.
+* Notes:   SIMPLE-FIRST design (docs/refractory.md 4.4). A survival fit on the duration uses every
+*          maintenance patient - those who came off (failure) and those still on maintenance at
+*          the data cut (censored) - so it sidesteps the complete-gap selection that a share of
+*          TFI could not. process_data.do CAPS the drawn duration at the realised TFI_L1: a draw
+*          that overshoots the gap means the patient stayed on maintenance until relapse, and
+*          capping at the realised gap also inherits sim_mort's death curtailment. The cap is
+*          therefore applied at billing time, not here.
 *
-*          W = TFI_L1 - TTM(sct)  is the window: the gap less the time from L1 ending to
-*          maintenance starting. TTM is two constants keyed on transplant (L1_MND_TTM0 /
-*          L1_MND_TTM1, fitted in prep/risk_equations.do and carried in the coefficient file),
-*          because TTM is a function of transplant and essentially nothing else - ~0.5 months
-*          without ASCT against ~4.8 with it.
+*          Two arms, keyed on transplant like L1_TFI: the ASCT arm carries i.BCR_SCT, the no-ASCT
+*          arm i.BCR_L1. Lenalidomide and thalidomide only; sim_mnr never draws 'other'.
 *
-*          Not a duration: TFI_L1 CONTAINS the duration, so a duration drawn independently
-*          overshoots the gap 42.5% of the time against an observed 0.7%, and every overshoot
-*          is truncated back to the whole gap - which is the defect being fixed.
-*          Not a share of the gap: that rises with gap length for lenalidomide (0.564 -> 0.831)
-*          purely as arithmetic, since maintenance runs to progression and the share is
-*          1 - TTM/gap. Share of the WINDOW is flat (0.883 -> 0.906).
-*          See docs/refractory.md 7.4.
-*
-* ORDER:   this runs AFTER sim_tfi_l1.do (it needs mTFI[., 2]) and BEFORE sim_mort.do. The
-*          gap it reads is therefore the DRAWN one, not yet curtailed at death - deliberate,
-*          because the share is a property of the patient's intended gap. core/process_data.do
-*          forms MND_L1 = MNS_L1 * (realised TFI_L1 - TTM), so a patient who dies mid-gap has
-*          their maintenance curtailed proportionally rather than being billed for a gap they
-*          never lived.
-*
-*          Consumed by cost_tx_mnt. The TTM offset is what makes the maintenance END date
-*          computable rather than just its length. It stands on the costing evidence (form C beat
-*          billing a share of the whole gap), and the end date is also what any future
-*          maintenance refractory rule has to key on (docs/refractory.md 4.4).
+* ORDER:   AFTER sim_mnr.do (needs vMNR), sim_bcr_asct.do (needs mBCR) AND sim_tfi_l1.do (needs the
+*          drawn gap mTFI[.,2] for the ln(TFI) covariate). process_data.do also caps at the realised
+*          TFI_L1 later.
 *
 *          Must match the fit in prep/risk_equations.do:
-*              betareg MNS_L1 Age Age2 Male i.ECOGcc i.RISS SCT c.MND_lnW##i.MNR_L1
-*          betareg returns TWO equations, mean (logit link) then scale (log link). save_coefs
-*          stores both, so the FINAL column of the coefficient vector is ln(phi) - the same
-*          "aux is the last column" idiom the parametric survival models use.
+*              streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_SCT|i.BCR_L1 MND_lntfi MND_lntfi_thal
+*          e(b) order: Age Age2 Male, ECOG(0,1,2), RISS(1,2,3), MNR(1,5), BCR(...), ln(TFI),
+*          ln(TFI)xthal, _cons, aux. ln(TFI) makes lenalidomide duration scale with the gap;
+*          the base-level dummies are 0-coef in e(b), as sim_tfi_l1.do does.
 **********
 
 mata {
-	if (mnd_model_exists()) {
+	vCoefA = get_mnd_coef_asct()
+	vCoefN = get_mnd_coef_noasct()
 
-		vCoef = get_mnd_coef()
+	if (cols(vCoefA) > 0 | cols(vCoefN) > 0) {
 
-		// Filter for alive, eligible AND receiving maintenance. Same population sim_mnr drew for.
+		// Alive, eligible AND receiving maintenance. Same population sim_mnr drew for.
 		idx = selectindex((mMOR[., OMC-1] :== 0) :& (mState[., 1] :<= OMC) :& (vMNT :== 1))
 		if (rows(idx) > 0) {
 
-			// The window. TFI_L1 is mTFI column 2, in months, drawn by sim_tfi_l1 just above.
-			// TTM is keyed on transplant, so no-ASCT patients get ~0.5 months and ASCT ~4.8.
-			vTTM = J(rows(idx), 1, L1_MND_TTM0)
-			vTTM = vTTM :+ (vSCT_L1[idx] :* (L1_MND_TTM1 - L1_MND_TTM0))
-			vW = mTFI[idx, 2] :- vTTM
+			// ---- ASCT arm: i.BCR_SCT (mBCR column 10, levels 1-4) ----
+			if (cols(vCoefA) > 0) {
+				iA = idx[selectindex(vSCT_L1[idx] :== 1)]
+				if (rows(iA) > 0) {
+					vB1 = (mBCR[iA, 10] :== 1)
+					vB2 = (mBCR[iA, 10] :== 2)
+					vB3 = (mBCR[iA, 10] :== 3)
+					vB4 = (mBCR[iA, 10] :== 4)
 
-			// A constant TTM can exceed a short gap, which would give a non-positive window and
-			// an undefined ln(). Floor it: such a patient had no room for maintenance, and
-			// process_data.do floors the billed duration at 0 for the same reason.
-			vW = rowmax((vW, J(rows(idx), 1, 0.01)))
-			vLnW = ln(vW)
+					// ln(drawn TFI_L1, months) + thalidomide interaction: lenalidomide duration
+					// scales with the gap, thalidomide does not (see risk_equations.do). Floor the
+					// gap so a draw that rounded to 0 does not give ln(0).
+					vLnTa = ln(rowmax((mTFI[iA, 2], J(rows(iA), 1, 0.01))))
 
-			// Maintenance regimen dummies, in the SAME order gen_mnr / betareg saw them
-			// (ascending code, base level included - i.MNR_L1 carries 0b.MNR_L1).
-			vMNRout = get_mnr_outcome()
-			nRegimens = cols(vMNRout)
-			mMNRdum = J(rows(idx), 0, .)
-			for (r = 1; r <= nRegimens; r++) {
-				mMNRdum = mMNRdum, (vMNR[idx] :== vMNRout[1, r])
+					mPatA = (vAge[iA], vAge2[iA], vMale[iA],
+							 vECOG0[iA], vECOG1[iA], vECOG2[iA],
+							 vRISS1[iA], vRISS2[iA], vRISS3[iA],
+							 (vMNR[iA] :== 1), (vMNR[iA] :== 5),
+							 vB1, vB2, vB3, vB4,
+							 vLnTa, (vLnTa :* (vMNR[iA] :== 5)),
+							 vCons[iA])
+					nPredA = cols(mPatA)
+
+					if (cols(vCoefA) != nPredA + 1) {
+						errprintf("sim_mnd (ASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_ASCT has %g. A BCR/regimen level was likely empty in the fit.\n",
+							nPredA, nPredA + 1, cols(vCoefA))
+						exit(459)
+					}
+
+					vBetaA = vCoefA[1, 1..nPredA]'
+					auxA   = vCoefA[1, cols(vCoefA)]
+					vXBa   = mPatA * vBetaA
+					vRNa   = rnDraw(iA, rn_mnd())
+					vOCa   = calcSurvTime(vXBa, vRNa, fbL1_MND_ASCT, auxA)
+					vMND[iA] = rowmin((vOCa, J(rows(iA), 1, maxL1_MND_ASCT)))
+				}
 			}
 
-			// Assemble in the fit's order: Age Age2 Male i.ECOGcc i.RISS SCT lnW i.MNR_L1
-			// i.MNR_L1#c.lnW _cons. ECOG/RISS dummies include the base level, as in sim_mnt.do.
-			mPat = (vAge[idx], vAge2[idx], vMale[idx],
-					vECOG0[idx], vECOG1[idx], vECOG2[idx],
-					vRISS1[idx], vRISS2[idx], vRISS3[idx],
-					vSCT_L1[idx], vLnW)
+			// ---- No-ASCT arm: i.BCR_L1 (mBCR column 1, levels 1-6) ----
+			if (cols(vCoefN) > 0) {
+				// RESPONDERS only (BCR_L1 in 1-4): maintenance is a post-response therapy, so
+				// SD/PD (5/6) do not get it. Same restriction as the fit (risk_equations.do); the
+				// few SD/PD patients with vMNT == 1 simply get no duration and so no cost.
+				iN = idx[selectindex((vSCT_L1[idx] :== 0) :& (mBCR[idx, 1] :<= 4))]
+				if (rows(iN) > 0) {
+					wB1 = (mBCR[iN, 1] :== 1)
+					wB2 = (mBCR[iN, 1] :== 2)
+					wB3 = (mBCR[iN, 1] :== 3)
+					wB4 = (mBCR[iN, 1] :== 4)
 
-			mPat = mPat, mMNRdum                       // i.MNR_L1
-			mPat = mPat, (mMNRdum :* vLnW)             // i.MNR_L1#c.MND_lnW
-			mPat = mPat, vCons[idx]
+					vLnTn = ln(rowmax((mTFI[iN, 2], J(rows(iN), 1, 0.01))))
 
-			nPredictors = cols(mPat)
+					mPatN = (vAge[iN], vAge2[iN], vMale[iN],
+							 vECOG0[iN], vECOG1[iN], vECOG2[iN],
+							 vRISS1[iN], vRISS2[iN], vRISS3[iN],
+							 (vMNR[iN] :== 1), (vMNR[iN] :== 5),
+							 wB1, wB2, wB3, wB4,
+							 vLnTn, (vLnTn :* (vMNR[iN] :== 5)),
+							 vCons[iN])
+					nPredN = cols(mPatN)
 
-			// Guard: mean equation + a single scale column.
-			if (cols(vCoef) != nPredictors + 1) {
-				errprintf("sim_mnd: design/coefficient mismatch - mPat has %g columns so %g coefficients were expected (mean equation + ln(phi)), but the coefficient vector has %g\n",
-					nPredictors, nPredictors + 1, cols(vCoef))
-				exit(459)
+					if (cols(vCoefN) != nPredN + 1) {
+						errprintf("sim_mnd (NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_MND_NoASCT has %g. A BCR/regimen level was likely empty in the fit (SD/PD patients rarely get maintenance).\n",
+							nPredN, nPredN + 1, cols(vCoefN))
+						exit(459)
+					}
+
+					vBetaN = vCoefN[1, 1..nPredN]'
+					auxN   = vCoefN[1, cols(vCoefN)]
+					vXBn   = mPatN * vBetaN
+					vRNn   = rnDraw(iN, rn_mnd())
+					vOCn   = calcSurvTime(vXBn, vRNn, fbL1_MND_NoASCT, auxN)
+					vMND[iN] = rowmin((vOCn, J(rows(iN), 1, maxL1_MND_NoASCT)))
+				}
 			}
-
-			// Mean equation -> mu via the logit link
-			vBeta = vCoef[1, 1..nPredictors]'
-			vXB = mPat * vBeta
-			vMu = 1 :/ (1 :+ exp(-vXB))
-
-			// Scale equation -> phi via the log link (final column is ln(phi))
-			phi = exp(vCoef[1, cols(vCoef)])
-
-			// Beta(mu*phi, (1-mu)*phi) by inverting the CDF with ONE uniform. invibeta() is the
-			// Beta quantile function, so invibeta(a, b, u) with u ~ U(0,1) IS a Beta draw -
-			// exact, and one uniform per patient, which is what the CRN slot layout requires.
-			// THE DRAW MATTERS. phi is small (~1.4), i.e. the share is widely spread, so a
-			// conditional MEAN would hand every patient much the same share and collapse that
-			// spread. betareg is used rather than fracreg precisely because it returns the
-			// precision as well as the mean, which is what makes the draw possible (4.4).
-			vA = vMu :* phi
-			vB = (1 :- vMu) :* phi
-			vRN = rnDraw(idx, rn_mnd())
-			vOC = invibeta(vA, vB, vRN)
-
-			// Update. MNT == 0 patients keep the missing set in mata_setup.do.
-			vMNS[idx] = vOC
 		}
 	}
 	else {
-		// No model - leave vMNS missing. process_data.do bills nothing where the share is
+		// No model - leave vMND missing. process_data.do bills nothing where the duration is
 		// missing, which is the safe direction: no maintenance cost beats silently reverting to
 		// the old whole-gap bill.
-		errprintf("sim_mnd: bL1_MND not found - maintenance duration will not be costed. Re-run prep/risk_equations.do.\n")
+		errprintf("sim_mnd: bL1_MND_ASCT / bL1_MND_NoASCT not found - maintenance duration will not be costed. Re-run prep/risk_equations.do.\n")
 	}
 }
 

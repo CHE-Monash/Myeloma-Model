@@ -128,13 +128,18 @@ mata {
 				vRISS1[idx], vRISS2[idx], vRISS3[idx],
 				vCKD[idx], vCRD[idx], vPLM[idx], vDBT[idx])
 
+		// L2S..L4E (OMC 4..9) carry LenRefr_Tx_in after the BCR block (docs/refractory.md 4). It is
+		// one extra covariate at those stages, so the implied BCR width drops by one there.
+		hasLenRefr = (OMC >= 4 & OMC <= 9)
+
 		// BCR block width implied by the coefficient vector:
-		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux = cols - 15
-		nBCR = cols(vCoef) - 15
+		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux - hasLenRefr
+		nBCR = cols(vCoef) - 15 - hasLenRefr
 		if (nBCR > 0 & bcrCol > 0) {
 			vB = mBCR[idx, bcrCol]
 			for (k = 1; k <= nBCR; k++) mPat = mPat, (vB :== k)
 		}
+		if (hasLenRefr) mPat = mPat, vLenRefr_in[idx]
 		mPat = mPat, vCons[idx]
 
 		// Guard: design columns must equal coefficients minus the ancillary (1). Catches a

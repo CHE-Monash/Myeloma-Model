@@ -29,6 +29,11 @@ di _n "{hline 80}"
 di "LOADING BENCHMARKS"
 di "{hline 80}"
 
+// NOTE: the Censored column is carried through mkmat only so the column positions below line up
+// with the target CSVs -- NOTHING in this file scores it. The OS tests read Y3/Y5 (cols 5 and 7);
+// the TXD/TFI tests read M12/M24 (cols 7 and 8). No pass/fail verdict depends on Censored, so
+// don't read one into it: it is registry follow-up bookkeeping, not a model prediction.
+
 // OS benchmarks
 import delimited "${val_targets}/os_l1_noasct.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L1_NoASCT_bench)
@@ -67,6 +72,18 @@ capture confirm file "${val_targets}/os_wholepop_cm.csv"
 if _rc == 0 {
 	import delimited "${val_targets}/os_wholepop_cm.csv", clear case(preserve)
 	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_CM_bench)
+}
+
+// Lenalidomide-refractory (treatment lines); optional. Prevalence by line and OS from L2 by status.
+capture confirm file "${val_targets}/lenrefr.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/lenrefr.csv", clear case(preserve)
+	mkmat N PctRefr, matrix(LENREFR_bench)
+}
+capture confirm file "${val_targets}/os_lenrefr.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/os_lenrefr.csv", clear case(preserve)
+	mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_LENREFR_bench)
 }
 
 // BCR distributions
@@ -203,6 +220,75 @@ if _rc == 0 {
 		n di _n
 	}
 }
+
+// Lenalidomide-refractory prevalence by line (entry state) -- scores the GENERATION model:
+// does the engine make the right share refractory as it accrues across lines (docs/refractory.md 4.7)?
+capture confirm matrix LENREFR_bench
+if _rc == 0 {
+	local _lrok = 1
+	forvalues l = 1/6 {
+		capture confirm variable LenRefr_L`l'
+		if _rc local _lrok = 0
+	}
+	if `_lrok' {
+		n di "LEN-REFRACTORY PREVALENCE BY LINE (entry)  | Benchmark | Simulated | Diff   | Pass?"
+		forvalues l = 1/6 {
+			local bench = LENREFR_bench[`l', 2]
+			qui count if !missing(LenRefr_L`l')
+			local denom = r(N)
+			if `denom' > 0 & !missing(`bench') {
+				qui count if LenRefr_L`l' == 1
+				local sim = 100 * r(N) / `denom'
+				local diff = `sim' - `bench'
+				local status = cond(abs(`diff') <= `tolerance' * 100, "PASS", "FAIL")
+				if "`status'" == "PASS" local tests_passed = `tests_passed' + 1
+				else                    local tests_failed = `tests_failed' + 1
+				local tests_run = `tests_run' + 1
+				n di "  L`l'                                       | " %8.1f `bench' "% | " %8.1f `sim' "% | " %5.1f `diff' "% | `status'"
+			}
+		}
+		n di _n
+	}
+	else n di "LEN-REFRACTORY prevalence: SKIPPED - LenRefr_L* not in the simulated data (re-run simulate)." _n
+}
+else n di "LEN-REFRACTORY prevalence: SKIPPED - no lenrefr.csv target (re-run test_targets / generate_benchmarks)." _n
+
+// OS from L2 start, split by len-refractory-at-L2 (LenRefr_L2) -- scores the CONSUMPTION /
+// redistribution: does the simulated subgroup OS gap match observed (docs/refractory.md 5.6)?
+capture confirm matrix OS_LENREFR_bench
+if _rc == 0 {
+	capture confirm variable LenRefr_L2
+	if _rc == 0 {
+		n di "OS FROM L2 BY LEN-REFRACTORY STATUS   | Benchmark | Simulated | Diff   | Pass?"
+		qui cap drop OC_TIME_L2S
+		qui gen OC_TIME_L2S = OC_TIME - TSD_L2S
+		qui stset OC_TIME_L2S, failure(OC_MORT==1) id(ID)
+		forvalues r = 0/1 {
+			local lbl : word `=`r'+1' of "not-refr" "refr    "
+			qui capture drop surv_temp
+			qui sts generate surv_temp = s if LenRefr_L2 == `r'
+			foreach yr in 3 5 10 {
+				local col = cond(`yr'==3, 5, cond(`yr'==5, 7, 11))
+				local mo  = `yr' * 12
+				local bench = OS_LENREFR_bench[`=`r'+1', `col'] * 100
+				qui summarize surv_temp if _t <= `mo' & LenRefr_L2 == `r'
+				if r(N) > 0 & !missing(`bench') {
+					local sim = r(min) * 100
+					local diff = `sim' - `bench'
+					local status = cond(abs(`diff') <= `tolerance' * 100, "PASS", "FAIL")
+					if "`status'" == "PASS" local tests_passed = `tests_passed' + 1
+					else                    local tests_failed = `tests_failed' + 1
+					local tests_run = `tests_run' + 1
+					n di "  " %2.0f `yr' "-year (`lbl')                  | " %8.1f `bench' "% | " %8.1f `sim' "% | " %5.1f `diff' "% | `status'"
+				}
+			}
+			qui drop surv_temp
+		}
+		n di _n
+	}
+	else n di "OS by len-refractory status: SKIPPED - LenRefr_L2 not in the simulated data (re-run simulate)." _n
+}
+else n di "OS by len-refractory status: SKIPPED - no os_lenrefr.csv target (re-run test_targets / generate_benchmarks)." _n
 
 // OS by BCR_L1 (NoASCT)
 qui cap gen OC_TIME_L1S = OC_TIME - TSD_L1S

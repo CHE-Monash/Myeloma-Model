@@ -73,16 +73,52 @@ real scalar mnr_model_exists() {
 	return(rows(get_mnr_coef()) > 0)
 }
 
-// Helper function: Get MND (maintenance duration share) coefficients
-real matrix get_mnd_coef() {
-	external bL1_MND
-	if (rows(bL1_MND) > 0) return(bL1_MND)
+// Helper function: Get MND (maintenance duration) coefficients, ASCT arm
+real matrix get_mnd_coef_asct() {
+	external bL1_MND_ASCT
+	if (rows(bL1_MND_ASCT) > 0) return(bL1_MND_ASCT)
 	return(J(0, 0, .))
 }
 
-// Helper function: Check if MND model exists
+// Helper function: Get MND coefficients, no-ASCT arm
+real matrix get_mnd_coef_noasct() {
+	external bL1_MND_NoASCT
+	if (rows(bL1_MND_NoASCT) > 0) return(bL1_MND_NoASCT)
+	return(J(0, 0, .))
+}
+
+// Helper function: MND model exists if EITHER transplant arm was fitted
 real scalar mnd_model_exists() {
-	return(rows(get_mnd_coef()) > 0)
+	return(cols(get_mnd_coef_asct()) > 0 | cols(get_mnd_coef_noasct()) > 0)
+}
+
+end
+
+*Functions for sim_lenrefr.do
+mata:
+
+// Same `external` trick as above: an analysis that does not fit the treatment-line refractory
+// logit (no LENREFR_TX block, or no declared len regimens) has no bLENREFR_TX / LENREFR_regimens
+// in its coefficient file. Declaring them external creates them empty, so rows()/cols() can be
+// tested and sim_lenrefr.do becomes a no-op rather than failing on an undefined symbol.
+
+// Helper function: Get LENREFR_TX residual-arm logit coefficients (empty if not fitted)
+real matrix get_lenrefr_coef() {
+	external bLENREFR_TX
+	if (rows(bLENREFR_TX) > 0) return(bLENREFR_TX)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get the lenalidomide-containing regimen codes the analysis declared
+real rowvector get_lenrefr_regimens() {
+	external LENREFR_regimens
+	if (cols(LENREFR_regimens) > 0) return(LENREFR_regimens)
+	return(J(1, 0, .))
+}
+
+// Helper function: LenRefr model runs only if BOTH the logit and a len-regimen list exist
+real scalar lenrefr_model_exists() {
+	return(rows(get_lenrefr_coef()) > 0 & cols(get_lenrefr_regimens()) > 0)
 }
 
 end

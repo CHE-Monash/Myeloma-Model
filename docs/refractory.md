@@ -154,9 +154,9 @@ have been later-line maintenance, which `MNR_L2+` covers properly if it is ever 
 
 | Variable | Meaning |
 |---|---|
-| `MND_L1` | Maintenance delivered inside the billed L1 gap, **days**. 0 where `MNT == 1` but no episode falls in the gap |
-| `MNS_L1` | `MND_L1 / TFI_L1`, the `L1_MND` outcome. Defined **only** where `TFI_L1` is observed |
+| `MND_L1` | Maintenance duration delivered inside the billed L1 gap, **days**. The **benchmark** target (`L1_MND` itself is fitted on the skeleton's maintenance events, not on this column). 0 where `MNT == 1` but no episode falls in the gap |
 | `MNR_L1` | L1 maintenance regimen (0 none/other, 1 len, 2 dara, 3 carf, 4 bort, 5 thal), from the first episode **inside the gap** |
+| `MNT_TTM_L1` | L1 end to maintenance start, days. **Descriptive only** - the simple-first model dropped the start offset (4.4), so this is not carried into the imputed file |
 
 `MNT_LenRefr_L1` is likewise built in `data_extraction.do`: it needs the billed L1 gap, which
 `build_refractory.do` cannot see. It matters because `MNT_LenRefr` covers **any** lenalidomide-
@@ -177,14 +177,15 @@ were. `L1_MND` and `L1_MNR` are fitted at the L1-end row rather than as survival
 skeleton, so they need patient-level columns and nothing is restored. `MNT` and the skeleton are
 unchanged: all of the above is additive.
 
-`multiple_imputation.do` carries **six** of the above into `MRDR Long MI`: `MNS_L1` and `MNR_L1`
-for the maintenance equations, and `LineRefr`, `LenRefr_Tx_in`, `LenRefr_Mnt_in` and
-`MNT_LenRefr_L1` for the refractory ones - the two generation-model outcomes and the two
-covariates. Everything else stops at `MRDR Long`: `MND_L1`, `LineProg`, `LineProgDate`,
-`MNT_Refr`, `MNT_LenRefr` and `MNT_LenRefrStart` are either diagnostics or already consumed by the
-extraction in building the six. That file's `keep` list is **explicit**, so anything not named there
-is silently dropped, and until July 2026 that was the whole refractory family - which is why none of
-it had ever reached an equation.
+`multiple_imputation.do` carries **six** of the above into `MRDR Long MI`: `MND_L1` (the benchmark
+target) and `MNR_L1` for the maintenance equations - the `L1_MND` survival fit reads the maintenance
+start/end EVENTS (110/111) kept in the skeleton, so it needs no duration or censoring column -
+and `LineRefr`, `LenRefr_Tx_in`, `LenRefr_Mnt_in` and `MNT_LenRefr_L1` for the refractory ones - the
+generation-model outcomes and covariates. Everything else stops at `MRDR Long`: `MNT_TTM_L1` (now
+descriptive only), `LineProg`, `LineProgDate`, `MNT_Refr`, `MNT_LenRefr` and `MNT_LenRefrStart` are
+either diagnostics or already consumed by the extraction. That file's `keep` list is **explicit**, so
+anything not named there is silently dropped, and until July 2026 that was the whole refractory
+family - which is why none of it had ever reached an equation.
 
 ---
 
@@ -306,20 +307,36 @@ len-refractory patients, which never happens.
 
 Synthetic cohorts carry no refractory status, so the engine must generate it.
 
-**Treatment lines are partly definitional.** `LineRefr` is built with "BCR in {5,6}" as one of its
-criteria, so:
+**Treatment lines are partly definitional.** `build_refractory.do:136` sets `refbase = 1` if
+`BCR in {5,6}`, so on the **registry** an SD/PD line is refractory with probability 1 and needs **no
+equation**. That is the arm 4.4's engine rule stands on, and it is exact by construction.
 
-| BCR | refractory |
-|---|---|
-| CR | 23.3% |
-| VGPR | 25.8% |
-| PR | 41.7% |
-| MR | 65.0% |
-| **SD** | **100%** |
-| **PD** | **100%** |
+| BCR | refractory: registry (observed BCR) | refractory: `MRDR Long MI` (imp 1) |
+|---|---|---|
+| CR | 23.3% | 21.8% |
+| VGPR | 25.8% | 24.9% |
+| PR | 41.7% | 37.3% |
+| MR | 65.0% | 52.1% |
+| **SD** | **100%** | **77.7%** |
+| **PD** | **100%** | **82.4%** |
 
-SD/PD are refractory with probability 1 and need **no equation**. Only the residual arm (responders,
-BCR 1 to 4) needs a logit, and it is well predicted:
+> **The definitional rule does not survive imputation. Anyone fitting or checking this arm on the MI
+> data must know it.** `BCR` is `mi register imputed` (`multiple_imputation.do:134`); `LineRefr` is
+> not registered and is carried as observed. The imputation model does not know the two are
+> deterministically linked, so it assigns SD/PD to rows the registry never flagged: **111 of 562
+> SD/PD rows (19.75%) have `LineRefr == 0`** on imputation 1. The registry definition is intact and
+> the **engine is unaffected** (it simulates `BCR` and applies the rule, reproducing the registry
+> join exactly). What is affected is the *data*: the MI file cannot be used to verify the
+> definitional arm, and the residual arm's **membership** carries the same noise, since ~29% of its
+> rows have an imputed `BCR`. A separate oddity from the same run: **173 len line-start rows still
+> have `BCR` missing after `mi extract 1`**, which should not happen for a registered-imputed
+> variable and is unexplained.
+>
+> That all 111 violators are imputed rows is **inference, not yet measured** - it follows from
+> `refbase`, since an observed SD/PD cannot violate. `line_check.do` 2a tests it directly, but
+> errored before reaching the test (see the Log entry for 17 Jul) and needs a re-run.
+
+Only the residual arm (responders, BCR 1 to 4) needs a logit, and it is well predicted:
 
 | Model (residual arm, `MRDR Long MI` imp 1, n = 3,283) | Pseudo R2 | AUC |
 |---|---|---|
@@ -359,17 +376,13 @@ them. Neither coefficient should be read causally.
 > dropped two real covariates and kept one that is not there. `CLAUDE.md` is explicit that the
 > out-of-sample validation is the arbiter, not in-sample fit.
 
-The BCR table above is still the complete-case one and has not been refitted on the MI data. The
-definitional claim it supports (SD/PD at 100%) is structural and cannot move; the four response
-rates could shift a little.
-
 **Maintenance refractoriness is barely predictable *by a logit on baseline covariates*** (AUC 0.69
 here, and 0.586 when re-measured like-for-like in 4.4). 4.4 proposed replacing it with a definitional
 tail rule and that rule is now withdrawn, so **the engine currently has no generation model for this
-outcome at all** - see 4.4 for the evidence and the paths forward. The figures below stand as a
-description of the logit. Its logit effectively
-assigns the ~20% marginal rate with a mild covariate tilt. That is an honest outcome, not a defect,
-but the coefficients should not be over-interpreted.
+outcome at all** - see 4.4 for the evidence and the paths forward. The two maintenance rows in the
+table above stand only as a description of that logit: it assigns the ~20% marginal rate with a mild
+covariate tilt, which is an honest outcome rather than a defect, but the coefficients should not be
+over-interpreted. They are also still complete-case and have not been refitted on the MI data.
 
 ---
 
@@ -488,22 +501,26 @@ Not the mechanism: the `share = 1` boundary mass that a Beta cannot represent is
 589**. Registry maintenance ends about 28 days *before* L2 rather than at it, so the shares crowd
 near 1 without reaching it. One-inflation is out.
 
-**The binding constraint is selection, not functional form.** A share needs an observed gap END, so
-`L1_MND` and every rule built on it are fitted on complete gaps only, median **23.9 months**. The
-population they are applied to has a true median far longer: the registry's own KM puts ASCT/CR
-patients at a median TFI of **73.5 months**, P75 142.8 (`tfi_l1_asct.csv`). Every candidate in the
-table above is fitted on the short-gap subset and extrapolated across the rest, and half the engine's
-maintenance patients sit out where there is almost no support. This is limitation 5 of section 5 in
-its sharp form. No covariate fixes it.
+**The binding constraint was selection, not functional form - and it is what drove the redesign.** A
+*share* needs an observed gap END, so the withdrawn `betareg` share and every rule built on it were
+fitted on complete gaps only, median **23.9 months**. The population they are applied to has a true
+median far longer: the registry's own KM puts ASCT/CR patients at a median TFI of **73.5 months**, P75
+142.8 (`tfi_l1_asct.csv`). This is exactly why 7.4 moved to a **censored survival** duration: `streg`
+keeps patients still on maintenance at the data cut instead of dropping them, so the fit is no longer
+complete-gaps-only. The long-gap thinness still limits any refractory rule's *validation* (half the
+engine's maintenance sits beyond ~42 months, where the registry has few completed gaps to check
+against), but the duration model itself now uses the whole sample.
 
 So the engine ships **without** a maintenance refractory generation model. Paths forward, in the
 order they should be tried:
 
-1. **Model maintenance DURATION with censoring instead of a share.** `streg` uses every patient,
+1. **Model maintenance DURATION on the maintenance events, gap-dependent via ln(TFI_L1).** `streg`,
    including those still on maintenance and those who never reach L2, which is precisely the
    selection a share cannot escape. `mtd_streg.do` found 42.5% of predicted durations exceeding the
-   gap, which is why 7.4 moved to a share; that is an argument for conditioning duration on TFI, not
-   evidence that duration is the wrong scale.
+   gap, which is why an earlier version moved to a share; but capping the draw at TFI turns that
+   overshoot into continuous-to-progression maintenance rather than an error. **This was built for
+   the cost model (7.4): a capped `streg` duration.** The refractory flag is the same capped
+   duration reaching (within 60 days of) the relapse - derivable, not yet wired in.
 2. **The continuous tail in a logit** (0.800 above, against a 0.880 ceiling set by a column the
    engine does not have). It must be re-measured with the DRAWN tail rather than the observed one:
    the draw cost the hard rule 0.08 AUC, so its honest figure is lower.
@@ -548,6 +565,44 @@ classified.
 - **The MRDR dose field** for the treatment/maintenance dose split: unreliable; form membership is
   used instead (1.3).
 
+### 4.7 Engine wiring (implemented)
+
+`LenRefr_Tx` is generated and consumed by the engine. Only the treatment-line arm is wired;
+maintenance refractoriness stays gated on its generation model (4.4), and the two flags remain
+separate (4.1). The engine files:
+
+| piece | file |
+|---|---|
+| Generation | `core/outcomes/sim_lenrefr.do`, fired at each line-END OMC in `core/simulation_engine.do` |
+| Fitted logit | `LENREFR_TX` in `prep/risk_equations.do` (residual arm; 3.5) |
+| Consumption | `LenRefr_Tx_in` in `L2/L3/L4_TXR` and `OS_L2S..L4E` (`sim_txr.do`, `sim_os.do`) |
+| CRN / state / helpers | `rn_lenrefr()` (`rng_slots.do`); `vLenRefr_in` (`mata_setup.do`); `get_lenrefr_*` (`mata_functions.do`) |
+| Len-regimen codes | `global LENREFR_regimens` in `analyses/<a>/outcomes/txr_<coeffs>.do` (default "7 31") |
+
+**It is a latched state, not a per-line draw.** `vLenRefr_in` starts 0 (0 at L1 by construction) and
+flips 0 to 1 the first time a not-yet-refractory patient on a lenalidomide regimen becomes
+refractory - definitionally if `BCR` is SD/PD, else a Bernoulli draw from the residual logit. Once 1
+it stays 1. The generation fires at a line's **end**, after that line's OS, so this line's `TXR` and
+`OS` read the state from *strictly prior* lines - which is how `LenRefr_Tx_in` was fitted. This is
+why the residual logit is fitted on `LenRefr_Tx_in == 0` rows only and carries no prior-state
+covariate: the engine applies it exactly there (3.5).
+
+**The len-gate is by drawn regimen, not a drug binary.** The fit conditions on `Lenalidomide == 1`;
+the engine has no drug field, so it counts a line as lenalidomide iff the drawn regimen is a declared
+len code (`LENREFR_regimens`). The `0 = other` bucket is treated as non-len. Declared per analysis
+alongside the `TXR` list, so a change of modelled regimens carries the gate with it.
+
+**Adding it to OS is mean-preserving redistribution, and that is the point.** `LenRefr_Tx_in` is a
+worse-prognosis covariate (4.1: treatment-dose refractory median OS 24.7 months, HR 1.62; 3.3). So in
+`OS_L2..L4` it pulls refractory patients' survival **down** and, because whole-population OS stays
+calibrated, non-refractory patients' survival correspondingly **up**. The population mean is held; the
+subgroups are separated. That improves the model's **discrimination** (right survival for the right
+subgroup, which is what an ICER on a refractory-targeted therapy needs) without disturbing its
+**calibration**. The out-of-sample whole-population OS validates within ~1.5% at 3/5/10 years, and
+in-sample the L3 regimen/duration overshoot it was built to fix is gone. The *direction* of the
+subgroup split is certain (a positive-hazard covariate); confirming its *magnitude* needs a
+refractory-vs-not OS breakdown in the simulated cohort, which is not yet run (5.6).
+
 ---
 
 ## 5. Known limitations
@@ -560,19 +615,26 @@ classified.
 2. **There is no maintenance-refractory generation model.** The tail rule that stood here is
    withdrawn (4.4): its AUC was earned by a registry column the engine cannot compute, and stripped
    of that it under-calls badly at long gaps, reporting 33.7% against a registry 70.4%. The binding
-   constraint is selection rather than functional form - a share needs an observed gap end, so the
-   fit sample is complete gaps only at a 23.9-month median, against a true median of 73.5 months for
-   ASCT/CR patients. `L1_MND` remains load-bearing for **cost**, which is what it is currently used
-   for.
+   constraint was selection rather than functional form - a *share* needs an observed gap end, which
+   is why 7.4 rebuilt it as a survival duration on the maintenance events, made gap-dependent by ln(TFI_L1) (also on complete gaps, but reproducing the registry's gap-band shares).
+   `L1_MND` is now built and load-bearing for **cost**; the refractory flag derived from it (duration
+   reaching the relapse) is the next step but is not yet wired in.
 3. **L5+ has no contrast**: 78 to 85% of patients are already len-refractory, so the covariate is not
    identifiable there and is not included.
 4. Figures here are in-sample. The out-of-sample validation is the arbiter for the specification
    (see `validation.md`).
-5. **`L1_MND` is fitted on patients with an observed L2 start, whose gaps are shorter than the ones
-   the model runs at** - a fit-sample median of 26 months against a simulated ~40, because reaching
-   L2 is the condition for being in the sample. Proportionality was tested inside the observed range;
-   beyond ~42 months it is an assumption, and that is where roughly half of simulated maintenance
-   sits. See the caveat in `prep/generate_benchmarks.do`.
+5. **Long maintenance gaps are under-observed for validation.** The censored survival `L1_MND` uses
+   every maintenance patient (including those still on maintenance at the cut), so the fit is no
+   longer complete-gaps-only. But roughly half of simulated maintenance sits beyond ~42 months, where
+   the registry has few *completed* gaps to score the duration against, so the gap-band benchmark is
+   thin there. See the caveat in `prep/generate_benchmarks.do`.
+6. **The `LenRefr_Tx` OS split is confirmed in direction, not magnitude.** `LenRefr_Tx_in` is a
+   worse-prognosis covariate, so the engine separates refractory (worse OS) from non-refractory
+   (better OS) while whole-population OS stays calibrated (4.7). That the direction is right is
+   certain; that the *size* of the split matches the registry is not yet checked - it needs a
+   refractory-vs-not OS breakdown in the simulated cohort against the observed subgroup curves. The
+   out-of-sample by-`BCR` OS strata (which correlate with refractoriness) show some misses, but those
+   are dominated by tiny cells (`BCR=6`, the PD group) and do not move the whole-population fit.
 
 ---
 
@@ -587,10 +649,12 @@ record.
 
 ---
 
-## 7. Maintenance duration: a cost-engine defect (open)
+## 7. Maintenance duration: a cost-engine defect (fixed)
 
 Uncovered by the refractory work, but a **costing** problem in its own right. `economic_inputs.md`
-points here; this section owns it.
+points here; this section owns it. 7.1-7.3 are the defect and its size; **7.4 is the fix that was
+built** (a capped survival duration - the earlier share-of-the-window design was withdrawn); 7.5-7.6
+are a rejected alternative and the implementation traps.
 
 ### 7.1 The defect
 
@@ -637,7 +701,7 @@ diagnosis, including budget-impact work. It does **not** affect `transport_dvd` 
 `$line 2`: maintenance is never costed there. Separately, that means **later-line maintenance is
 never costed at all** (about 15% of maintenance months).
 
-### 7.4 The agreed fix
+### 7.4 The fix (built, simple-first)
 
 Maintenance becomes an episode mirroring a treatment line, so the maintenance block matches the
 treatment block:
@@ -645,97 +709,56 @@ treatment block:
 | Treatment | Maintenance |
 |---|---|
 | `MNT` logit - whether | unchanged |
-| `TXR_L1` - which regimen | **`L1_MNR`** (new mlogit) -> `MNR_L1` |
-| `TXD_L1` - how long | **`L1_MND`** (new betareg) -> `MND_L1` |
+| `TXR_L1` - which regimen | **`L1_MNR`** (mlogit, len vs thal) -> `MNR_L1` |
+| `TXD_L1` - how long | **`L1_MND`** (parametric survival) -> `MND_L1` |
 
 ```
-W           = TFI_L1 - TTM(sct)                      the window maintenance can occupy
-MND_L1      = MNS_L1 x W,   MNS_L1 ~ Beta(mu, phi)   from betareg        [L1_MND]
-cost_tx_mnt = price(MNR_L1) * (MND_L1 * 30.4375 / 28)
-
-(tail = W - MND_L1 was to have given MNT_LenRefr_L1. That rule is withdrawn - see 4.4.
- The engine emits MNR_L1 and MNS_L1 but no maintenance refractory flag.)
+MNR_L1      ~ mlogit(len, thal)                                    [L1_MNR]   sim_mnr.do
+MND_L1      ~ streg(Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR
+                   + ln(TFI_L1) + ln(TFI_L1)xthal), lognormal          sim_mnd.do
+            split by transplant: ASCT uses i.BCR_SCT, no-ASCT i.BCR_L1         [L1_MND_*]
+MND_L1      = min(MND_L1, realised TFI_L1)                         CAP        process_data.do
+cost_tx_mnt = c_MNT * (MND_L1 * 30.4375 / 28)
 ```
 
-`MN` is maintenance throughout: `MND_L1` duration, `MNS_L1` share, `MNR_L1` regimen. An earlier
-`MT` prefix was dropped because it read as Treatment beside `TXD_L1` / `TXR_L1`.
+`MN` is maintenance throughout: `MND_L1` duration, `MNR_L1` regimen. An earlier `MT` prefix was
+dropped because it read as Treatment beside `TXD_L1` / `TXR_L1`.
 
-**The share is of the WINDOW, not of the gap, and that is the whole design.** `TTM` is the time from
-L1 ending to maintenance starting, held as **two constants keyed on transplant** - 0.49 months
-without ASCT, 4.81 with. It is not modelled as an event, so 7.5's parity argument is untouched.
-Three things fall out of the offset, and only the first is about cost:
+**Model the duration with censored survival, and cap it at TFI.** This is the simple-first design
+that replaced a share-of-the-window betareg (withdrawn July 2026; the history is in 4.4). A model is
+a simplification, and two simplifications carry the whole design:
 
-1. **It linearises lenalidomide.** Share *of the gap* rises with gap length (0.564 -> 0.831 across
-   bands) purely as arithmetic: maintenance runs to progression, so `MND = gap - TTM` and the share
-   is `1 - TTM/gap`. Share *of the window* is flat - 0.883 / 0.888 / 0.887 / 0.906 - and `b1 = 0.912`
-   with proportionality not rejected (p = 0.113).
-2. **It kills a covariate that was never real.** `sct` had coef **-1.007, p < 0.001** on the share and
-   was read as transplant patients taking less maintenance. With the offset it is **+0.017, p = 0.888**.
-   The transplant effect *was* the four extra months ASCT patients spend not yet on maintenance,
-   mistaken for a covariate effect.
-3. **It makes the maintenance END DATE computable**, not just the duration. Without `TTM` the engine
-   knows how long maintenance ran but not when it stopped. The tail rule that motivated this is
-   withdrawn (4.4), so the offset now rests on the costing and on form C beating A and B, which is
-   evidence independent of any refractory rule. The end date remains what any future rule must key
-   on, so the offset stays.
+1. **The duration is fitted on the maintenance start/end events, and made gap-dependent by a
+   CENSOR-AWARE `ln(gap)`.** Lenalidomide maintenance runs to progression, so its duration scales
+   with the gap; thalidomide is a fixed ~10-month course and does not. `ln(gap)` therefore enters
+   with a regimen interaction (slope near 1 for lenalidomide, near 0 for thalidomide). Without it
+   the draw is gap-INDEPENDENT and the simulated share falls with gap length while the registry
+   share rises. The gap is `TFI_L1` (L1E to L2) where L2 is observed, and L1E-to-last-follow-up for
+   the patients censored on maintenance - so both the outcome (duration) and this covariate are
+   censored at the same point, and for continuous maintenance they are the same quantity, which is
+   why the censored gap reinforces `duration = gap` rather than being spuriously circular. So the
+   fit keeps the censored patients AND the gap-dependence; the events stset supplies the survival
+   time and failure with no separate censoring variable.
+2. **Capping the draw at TFI encodes continuous-to-progression maintenance.** The reason a duration
+   drawn independently was rejected before is that it overshoots the gap. Under the cap, an overshoot
+   is not an error: it means the patient stayed on maintenance until they relapsed, which for
+   lenalidomide is exactly right. The cap is applied in `process_data.do` against the **realised**
+   `TFI_L1`, so it also inherits `sim_mort`'s death curtailment - a patient who dies mid-gap is
+   billed only for the maintenance they lived to receive. Capping is a legitimate modelling choice
+   here, not a fudge.
 
-TTM must be **two** constants, not one. A single pooled 4.30 is ~9x too big for the no-ASCT arm: it
-drives 1.9% of windows negative, pushes shares past 1, and `fracreg` refuses the outcome. Keyed on
-`sct` the mean error within each arm is ~0, and `b1` recovers the true-TTM result (0.878 vs 0.912 for
-lenalidomide; 0.478 vs 0.482 bortezomib; 0.557 vs 0.604 thalidomide). The two constants follow the
-`scalar L1_TXD_ASCT_C1 = 60` precedent in `risk_equations.do`: fitted scalars stored in `$Coeffs`.
+There is no window and no `TTM` start offset. The offset was there to make the maintenance *end*
+date computable for the withdrawn tail rule; with no refractory rule consuming it, and the duration
+modelled directly, it buys nothing and is dropped. `MNT_TTM_L1` is still extracted, descriptively.
 
-**Draw a share of the gap, not a duration.** `TFI_L1` *contains* the duration
-(`TFI_L1 = TTM + MND_L1 + trueTFI`), so a duration drawn independently has to be truncated back to
-the gap, and a truncated patient is billed for the whole gap, which is the defect being fixed. This
-was measured, not assumed: drawing from a fitted lognormal duration and curtailing at each patient's
-**own observed** `TFI_L1`,
-
-| | binds |
-|---|---|
-| Observed (maintenance duration > `TFI_L1`) | **0.7%** |
-| Duration model, `TFI_L1` not a covariate | **42.5%** |
-| Duration model, `TFI_L1` a covariate | 13.7% |
-
-The 42.5% is not a pairing artefact - every draw was curtailed at that patient's real gap. The
-model's covariates cannot see how long a patient's gap is, so they cannot keep a drawn duration
-inside it; only conditioning on the gap does, and the share does so by construction and is bounded,
-so it can never bind. Observed median share **0.703**.
-
-> *Correction.* This replaces "independent draws bind 44.8% of the time against an observed 32.1%".
-> Both figures came from `scratch/refractory/mnt_duration.do`, which selects L1 maintenance with
-> `keep if MLine==1` - the keying error 7.6 warns about. On the correct keying the pair is 18.1%
-> against 0.7%, so the case against drawing a duration is far **stronger** than the original
-> argument, not weaker. Treat every figure in that script as suspect: it is also the source of the
-> retracted 127% in 7.2.
-
-**The estimation sample is patients with an observed L2 start** (589 of the 1,571 billed).
-`MNS_L1` is defined only where `TFI_L1` is observed, since a censored covariate cannot enter a
-regression. This is less restrictive than it looks: the selection is on the **covariate**, and given
-`TFI_L1` the maintenance duration does not depend on when follow-up ended, so the conditional
-distribution is the one the engine needs. It also removes censoring from the outcome - reaching L2
-means a next line exists, so no episode in the sample is still ongoing (verified: 0 of 589).
-
-> *Correction.* This replaces "the share is observable for every patient, because numerator and
-> denominator share a censoring point". It is not. A patient censored while still on maintenance
-> carries none of the post-maintenance tail in the numerator, so their observed share tends to 1:
-> median **0.856** for ongoing episodes against **0.453** for completed ones. Fitting on everyone
-> and scoring on complete gaps over-predicts delivered cycles by **9.2%**; fitting on complete gaps
-> alone gives **2.5%**.
-
-**`MNR_L1` is an mlogit, and the regimens it models are declared per analysis - though in practice
-one list serves every window.** It earns its place twice over: it is the dominant predictor of the
-share, and it carries the slope on `ln(W)` without which the offset is worse than useless (above).
-`sct`, by contrast, survives only for the non-lenalidomide regimens - the offset absorbed it.
-
-It follows `TXR_L1` exactly. `outcomes/mnr_<coeffs>.do` declares the drug codes to model
-(`global MNR_L1 "1 5"`), a `gen_mnr` mirroring `gen_txr` builds the dummies at fit time and drops
-everything unlisted to 0 = other, and the fit is
-`mlogit MNR_L1 ..., baseoutcome(0)` inside `[$min_year, $max_year]`. The extraction therefore keeps
-`MNR_L1` at its raw six levels, exactly as it keeps `Regimen` raw: the collapse belongs to the
-analysis, not the data.
-
-That matters because **the maintenance mix changes by era**. L1 maintenance starts by year:
+**Lenalidomide and thalidomide only.** The fits restrict to `inlist(MNR_L1, 1, 5)`, so bortezomib,
+daratumumab and carfilzomib maintenance are excluded from estimation and the engine never produces
+an 'other' maintenance regimen - `sim_mnr` assigns every maintenance patient len or thal. This is the
+accepted simplification ("do not even worry about other"). It costs little: bortezomib is 5 to 11% of
+starts but has no PBS maintenance DPMQ to price separately anyway (MSAG Clinical Practice Guideline,
+June 2022), and daratumumab/carfilzomib maintenance is a couple of dozen patients, mostly later-line.
+The regimen mix is era-dependent, which is why len+thal covers both windows without a per-analysis
+switch:
 
 | Year | lenalidomide | thalidomide | bortezomib |
 |---|---|---|---|
@@ -744,94 +767,25 @@ That matters because **the maintenance mix changes by era**. L1 maintenance star
 | 2023 | 92.9% | **0** | 5.1% |
 | 2025 | 88.2% | **0** | 5.9% |
 
-Thalidomide maintenance stopped in 2020 (the lenalidomide PBS listing) and carfilzomib in 2022, but
-**bortezomib persists at 5 to 11% and is current practice**, not a historical artefact. Thalidomide
-was the *majority* regimen for most of the registry's history, so the whole-registry mix
-(65% lenalidomide / 20% thalidomide / 10% bortezomib) describes no year that ever existed - it is an
-average across a step change. A single fixed regimen list cannot serve both ends of that.
+Thalidomide was the majority regimen for most of the registry's history and stopped in 2020 (the
+lenalidomide PBS listing). In a modern window it simply empties out: the `r(r) == 1` guard in
+`risk_equations.do` then assigns every maintenance patient lenalidomide. So `"1 5"` serves the
+historical window the out-of-sample validation scores against and the current one alike, with no
+switch.
 
-**But one list serves both eras, so there is no per-analysis switch.** `"1 5"` - lenalidomide and
-thalidomide explicit, everything else pooled - covers 85% of the historical window the out-of-sample
-validation scores against and 90% of the current one. Thalidomide does not need removing from the
-list for modern work: it simply **empties out**, because there have been no starts since 2021. A
-switch would buy nothing and would give the two windows different coefficient layouts.
+**Regimen-specific pricing is still blocked, so `c_MNT` stays the blend.** Modelling `MNR_L1` was
+meant to allow `c_R` / `c_T` in place of the blended `c_MNT` (roughly 67% lenalidomide / 33%
+thalidomide - the all-years mix, wrong for any single year). But per the MSAG guideline only
+lenalidomide is PBS-reimbursed for maintenance, so there is no maintenance DPMQ to price thalidomide
+or bortezomib with, and unlike duration, cost is not transferable across the era swap. The bill
+therefore still uses `c_MNT`. See the Costs todo in the programme note. This is the one part of the
+maintenance fix that remains genuinely unfinished.
 
-**Bortezomib is pooled into "other" deliberately**, and it is the one genuinely arguable call. It IS
-current practice (5 to 11% of starts) and it IS L1 maintenance (95.4% of its episodes fall inside the
-L1 gap, so unlike daratumumab it cannot be dismissed as later-line). Two things decide it. First,
-per the MSAG Clinical Practice Guideline (June 2022) bortezomib is neither TGA-registered nor
-PBS-reimbursed for maintenance, so **there is no maintenance DPMQ to price a separate level with** -
-a bortezomib level would be modelled but not costable. Second, pooling costs little, because `L1_MND`
-carries a regimen-specific slope on `ln(W)`, so "other" gets its own slope and bortezomib dominates
-what is inside it.
-
-Daratumumab and carfilzomib fall to "other" too: 22 and 18 patients, mostly later-line (7.6), and
-they break a six-level fit outright (daratumumab coefficient 7.08, SE **265**).
-
-Note the estimation sample is **not** current practice (43.8% lenalidomide and 34.1% thalidomide,
-against 90.4% and 0% for starts from 2021). That is structural: `MNS_L1` needs an observed L2 start,
-so recent patients cannot appear, and unlike `L1_MNR` the duration equation cannot be year-restricted
-without emptying itself. It is tolerable only because `MNR_L1` is a covariate, so the equation gives
-the share *conditional on regimen* and the mix it was fitted on does not carry through.
-
-**Use `betareg`, not `fracreg`.** `fracreg` returns only the conditional mean, and its fitted spread
-is far too tight (p25-p75 0.552-0.713 against an observed 0.349-0.879), which would make simulated
-durations homogeneous. `betareg` gives mean and precision, so the engine can draw
-(`Beta(mu*phi, (1-mu)*phi)`; needs a Beta draw in Mata). It requires a strictly open interval:
-**10 shares sit at exactly 1**, 2 of them inside the estimation sample, and none at 0.
-
-**Adopted: the share depends on gap length, per regimen.** The share imposes proportionality -
-`MND_L1` scaling one-for-one with its denominator - and `ln(MND_L1) = b0 + b1*ln(W) + ...` tests it
-directly, because proportionality is exactly `b1 = 1`. Fitted **per regimen**, on the window:
-
-| | n | b1 | H0: b1 = 1 |
-|---|---|---|---|
-| Lenalidomide | 230 | **0.878** | p = 0.048 |
-| Bortezomib | 82 | **0.478** | p < 0.0001 |
-| Thalidomide | 187 | **0.557** | p < 0.0001 |
-
-So lenalidomide is proportional to the window and the fixed-duration regimens are not: thalidomide
-runs ~10 months whatever the gap, so its share is `10/W` - 0.85 at a 6-month window, 0.25 at 50.
-`L1_MND` therefore carries `c.ln_w##i.MNR_L1` (interaction chi2(3) = 17.72, **p = 0.0005**).
-
-Scored on delivered months, the offset and the slope are a **package** - half of it is strictly worse
-than neither:
-
-| Form | total | error |
-|---|---|---|
-| Share of the gap, one share per regimen | 8,089 | +2.3% |
-| **+ TTM offset only** | 8,658 | **+9.5%** |
-| **+ offset and slope** | 7,787 | **-1.5%** |
-
-> *Correction.* An earlier version of this section **rejected** the interaction as worth 1.7
-> percentage points. That figure was measured in-sample at the fit sample's **26-month median gap**;
-> the model runs at ~40, with 48.5% of simulated maintenance beyond 42 months - outside the range the
-> test covered. The estimation sample sits at 26 months *because reaching L2 is the condition for
-> being in it*. So the assumption was tested where it happens to hold and cleared for use where it
-> does not. In the first simulated run the consequence was a bortezomib share of 0.473 against an
-> observed 0.132 in band 4 (+3.6x), and lenalidomide under-billed - errors in opposite directions
-> that largely cancel in the total, which is why the aggregate looked right and every existing target
-> passed. The gap-band benchmark (6) exists so that cannot recur.
->
-> The same version grouped lenalidomide with daratumumab **and carfilzomib** as "run to progression".
-> Only lenalidomide survives. The MSAG Clinical Practice Guideline (June 2022) discusses neither
-> daratumumab nor carfilzomib maintenance at all, and three readings put carfilzomib with the
-> fixed-duration drugs: a share coefficient of **-1.298** (p = 0.003), the **shortest** cause-specific
-> KM median of any regimen at **3.3 months**, and a median share of **0.146**, the lowest of the six.
-> With 18 patients none is decisive, but the assignment was an assertion, not a finding.
->
-> Note a plain `ln(W)` main effect is **null (p = 0.51)**: the continuous and fixed-duration groups
-> move in opposite directions and cancel. The obvious check - "does gap length matter?" - therefore
-> endorses proportionality for the wrong reason. Only the interaction shows it.
-
-**Regimen-specific pricing is blocked, and the blend is already wrong.** Modelling `MNR_L1` was
-meant to allow `c_R` / `c_T` in place of the blended `c_MNT` (`(1002/1504)*c_R + (502/1504)*c_T`,
-i.e. 67% lenalidomide / 33% thalidomide - roughly the all-years mix, and therefore wrong for every
-individual year). But per the MSAG Clinical Practice Guideline (June 2022), only **lenalidomide** is
-PBS-reimbursed for maintenance; bortezomib is neither TGA-registered nor reimbursed for it, and
-ixazomib is neither. So there is no maintenance DPMQ to price "other" with, and unlike duration,
-cost is **not** transferable across the era swap: thalidomide is a cheap generic, bortezomib an
-injectable. See the Costs todo in the programme note.
+**The refractory flag is now a natural byproduct, and is the next step.** With the duration modelled
+and capped, a patient whose maintenance reaches (within 60 days of) their relapse is still on the drug
+at progression, i.e. lenalidomide-refractory. That flag is not built in this pass - 4.4 is where the
+refractory generation model is decided - but the capped duration is the component it needs, and
+deriving it is a one-liner once the duration model validates.
 
 ### 7.5 Why full decomposition was rejected
 

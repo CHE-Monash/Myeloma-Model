@@ -80,7 +80,9 @@ Non-treatment (phase-of-care) costs come from Yap 2025 and are applied in `core/
 it cannot carry tracked notes of its own and this is the only durable home for them. It is ~1,100
 lines and predates most of the repo's conventions. **None of the below is a defect** — the script
 produces correct output, verified against `scratch/mnd_check.log` — but each is either a runtime cost
-or a trap that has already bitten someone.
+or a trap that has already bitten someone. The two most-repeated idioms are now factored into
+`prep/sub/MRDR/extraction_helpers.do` (`reset_events`, `carry_forward`), which is `run` near the top;
+the remaining items below are open.
 
 **Runtime**
 
@@ -89,12 +91,13 @@ or a trap that has already bitten someone.
   `gen temp = _n` → `sum temp` → `set obs` → `drop temp`. Every `set obs` reallocates the whole
   dataset, so this is quadratic in the number of patients needing a row. Build the new rows as a
   dataset and `append` once. Almost certainly the biggest single win.
-- **The carryforward idiom appears 24 times**: `bysort ID (X): replace X = X[_n-1] if X == .`. Each
-  one re-sorts. `multiple_imputation.do` already defines a `_cf` program for exactly this (its L88) —
-  hoist it into a shared include and call it from both.
-- **`Reset Event1 & Date1` appears 7 times**, the same three lines each. A `reset_events` program.
+- **DONE - the self-sorted carryforward idiom** (`bysort ID (X): replace X = X[_n-1] if X == .`, 24
+  occurrences) is now the `carry_forward X` helper. The `bysort ID:` current-order fills and the
+  gsort/temporal ones are deliberately left inline, since self-sorting would scramble their order.
+- **DONE - `Reset Event1 & Date1`** (7 occurrences) is now the `reset_events` helper, which also
+  self-sorts, so it is correct even where the previous inline reset relied on an earlier sort.
 - **34 longhand `replace Event = <code> if … CLine == n` lines** across three blocks, all mechanical;
-  `forval` collapses them.
+  `forval` collapses them. The event-code map now has a single reference in `extraction_helpers.do`.
 
 **Fragility**
 
@@ -105,11 +108,15 @@ or a trap that has already bitten someone.
   are appended and only the chemotherapy spelling survives the final `keep`. Reading the wrong one on
   maintenance rows yields zero daratumumab episodes, which looks plausible rather than broken. Fixing
   the spelling means touching `MRDR Chemo Regimen.do` too. See `docs/refractory.md` 7.6.
-- **Order dependency around the maintenance rows.** They are dropped mid-script, so anything derived
-  from them must be lifted into patient-level columns *before* the drop — and then carried forward
-  *again* afterwards, because the SCT cleaning inserts rows that would otherwise never receive them.
-  The script already does this twice for `MNT` and the diagnosis variables; the `MND` block is the
-  third. Anything new added near the drop needs the same treatment, and the failure is silent.
+- **Order dependency around the maintenance rows.** The L1 maintenance start/end events (110/111)
+  are now KEPT in the skeleton for `MNT == 1` patients (so `L1_MND` can be fitted by survival), while
+  later episodes (120-141) are dropped. Anything derived from the *dropped* episodes must still be
+  lifted into patient-level columns *before* the drop and carried forward *again* after the SCT
+  cleaning inserts rows; the script does this for `MNT`, the diagnosis variables and the `MND`/`MNR`
+  block. Anything new added near the drop needs the same treatment, and the failure is silent.
+- **Remaining candidates to move to `sub/`** (not yet done, and higher-risk to change untested): the
+  two quadratic row-insertion loops, and the SCT-cleaning block (`860`-ish), which is intricate
+  positional `_n-1`/`_n+1` logic. Left inline deliberately until there is a way to verify a refactor.
 
 ## Paths & config
 

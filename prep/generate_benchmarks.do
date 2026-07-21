@@ -60,6 +60,21 @@ program define bench_horizons
 	capture drop _bh_surv
 end
 
+* Helper: write the censored % into column 6 of a TXD/TFI benchmark matrix, for the active stset and
+* the given subgroup condition. Column 1 counts one row per patient (the record at the stset origin,
+* _t0 == 0), so the numerator has to be patients too. Counting _d == 0 counts in-spell ROWS, and a
+* patient with several records inside the spell contributes one per record -- that is what pushed the
+* TFI_L1_ASCT censored % over 100, ASCT patients carrying the most episode records. A spell fails at
+* most once, so _d == 1 counts failed PATIENTS; the censored ones are column 1 less those.
+capture program drop bench_censored
+program define bench_censored
+	args M row ifc
+	quietly count if (`ifc') & _d == 1
+	local fail = r(N)
+	local n = `M'[`row', 1]
+	if `n' > 0  matrix `M'[`row', 6] = (`n' - `fail') / `n' * 100
+end
+
 **********
 // Overall Survival
 **********
@@ -212,6 +227,81 @@ forvalues bcr = 1/6 {
 }
 
 **********
+// Lenalidomide-refractory (treatment lines)
+**********
+// Validates the LenRefr_Tx wiring (docs/refractory.md 4.7). Prevalence-by-line scores the
+// GENERATION (does the engine make the right share refractory as it accrues); OS-by-status scores
+// the CONSUMPTION / redistribution (5.6). Guarded on LenRefr_Tx_in so a fold built before the flag
+// existed skips these rather than erroring.
+capture confirm variable LenRefr_Tx_in
+local have_lenrefr = (_rc == 0)
+
+if `have_lenrefr' {
+
+	// Prevalence of LenRefr_Tx_in AS AT ENTRY to each line (= the sim's LenRefr_L`l'), one value per
+	// patient per line. LenRefr_Tx_in is held within a line, so its value on a patient's line-l rows
+	// is the entry-to-l state; egen max over those rows recovers it (missing if the line is unreached).
+	// L1 is 0 by construction; L2+ carry the accrual.
+	matrix LENREFR = J(6, 2, .)
+	matrix colnames LENREFR = "N" "PctRefr"
+	matrix rownames LENREFR = "L1" "L2" "L3" "L4" "L5" "L6"
+	forvalues l = 1/6 {
+		capture drop lr_ln lr_pt
+		gen byte lr_ln = LenRefr_Tx_in if Line == `l'
+		bysort ID_BS: egen lr_pt = max(lr_ln)
+		quietly count if !missing(lr_pt) & first_record == 1
+		matrix LENREFR[`l', 1] = r(N)
+		if r(N) > 0 {
+			quietly count if lr_pt == 1 & first_record == 1
+			matrix LENREFR[`l', 2] = r(N) / LENREFR[`l', 1] * 100
+		}
+		drop lr_ln lr_pt
+	}
+
+	// OS from L2 start, split by LenRefr_Tx_in as at L2 entry (refractory from L1 vs not). Mirrors the
+	// OS-by-BCR_L2 benchmark exactly; the sim scores OS_L2S by LenRefr_L2 the same way. This is the
+	// direct check on the subgroup OS split (5.6) - the magnitude the whole-population OS cannot see.
+	capture drop lr2 lr2_pt
+	gen byte lr2 = LenRefr_Tx_in if Line == 2
+	bysort ID_BS: egen lr2_pt = max(lr2)
+
+	stset Date1 if(F_OS != 1), id(ID_BS) origin(Event1 == 20) failure(Event1 == 104) scale(30.4375)
+
+	matrix OS_LENREFR = J(2, 12, .)
+	matrix colnames OS_LENREFR = "N" "Median" "Y1" "Y2" "Y3" "Y4" "Y5" "Y6" "Y7" "Y8" "Y10" "Censored"
+	matrix rownames OS_LENREFR = "NotRefr" "Refr"
+
+	forvalues r = 0/1 {
+		local row = `r' + 1
+		quietly count if lr2_pt == `r' & _t0 == 0
+		local n = r(N)
+		matrix OS_LENREFR[`row', 1] = `n'
+		if `n' > 0 {
+			quietly stsum if lr2_pt == `r'
+			matrix OS_LENREFR[`row', 2] = r(p50)
+
+			quietly sts generate surv_temp = s if lr2_pt == `r'
+			quietly summarize _t if lr2_pt == `r'
+			local tmax = r(max)
+
+			local col = 3
+			foreach tp of global timepoints {
+				quietly summarize surv_temp if lr2_pt == `r' & _t <= `tp'
+				if r(N) > 0 & `tp' <= `tmax' {
+					matrix OS_LENREFR[`row', `col'] = r(min)
+				}
+				local ++col
+			}
+			drop surv_temp
+
+			quietly count if lr2_pt == `r' & _d == 0 & last_record == 1
+			matrix OS_LENREFR[`row', 12] = r(N) / `n' * 100
+		}
+	}
+	drop lr2 lr2_pt
+}
+
+**********
 // BCR
 **********
 
@@ -281,9 +371,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L1_NoASCT[`bcr', 4] = r(p25)
 		matrix TXD_L1_NoASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 0
-		matrix TXD_L1_NoASCT[`bcr', 6] = r(N) / TXD_L1_NoASCT[`bcr', 1] * 100
-
+		bench_censored TXD_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 		bench_horizons TXD_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 	}
 }
@@ -307,9 +395,7 @@ forvalues bcr = 1/4 {
 		matrix TXD_L1_ASCT[`bcr', 4] = r(p25)
 		matrix TXD_L1_ASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_SCT == `bcr' & _d == 0
-		matrix TXD_L1_ASCT[`bcr', 6] = r(N) / TXD_L1_ASCT[`bcr', 1] * 100
-
+		bench_censored TXD_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 		bench_horizons TXD_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 	}
 }
@@ -334,9 +420,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L2[`bcr', 4] = r(p25)
 		matrix TXD_L2[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L2 == `bcr' & _d == 0
-		matrix TXD_L2[`bcr', 6] = r(N) / TXD_L2[`bcr', 1] * 100
-
+		bench_censored TXD_L2 `bcr' "BCR_L2 == `bcr'"
 		bench_horizons TXD_L2 `bcr' "BCR_L2 == `bcr'"
 	}
 }
@@ -361,9 +445,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L3[`bcr', 4] = r(p25)
 		matrix TXD_L3[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L3 == `bcr' & _d == 0
-		matrix TXD_L3[`bcr', 6] = r(N) / TXD_L3[`bcr', 1] * 100
-
+		bench_censored TXD_L3 `bcr' "BCR_L3 == `bcr'"
 		bench_horizons TXD_L3 `bcr' "BCR_L3 == `bcr'"
 	}
 }
@@ -388,9 +470,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L4[`bcr', 4] = r(p25)
 		matrix TXD_L4[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L4 == `bcr' & _d == 0
-		matrix TXD_L4[`bcr', 6] = r(N) / TXD_L4[`bcr', 1] * 100
-
+		bench_censored TXD_L4 `bcr' "BCR_L4 == `bcr'"
 		bench_horizons TXD_L4 `bcr' "BCR_L4 == `bcr'"
 	}
 }
@@ -418,9 +498,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L1_NoASCT[`bcr', 4] = r(p25)
 		matrix TFI_L1_NoASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 0
-		matrix TFI_L1_NoASCT[`bcr', 6] = r(N) / TFI_L1_NoASCT[`bcr', 1] * 100
-
+		bench_censored TFI_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 		bench_horizons TFI_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 	}
 }
@@ -443,9 +521,7 @@ forvalues bcr = 1/4 {
 		matrix TFI_L1_ASCT[`bcr', 4] = r(p25)
 		matrix TFI_L1_ASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_SCT == `bcr' & _d == 0
-		matrix TFI_L1_ASCT[`bcr', 6] = r(N) / TFI_L1_ASCT[`bcr', 1] * 100
-
+		bench_censored TFI_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 		bench_horizons TFI_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 	}
 }
@@ -470,9 +546,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L2[`bcr', 4] = r(p25)
 		matrix TFI_L2[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L2 == `bcr' & _d == 0
-		matrix TFI_L2[`bcr', 6] = r(N) / TFI_L2[`bcr', 1] * 100
-
+		bench_censored TFI_L2 `bcr' "BCR_L2 == `bcr'"
 		bench_horizons TFI_L2 `bcr' "BCR_L2 == `bcr'"
 	}
 }
@@ -497,8 +571,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L3[`bcr', 4] = r(p25)
 		matrix TFI_L3[`bcr', 5] = r(p75)
 		
-		quietly count if BCR_L3 == `bcr' & _d == 0
-		matrix TFI_L3[`bcr', 6] = r(N) / TFI_L3[`bcr', 1] * 100
+		bench_censored TFI_L3 `bcr' "BCR_L3 == `bcr'"
 	}
 }
 
@@ -841,6 +914,21 @@ if `have_cm' {
 	gen CM = _n - 1
 	order CM
 	export delimited using "`bench_out'/os_wholepop_cm.csv", replace
+}
+
+// Lenalidomide-refractory benchmarks: prevalence by line, and OS from L2 by refractory status
+if `have_lenrefr' {
+	clear
+	svmat LENREFR, names(col)
+	gen Line = _n
+	order Line
+	export delimited using "`bench_out'/lenrefr.csv", replace
+
+	clear
+	svmat OS_LENREFR, names(col)
+	gen Refr = _n - 1
+	order Refr
+	export delimited using "`bench_out'/os_lenrefr.csv", replace
 }
 
 // TFI benchmarks

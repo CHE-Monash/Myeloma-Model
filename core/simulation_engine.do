@@ -103,20 +103,24 @@ di "Running simulation"
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
 
-	// MND MUST follow sim_tfi_l1: it keys on the window W = TFI_L1 - TTM, and TFI_L1 (mTFI
-	// column 2) does not exist until it has run. It must also PRECEDE sim_mort, so the gap it
-	// reads is the drawn one rather than the death-curtailed one - process_data.do applies the
-	// curtailment at billing instead.
-	di "L1E - MNT Duration (share of the window)"
+	// MND follows sim_mnr (needs vMNR) AND sim_tfi_l1 (needs the drawn gap for the ln(TFI)
+	// covariate, so lenalidomide duration scales with the gap). process_data.do also caps the
+	// drawn duration at the realised gap at billing time, inheriting sim_mort's death curtailment.
+	di "L1E - MNT Duration (gap-dependent draw, capped at TFI when billed)"
 		qui do "core/outcomes/sim_mnd.do"
-		*mata: _matrix_list(bL1_MND, rbL1_MND, cbL1_MND)
-		*mata: _matrix_list(vMNS)
+		*mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
+		*mata: _matrix_list(vMND)
 
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-				
+
+	// LenRefr fires at the line END, after OS, so L1's TXR/OS read the entry state (all 0 at L1)
+	// and the flip from L1's response lands for L2. See docs/refractory.md 3.5 / 4.
+	di "L1E - LenRefr (treatment lines)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
 	di "L1E - Mortality"
 		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -172,7 +176,10 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
-				
+
+	di "L2E - LenRefr (treatment lines)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
 	di "L2E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -228,7 +235,10 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-		
+
+	di "L3E - LenRefr (treatment lines)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
 	di "L3E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -285,6 +295,9 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
+	di "L4E - LenRefr (treatment lines)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
 	di "L4E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -340,7 +353,12 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-		
+
+	// L5E is the last distinct line-end block; L6+ shares one OS model (OS_L6plus) and 5 records
+	// refractoriness is saturated there, so the state simply carries forward from L5. See 3.5 / 5.
+	di "L5E - LenRefr (treatment lines)"
+		qui do "core/outcomes/sim_lenrefr.do"
+
 	di "L5E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)

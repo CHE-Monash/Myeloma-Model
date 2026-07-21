@@ -21,15 +21,28 @@ capture run "config.do"
 * PROJECTION -- full fit x synthetic population (the primary use)
 **********
 
+* P0. Multiple imputation on the FULL registry -> ${data_path}/MRDR Long MI.dta  (needs MRDR drive).
+*     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, LenRefr_*); the risk
+*     equations and in-sample benchmarks below read this file. args: imp boot min_bs max_bs sample
+*     (empty 5th arg = full cohort; also clears any $sample left over from an OOS run).
+do "prep/multiple_imputation.do" 2 0 . .
+
 * P1. Risk equations on the FULL registry (100%) -> analyses/default/coefficients/coefficients_full.mmat
 *     args: analysis coeffs min_year max_year boot min_bs max_bs   (loads outcomes/txr_full.do)
 do "prep/risk_equations.do" default full 1995 2040 0
 
 * P2. Synthetic incidence population cohort(s) -> patients/synthetic_1995_2040_*.dta  (needs MRDR drive)
-* do "prep/synthetic_1995_2040.do"
+do "prep/synthetic_1995_2040.do"
 
 * P3. Simulate the synthetic population (projection; costed PDF report) -> simulated/all_0_synthetic.dta
 do "analyses/default/simulate.do"
+
+* P4. In-sample benchmarks (full-registry observed outcomes) -> scratch/benchmarks/  (needs MRDR drive)
+do "prep/generate_benchmarks.do"
+
+* P5. In-sample FACE VALIDITY: synthetic projection vs the in-sample benchmarks (NOT the mainstay
+*     validation -- synthetic cohort vs whole-registry, not held out; see validate_insample.do header)
+do "analyses/default/validate_insample.do"
 
 
 **********

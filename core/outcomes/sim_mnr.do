@@ -1,10 +1,10 @@
 **********
 * Monash Myeloma Model - Sim MNR
 *
-* Purpose: Select the L1 maintenance regimen via multinomial logit, among patients who
-*          receive maintenance (MNT == 1). Outcome is the maintenance drug code
-*          (0 = other, 1 = lenalidomide, 2 = daratumumab, 3 = carfilzomib, 4 = bortezomib,
-*          5 = thalidomide). The maintenance analogue of sim_txr.do.
+* Purpose: Select the L1 maintenance regimen among patients who receive maintenance (MNT == 1).
+*          Lenalidomide (1) and thalidomide (5) only (docs/refractory.md 7.4), so this is
+*          effectively a logit with lenalidomide the base. 'Other' regimens are not modelled -
+*          the engine never produces one. The maintenance analogue of sim_txr.do.
 *
 * Notes:   WHICH drug codes are modelled is an analysis-level choice, declared in
 *          analyses/$analysis/outcomes/mnr_$coeffs.do and applied by gen_mnr in
@@ -17,7 +17,7 @@
 *          nothing in the $line 2 analyses, where maintenance is never costed (7.3).
 *
 *          Must match the fit in prep/risk_equations.do:
-*              mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT, baseoutcome(0)
+*              mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT, baseoutcome(1)   (len + thal only)
 **********
 
 mata {

@@ -338,10 +338,24 @@ program define mata_setup
 		// Maintenance regimen and duration share at L1. Pure OUTPUTS - unlike the vectors
 		// above there is no cohort column to read, so they are initialised missing and
 		// filled by sim_mnr.do / sim_mnd.do among MNT == 1. Missing is the correct resting
-		// value: a patient with MNT == 0 has no maintenance regimen and no share.
-		// vMNS is the SHARE of TFI_L1, not a duration - process_data.do multiplies it by the
-		// realised (death-curtailed) TFI_L1 at billing time. See docs/refractory.md 7.4.
-		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (drug code, 0 = other)
-		vMNS = J(Obs, 1, .)                       // L1 maintenance duration as a share of the WINDOW
+		// value: a patient with MNT == 0 has no maintenance regimen and no duration.
+		// vMND is the maintenance DURATION in months (the raw survival draw); process_data.do
+		// caps it at the realised TFI_L1 at billing time. See docs/refractory.md 4.4.
+		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (1 = len, 5 = thal)
+		vMND = J(Obs, 1, .)                       // L1 maintenance duration, months (capped at TFI when billed)
+
+		// Lenalidomide-refractory (treatment lines), the LATCHED at-line-entry state = the
+		// LenRefr_Tx_in covariate. A pure output like vMNR/vMND, but initialised to 0 rather than
+		// missing: 0 = not yet len-refractory is the correct resting value, and it is 0 at L1 entry
+		// by construction (refractoriness accrues only from strictly prior lines). sim_lenrefr.do
+		// flips it 0 -> 1 at a line's END (after that line's OS), so it is read at each line's TXR
+		// and OS as the state from PRIOR lines only. See docs/refractory.md 3.5 / 4.
+		vLenRefr_in = J(Obs, 1, 0)
+
+		// Per-line SNAPSHOT of that state, for export/validation: mLenRefr_in[.,l] = the entry-to-Ll
+		// value (LenRefr_Tx_in as at line l's start), which sim_lenrefr.do records at each line end
+		// before it updates the state. Missing for a line the patient never reached, matching how
+		// mBCR leaves unreached lines missing. process_data.do writes it out as LenRefr_L1..L9.
+		mLenRefr_in = J(Obs, 9, .)
 	}
 end
