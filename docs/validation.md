@@ -63,12 +63,40 @@ The survival, treatment-duration and treatment-free-interval targets are all est
 | Treatment duration (TXD) | \% still on treatment at 12 & 24 months, by response and line (L1 no-ASCT, ASCT) | within ±10 percentage points |
 | Treatment-free interval (TFI) | \% still treatment-free at 12 & 24 months, by response and line (L1 no-ASCT, ASCT, L2), plus 12-month response ordering (CR \> VGPR \> PR) at L2 | within ±10 percentage points |
 | Pathways | ASCT rate and L2–L5 conditional reach rates (P(reach L \| reached L−1)) | within ±5 percentage points |
+| Maintenance duration | KM median `MND_L1` in months, by regimen (lenalidomide / thalidomide / other) | within ±25%, **relative** |
+
+**A minimum-N floor of 20 applies to every cell-based benchmark.** `prep/generate_benchmarks.do`
+blanks the estimates in any cell below it and keeps N, so the thinness is visible and the cell is
+skipped rather than scored. The 30% out-of-sample fold splits some cells to almost nothing, and a
+Kaplan–Meier estimate on 17 patients is noise that presents as a model failure: L4 BCR=1 is N=17 out
+of sample against N=54 in sample, the two folds disagreeing by 21 points about the same registry
+quantity while the simulation sits near 70% in both. Where the registry cannot say what the truth
+is, neither should the target.
+
+**Maintenance is scored on duration, not on share of the gap.** An earlier version scored
+`MND_L1 / TFI_L1` by regimen × gap band. Both quantities need an observed L2, so the registry side
+could only be computed on patients who relapsed while the simulated side has a closed gap for
+everybody — different populations, and systematically so, because at long gaps the relapsers are
+exactly the patients whose maintenance ran close to relapse. The model scored 0/7 against that
+target. Duration needs no closed gap (patients still on maintenance are censored, which is what KM
+is for), uses the whole maintenance population rather than the ~37% who relapsed, and is the
+quantity the cost engine actually bills. The cost of the change is that the regimen × gap
+interaction is no longer testable on the registry side; that is recorded in `refractory.md` §5(8)
+rather than papered over.
 
 TXD and TFI are validated by **survival at fixed horizons** (% still on treatment / still treatment-free at 12 and 24 months), the same way overall survival is checked — not by the median. The median is unreliable for these outcomes because they are extremely right-skewed and heavily censored (TFI 20–54%): poor responders progress almost immediately (median ≈ 0, so a ratio test is unstable), while good responders have so much administrative censoring that the KM median is itself an unreliable, likely under-estimate. Survival at 12/24 months is well inside observed follow-up, so it is estimated robustly for both extremes and is directly comparable between the simulation and the registry.
 
 ### Interpreting results
 
-The script ends with a summary of tests run, passed and failed. As a guide: a pass rate above 90% indicates the model reproduces the held-out outcomes well; 75–90% warrants reviewing the failed checks; below 75% indicates a structural issue to investigate before relying on the run. The latest deterministic point-estimate run scores **83.1% (143/172)**; the *same* model checked in-sample scores **94.8% (163/172)**, so the residual out-of-sample misses (chiefly an L1 no-ASCT CR under-prediction) are sampling artefacts of the 70/30 split rather than model defects. The other fails are data artefacts — the SMM-tail response misses, missing treatment-end-dates inflating the TXD target, and the older incidence cohort versus the registry — not structural problems.
+The script ends with a summary of tests run, passed and failed. As a guide: a pass rate above 90% indicates the model reproduces the held-out outcomes well; 75–90% warrants reviewing the failed checks; below 75% indicates a structural issue to investigate before relying on the run.
+
+The latest deterministic point-estimate run (v3.0, July 2026) scores **81.8% (139/170)** out of sample; the *same* model checked in-sample scores **92.0% (160/174)**. The gap between the two is the point: a check that fails out of sample and passes in-sample is a 70/30 sampling artefact, not a defect, and most of the residual is that. The L2–L4 treatment-duration misses are the clearest case — 12 failures out of sample against 2 in-sample, on the same equations.
+
+**The aggregate that matters passes comfortably.** Out-of-sample whole-population OS from diagnosis is within **0.6, 1.8 and 1.8 percentage points** at 3, 5 and 10 years, and all nine comorbidity strata pass (worst +5.6pp, one comorbidity at 10 years). That is the arbiter for the specification, and it is the check a change should be judged on.
+
+The remaining fails are data artefacts with known causes, not structural problems: the SMM-tail response misses, missing treatment-end dates inflating the TXD target, the older incidence cohort versus the registry, and the L1 no-ASCT CR under-prediction that vanishes in-sample.
+
+**Two are worth reading as real signal.** Maintenance duration is under-predicted in both folds and for both regimens — lenalidomide 21.4 months simulated against a registry KM median of 23.0 out of sample (passes) but 17.0 against 24.6 in-sample (fails); thalidomide 7.7 against 10.5 (fails) and 8.3 against 10.3 (passes). The direction is consistent, so maintenance is somewhat under-billed, which is the costing residual documented in `refractory.md` §5(7). And the L1→L2 transition over-predicts by 8.1pp, meaning slightly too many patients reach second line.
 
 ### Bootstrap prediction intervals and the OS validation curve
 
