@@ -25,14 +25,14 @@ capture run "config.do"
 *     Re-run whenever the extraction changes a kept variable (e.g. MND_L1, LenRefr_*); the risk
 *     equations and in-sample benchmarks below read this file. args: imp boot min_bs max_bs sample
 *     (empty 5th arg = full cohort; also clears any $sample left over from an OOS run).
-do "prep/multiple_imputation.do" 2 0 . .
+*do "prep/multiple_imputation.do" 2 0 . .
 
 * P1. Risk equations on the FULL registry (100%) -> analyses/default/coefficients/coefficients_full.mmat
 *     args: analysis coeffs min_year max_year boot min_bs max_bs   (loads outcomes/txr_full.do)
 do "prep/risk_equations.do" default full 1995 2040 0
 
 * P2. Synthetic incidence population cohort(s) -> patients/synthetic_1995_2040_*.dta  (needs MRDR drive)
-do "prep/synthetic_1995_2040.do"
+*do "prep/synthetic_1995_2040.do"
 
 * P3. Simulate the synthetic population (projection; costed PDF report) -> simulated/all_0_synthetic.dta
 do "analyses/default/simulate.do"
@@ -51,12 +51,12 @@ do "analyses/default/validate_insample.do"
 **********
 
 * O0. Split patients 70/30 -> ${data_path}/oos/oos_split.dta   (run ONCE, fixed seed; needs MRDR drive)
-do "analyses/default/prep/split.do"
+*do "analyses/default/prep/split.do"
 
 * O1. Multiple imputation, each fold imputed SEPARATELY (split BEFORE imputation = no leakage)
 *     args: imp boot min_bs max_bs sample
-do "prep/multiple_imputation.do" 2 0 . . train         // train (70%) -> coefficients
-do "prep/multiple_imputation.do" 2 0 . . test          // test  (30%) -> targets + cohort
+*do "prep/multiple_imputation.do" 2 0 . . train         // train (70%) -> coefficients
+*do "prep/multiple_imputation.do" 2 0 . . test          // test  (30%) -> targets + cohort
 
 * O2. Risk equations on the TRAIN fold -> analyses/default/coefficients/coefficients_train.mmat
 *     (loads outcomes/txr_train.do, which sources the canonical txr_full.do)
