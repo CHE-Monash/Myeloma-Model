@@ -183,6 +183,17 @@ $2,503.54, bortezomib $113.03, daratumumab $7,307.30, lenalidomide $778.73) befo
 | Autologous stem-cell transplant | `cASCT` | 41,723 (2025) · 48,693 (2026) | `SCT_L1 == 1` | one-off at L1 end |
 | Maintenance therapy | `cMNT` | 620.15 | `MNT == 1` | per 28-day cycle over `TFI_L1`: `cMNT · TFI_L1·30.4375/28` |
 
+> [!warning] Maintenance is over-costed by 69% (open defect)
+> Billing over the whole `TFI_L1` assumes the patient is on maintenance for the entire L1-to-L2 gap.
+> Measured against the registry, the model bills 61,347 cycles against 36,394 delivered (**69%**
+> overstatement; **39%** for lenalidomide maintenance alone). Roughly a third of the excess is time
+> billed *before* maintenance even starts (median 4.8 months), which affects every patient.
+> **Affects the `default` full-pathway analysis and budget-impact work; does not affect
+> `transport_dvd` or `car_t`** (`$line 2`, where maintenance is never costed). Later-line maintenance
+> (~15% of maintenance months) is not costed at all.
+> Full evidence, the agreed fix (`L1_MTR` + `L1_MTD`, regimen-specific pricing) and why full
+> decomposition was rejected: **`refractory.md` section 7**.
+
 **`cASCT` source:** AR-DRG V11.0 (IHACPA) autologous haematopoietic stem-cell transplant codes **R06A/B/C**,
 separations-weighted average inlier price weight (weighted by national separations 341/432/425 for
 Major/Intermediate/Minor complexity) × the National Efficient Price (NEP) for the cost year. The NEP is set

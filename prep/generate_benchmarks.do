@@ -60,12 +60,61 @@ program define bench_horizons
 	capture drop _bh_surv
 end
 
+* Helper: write the censored % into column 6 of a TXD/TFI benchmark matrix, for the active stset and
+* the given subgroup condition. Column 1 counts one row per patient (the record at the stset origin,
+* _t0 == 0), so the numerator has to be patients too. Counting _d == 0 counts in-spell ROWS, and a
+* patient with several records inside the spell contributes one per record -- that is what pushed the
+* TFI_L1_ASCT censored % over 100, ASCT patients carrying the most episode records. A spell fails at
+* most once, so _d == 1 counts failed PATIENTS; the censored ones are column 1 less those.
+// Helper: blank every estimate in a benchmark row whose N is below the floor, leaving N itself so
+// the thinness stays visible. The validator skips missing benchmarks, so a blanked row is silently
+// not scored rather than scored badly.
+//
+// WHY THIS EXISTS. The 30% out-of-sample fold splits some cells to almost nothing, and a KM
+// estimate on 17 patients is noise that scores as a model failure. L4 BCR=1 is the worked example:
+// N=17 out of sample with 12-month on-treatment 35.3%, against N=54 and 56.4% in sample - the two
+// folds disagree by 21 points about the same registry quantity, while the simulation sits near 70%
+// in both. That produced six L4 FAILs which were read as a model defect and cost a day (see
+// scratch/maintenance/_notes.md). Below the floor the registry cannot say what the truth is, so
+// neither should the target.
+//
+// The floor is deliberately low. It removes cells that are indefensible, not cells that are merely
+// small; borderline cells stay in and are meant to be argued about.
+capture program drop bench_floor
+program define bench_floor
+	args M floorN
+	local nr = rowsof(`M')
+	local nc = colsof(`M')
+	forvalues r = 1/`nr' {
+		local n = `M'[`r', 1]
+		if !missing(`n') & `n' < `floorN' {
+			forvalues c = 2/`nc' {
+				matrix `M'[`r', `c'] = .
+			}
+		}
+	}
+end
+
+capture program drop bench_censored
+program define bench_censored
+	args M row ifc
+	quietly count if (`ifc') & _d == 1
+	local fail = r(N)
+	local n = `M'[`row', 1]
+	if `n' > 0  matrix `M'[`row', 6] = (`n' - `fail') / `n' * 100
+end
+
 **********
 // Overall Survival
 **********
 
 bysort ID_BS: gen first_record = (_n == 1)
-bysort ID_BS: gen last_record = (_n == _N-1)
+// last_record was `_n == _N-1' - the SECOND-to-last row, not the last - and was used to count
+// censored patients as "in-spell rows that did not fail". That double-counts patients with several
+// records in the spell and silently depends on a record-position assumption nobody documented; it
+// is what put the transplant TFI censored figure above 100%. Censored patients are now derived the
+// way bench_censored derives them (a spell fails at most once, so censored = N - failures), so the
+// variable is gone rather than fixed. Do not reintroduce it.
 
 // OS by BCR_L1 (NoASCT patients only)
 stset Date1 if(F_OS != 1 & SCT == 0), id(ID_BS) origin(Event1 == 10) failure(Event1 == 104) scale(30.4375)
@@ -98,8 +147,8 @@ forvalues bcr = 1/6 {
 		
 		drop surv_temp
 		
-		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 0 & last_record == 1
-		matrix OS_L1_NoASCT[`bcr', 12] = r(N) / `n' * 100
+		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 1
+		matrix OS_L1_NoASCT[`bcr', 12] = (`n' - r(N)) / `n' * 100
 	}
 }
 
@@ -134,8 +183,8 @@ forvalues bcr = 1/4 {
 		
 		drop surv_temp
 		
-		quietly count if BCR_SCT == `bcr' & _d == 0 & last_record == 1
-		matrix OS_ASCT[`bcr', 12] = r(N) / `n' * 100
+		quietly count if BCR_SCT == `bcr' & _d == 1
+		matrix OS_ASCT[`bcr', 12] = (`n' - r(N)) / `n' * 100
 	}
 }
 
@@ -170,8 +219,8 @@ forvalues bcr = 1/6 {
 		
 		drop surv_temp
 		
-		quietly count if BCR_L2 == `bcr' & _d == 0 & last_record == 1
-		matrix OS_L2[`bcr', 12] = r(N) / `n' * 100
+		quietly count if BCR_L2 == `bcr' & _d == 1
+		matrix OS_L2[`bcr', 12] = (`n' - r(N)) / `n' * 100
 	}
 }
 
@@ -206,8 +255,8 @@ forvalues bcr = 1/6 {
 		
 		drop surv_temp
 		
-		quietly count if BCR_L3 == `bcr' & _d == 0 & last_record == 1
-		matrix OS_L3[`bcr', 12] = r(N) / `n' * 100
+		quietly count if BCR_L3 == `bcr' & _d == 1
+		matrix OS_L3[`bcr', 12] = (`n' - r(N)) / `n' * 100
 	}
 }
 
@@ -281,9 +330,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L1_NoASCT[`bcr', 4] = r(p25)
 		matrix TXD_L1_NoASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 0
-		matrix TXD_L1_NoASCT[`bcr', 6] = r(N) / TXD_L1_NoASCT[`bcr', 1] * 100
-
+		bench_censored TXD_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 		bench_horizons TXD_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 	}
 }
@@ -307,9 +354,7 @@ forvalues bcr = 1/4 {
 		matrix TXD_L1_ASCT[`bcr', 4] = r(p25)
 		matrix TXD_L1_ASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_SCT == `bcr' & _d == 0
-		matrix TXD_L1_ASCT[`bcr', 6] = r(N) / TXD_L1_ASCT[`bcr', 1] * 100
-
+		bench_censored TXD_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 		bench_horizons TXD_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 	}
 }
@@ -334,9 +379,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L2[`bcr', 4] = r(p25)
 		matrix TXD_L2[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L2 == `bcr' & _d == 0
-		matrix TXD_L2[`bcr', 6] = r(N) / TXD_L2[`bcr', 1] * 100
-
+		bench_censored TXD_L2 `bcr' "BCR_L2 == `bcr'"
 		bench_horizons TXD_L2 `bcr' "BCR_L2 == `bcr'"
 	}
 }
@@ -361,9 +404,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L3[`bcr', 4] = r(p25)
 		matrix TXD_L3[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L3 == `bcr' & _d == 0
-		matrix TXD_L3[`bcr', 6] = r(N) / TXD_L3[`bcr', 1] * 100
-
+		bench_censored TXD_L3 `bcr' "BCR_L3 == `bcr'"
 		bench_horizons TXD_L3 `bcr' "BCR_L3 == `bcr'"
 	}
 }
@@ -388,9 +429,7 @@ forvalues bcr = 1/6 {
 		matrix TXD_L4[`bcr', 4] = r(p25)
 		matrix TXD_L4[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L4 == `bcr' & _d == 0
-		matrix TXD_L4[`bcr', 6] = r(N) / TXD_L4[`bcr', 1] * 100
-
+		bench_censored TXD_L4 `bcr' "BCR_L4 == `bcr'"
 		bench_horizons TXD_L4 `bcr' "BCR_L4 == `bcr'"
 	}
 }
@@ -418,9 +457,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L1_NoASCT[`bcr', 4] = r(p25)
 		matrix TFI_L1_NoASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L1 == `bcr' & SCT == 0 & _d == 0
-		matrix TFI_L1_NoASCT[`bcr', 6] = r(N) / TFI_L1_NoASCT[`bcr', 1] * 100
-
+		bench_censored TFI_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 		bench_horizons TFI_L1_NoASCT `bcr' "BCR_L1 == `bcr' & SCT == 0"
 	}
 }
@@ -443,9 +480,7 @@ forvalues bcr = 1/4 {
 		matrix TFI_L1_ASCT[`bcr', 4] = r(p25)
 		matrix TFI_L1_ASCT[`bcr', 5] = r(p75)
 
-		quietly count if BCR_SCT == `bcr' & _d == 0
-		matrix TFI_L1_ASCT[`bcr', 6] = r(N) / TFI_L1_ASCT[`bcr', 1] * 100
-
+		bench_censored TFI_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 		bench_horizons TFI_L1_ASCT `bcr' "BCR_SCT == `bcr'"
 	}
 }
@@ -470,9 +505,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L2[`bcr', 4] = r(p25)
 		matrix TFI_L2[`bcr', 5] = r(p75)
 
-		quietly count if BCR_L2 == `bcr' & _d == 0
-		matrix TFI_L2[`bcr', 6] = r(N) / TFI_L2[`bcr', 1] * 100
-
+		bench_censored TFI_L2 `bcr' "BCR_L2 == `bcr'"
 		bench_horizons TFI_L2 `bcr' "BCR_L2 == `bcr'"
 	}
 }
@@ -497,8 +530,7 @@ forvalues bcr = 1/6 {
 		matrix TFI_L3[`bcr', 4] = r(p25)
 		matrix TFI_L3[`bcr', 5] = r(p75)
 		
-		quietly count if BCR_L3 == `bcr' & _d == 0
-		matrix TFI_L3[`bcr', 6] = r(N) / TFI_L3[`bcr', 1] * 100
+		bench_censored TFI_L3 `bcr' "BCR_L3 == `bcr'"
 	}
 }
 
@@ -642,8 +674,8 @@ if `n' > 0 {
 		local ++col
 	}
 	drop surv_temp
-	quietly count if _d == 0 & last_record == 1
-	matrix OS_All[1, 12] = r(N) / `n' * 100
+	quietly count if _d == 1
+	matrix OS_All[1, 12] = (`n' - r(N)) / `n' * 100
 }
 
 // Whole-population OS monthly KM curve (survivor + Greenwood SE) at 0..120 months from diagnosis.
@@ -719,11 +751,109 @@ if _rc == 0 {
 				local ++col
 			}
 			drop surv_temp
-			quietly count if _d == 0 & last_record == 1 & _cmg == `g'
-			matrix OS_CM[`r', 12] = r(N) / `n' * 100
+			quietly count if _d == 1 & _cmg == `g'
+			matrix OS_CM[`r', 12] = (`n' - r(N)) / `n' * 100
 		}
 	}
 	drop _cmn _cmnp _cmg
+}
+
+
+// MND benchmark - L1 maintenance DURATION by regimen, censoring-aware.
+//
+// THIS REPLACES A SHARE-OF-THE-GAP BENCHMARK THAT WAS NOT COMPARABLE BETWEEN THE TWO SIDES, and
+// the reason is worth keeping because it is easy to reintroduce. The old metric was
+// MND_L1 / TFI_L1 by regimen x gap band. Both quantities need an OBSERVED L2, so the registry
+// side could only ever be computed on patients who relapsed - while the simulated side has a
+// closed gap for everybody, because the engine runs each patient to death. Those are different
+// populations, and the difference is not small or random: at long gaps the relapsers are exactly
+// the patients whose maintenance ran close to relapse, so their share is high by construction.
+// Band-4 lenalidomide patients who reached L2 have a median tail (maintenance end to next line)
+// of 2.0 months; across all patients at risk it is 19.3. The old target's headline gradient
+// (0.564 -> 0.831 across bands) is therefore substantially a selection artefact, not a fact about
+// lenalidomide, and the model was scored 0/7 against it in-sample. See docs/refractory.md 5(7)
+// and 5(8), and scratch/maintenance/_notes.md for the working.
+//
+// WHAT IS SCORED INSTEAD. Maintenance duration itself, as a Kaplan-Meier median in months from the
+// maintenance start event (110) to its end (111) or the next line (20). That needs no closed gap:
+// a patient still on maintenance at the cut is right-censored, which is what KM is for, so the
+// whole maintenance population contributes instead of the 37% of it that relapsed. It is
+// computable identically on the simulated side, where MND_L1 is drawn for every maintenance
+// patient. Duration is also the quantity the COST engine actually bills (process_data.do bills
+// cMNT x MND_L1), so this scores the thing that matters rather than a ratio standing in for it.
+//
+// WHAT WAS LOST, honestly. The old metric was built to catch a regimen x gap INTERACTION - the
+// first simulated run passed every marginal target while over-billing bortezomib 3.6x in band 4.
+// A marginal duration cannot see that. The gap-banded version cannot be recovered on the registry
+// side (the band needs the gap, the gap needs L2), so the interaction is currently untestable
+// rather than untested. Recorded as such in docs/refractory.md 5(8) rather than papered over with
+// a metric that fails for the wrong reason.
+//
+// Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 5"): lenalidomide,
+// thalidomide, everything else pooled to 0. If that list changes this must change with it - the
+// simulated MNR_L1 only ever holds the levels the analysis declared.
+preserve
+	// stset the maintenance episode itself, exactly as risk_equations.do fits L1_MND: origin at
+	// the maintenance start, failure at the recorded end or the next line, whichever comes first.
+	// Patients still on maintenance at the cut simply never fail, and are censored.
+	capture stset Date1 if(MNT == 1 & inlist(MNR_L1, 1, 5, 0)), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+
+	matrix MND_L1 = J(3, 5, .)
+	matrix colnames MND_L1 = "N" "Failures" "Median" "P25" "P75"
+	matrix rownames MND_L1 = "len" "thal" "other"
+
+	// GUARD: if the maintenance events are absent from this cut (an older extraction), stset fails
+	// or yields no subjects. Leave the matrix missing rather than exporting zeros - the validator
+	// skips missing benchmarks, and an empty target that scores as 0 is worse than no target.
+	capture confirm variable _t
+	if _rc == 0 {
+		local mrow = 0
+		foreach g in 1 5 0 {
+			local ++mrow
+			local gcond "MNR_L1 == `g'"
+			if `g' == 0 local gcond "!inlist(MNR_L1, 1, 5)"
+
+			quietly count if (`gcond') & _t0 == 0
+			matrix MND_L1[`mrow', 1] = r(N)
+			quietly count if (`gcond') & _d == 1
+			matrix MND_L1[`mrow', 2] = r(N)
+
+			// stci returns the KM median and its quartiles; it leaves them missing when the
+			// survivor never reaches the relevant probability, which is the honest answer for a
+			// heavily-censored cell and is skipped downstream rather than guessed at.
+			capture quietly stci if `gcond'
+			if _rc == 0 & r(N) > 0 {
+				matrix MND_L1[`mrow', 3] = r(p50)
+				// Two traps here, both of which shipped once. stci's p(#) is the #th percentile
+				// of SURVIVAL TIME, so p(25) is the SHORTER duration and belongs in the P25
+				// column. And it returns the result in r(p25) / r(p75), NOT r(p50) - reading
+				// r(p50) after a p(#) call silently exports an empty column.
+				capture quietly stci if `gcond', p(25)
+				if _rc == 0 matrix MND_L1[`mrow', 4] = r(p25)
+				capture quietly stci if `gcond', p(75)
+				if _rc == 0 matrix MND_L1[`mrow', 5] = r(p75)
+			}
+		}
+	}
+restore
+
+**********
+// 5b. MINIMUM-N FLOOR
+**********
+
+// Applied to every benchmark AFTER it is built and BEFORE it is exported, so the floor is one
+// decision in one place rather than a condition repeated in twenty loops. N stays; the estimates
+// go. Pathways is excluded: its rows are whole-cohort reach rates, not per-response cells, so they
+// are never thin, and OS_All / the KM curve are single whole-population rows for the same reason.
+local bench_min = 20
+
+foreach M in OS_L1_NoASCT OS_ASCT OS_L2 OS_L3 OS_CM ///
+             TXD_L1_NoASCT TXD_L1_ASCT TXD_L2 TXD_L3 TXD_L4 ///
+             TFI_L1_NoASCT TFI_L1_ASCT TFI_L2 TFI_L3 ///
+             BCR MND_L1 {
+	capture confirm matrix `M'
+	if _rc == 0 bench_floor `M' `bench_min'
 }
 
 **********
@@ -771,6 +901,7 @@ if `have_cm' {
 	order CM
 	export delimited using "`bench_out'/os_wholepop_cm.csv", replace
 }
+
 
 // TFI benchmarks
 clear
@@ -827,6 +958,17 @@ svmat TXD_L4, names(col)
 gen BCR = _n
 order BCR
 export delimited using "`bench_out'/txd_l4.csv", replace
+
+clear
+svmat MND_L1, names(col)
+gen MNR = .
+local mrow = 0
+foreach g in 1 5 0 {
+	local ++mrow
+	quietly replace MNR = `g' in `mrow'
+}
+order MNR
+export delimited using "`bench_out'/mnd_l1.csv", replace
 
 // BCR distributions
 clear

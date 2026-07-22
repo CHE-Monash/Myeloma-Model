@@ -88,21 +88,36 @@ di "Running simulation"
 		*mata: _matrix_list(mBCR, rmBCR, cmBCR)
 
 	di "L1E - MNT"
-		qui do "core/outcomes/sim_mnt.do"		
+		qui do "core/outcomes/sim_mnt.do"
 		*mata: _matrix_list(bMNT, rbMNT, cbMNT)
 		*mata: _matrix_list(vMNT)
+
+	di "L1E - MNT Regimen"
+		qui do "core/outcomes/sim_mnr.do"
+		*mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
+		*mata: _matrix_list(vMNR)
 
 	di "L1E - Treatment-free Interval"
 		qui do "core/outcomes/sim_tfi_l1.do"			
 		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
-	
+
+	// MND follows sim_mnr (needs vMNR) AND sim_tfi_l1 (needs the drawn gap for the ln(TFI)
+	// covariate, so lenalidomide duration scales with the gap). process_data.do also caps the
+	// drawn duration at the realised gap at billing time, inheriting sim_mort's death curtailment.
+	di "L1E - MNT Duration (gap-dependent draw, capped at TFI when billed)"
+		qui do "core/outcomes/sim_mnd.do"
+		*mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
+		*mata: _matrix_list(vMND)
+
+
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-				
+
+
 	di "L1E - Mortality"
 		qui do "core/outcomes/sim_mort.do"	
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -158,7 +173,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
-				
+
+
 	di "L2E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -214,7 +230,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-		
+
+
 	di "L3E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -271,6 +288,7 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
+
 	di "L4E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)
@@ -326,7 +344,8 @@ di "Running simulation"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
-		
+
+
 	di "L5E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
 		*mata: _matrix_list(mMOR, rmMOR, cmMOR)

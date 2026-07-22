@@ -46,6 +46,54 @@ real scalar txr_model_exists(real scalar line) {
 
 end
 
+*Functions for sim_mnr.do / sim_mnd.do
+mata:
+
+// Same `external` trick as the TXR helpers above, and for the same reason: when an analysis
+// declares no maintenance regimens, risk_equations.do stores oL1_MNR = 0 and never creates
+// bL1_MNR, so it is absent from the coefficient file. Referencing it directly would fail on
+// an undefined symbol; declaring it external creates it empty, so rows() can be tested.
+
+// Helper function: Get MNR coefficients (empty matrix if the analysis modelled no regimens)
+real matrix get_mnr_coef() {
+	external bL1_MNR
+	if (rows(bL1_MNR) > 0) return(bL1_MNR)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get MNR outcome codes (the drug codes the analysis modelled)
+real rowvector get_mnr_outcome() {
+	external oL1_MNR
+	if (cols(oL1_MNR) > 0) return(oL1_MNR)
+	return(J(1, 0, .))
+}
+
+// Helper function: Check if MNR model exists
+real scalar mnr_model_exists() {
+	return(rows(get_mnr_coef()) > 0)
+}
+
+// Helper function: Get MND (maintenance duration) coefficients, ASCT arm
+real matrix get_mnd_coef_asct() {
+	external bL1_MND_ASCT
+	if (rows(bL1_MND_ASCT) > 0) return(bL1_MND_ASCT)
+	return(J(0, 0, .))
+}
+
+// Helper function: Get MND coefficients, no-ASCT arm
+real matrix get_mnd_coef_noasct() {
+	external bL1_MND_NoASCT
+	if (rows(bL1_MND_NoASCT) > 0) return(bL1_MND_NoASCT)
+	return(J(0, 0, .))
+}
+
+// Helper function: MND model exists if EITHER transplant arm was fitted
+real scalar mnd_model_exists() {
+	return(cols(get_mnd_coef_asct()) > 0 | cols(get_mnd_coef_noasct()) > 0)
+}
+
+end
+
 mata:
 //=============================================================================
 // SURVIVAL DISTRIBUTION FUNCTIONS

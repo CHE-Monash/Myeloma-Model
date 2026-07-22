@@ -45,17 +45,17 @@ local Data "$data_cut"
 
 **********
 // Settings
-
-global imp 10
-global boot 0
-
 /*
+global imp 2
+global boot 0
+*/
+
 global imp `1'
 global boot `2'
 global min_bs `3'
 global max_bs `4'
 global sample `5'   // "" = full cohort (main model); "train"/"test" = OOS fold (analyses/default/)
-*/
+
 * OOS routing: when $sample is set, restrict to that fold (split crosswalk written by
 * analyses/default/prep/split.do) and write outputs under ${data_path}/oos/. Empty = main model.
 if "$sample" == "" {
@@ -239,7 +239,7 @@ program define multiple_imputation
 
 	// Unregister, keep, sort & order
 	mi unregister AlkalinePhosphatase BMPlasmaCells SerumCalcium SerumCreatinine EQ5D_Diagnosis LTHaemoglobinGL WhiteCellCount NeutrophillCount PlateletCount CRABScore ExtraMedullaryD LyticLesion Para Lambda Kappa FLC dPara dLambda dKappa dFLC
-	keep ID ID_BS Event* Date* Age* Male ECOGcc ISS RISS SCT MNT CM* BCR* pBCR* Reg* OS Line Duration CID CLine CStart CEnd Country F_* CN_* Year Albumin SerumB2Microglobulin LactateDehydrogenase LDHUpperLimit LDHRisk FISHRisk eGFR _* Bortezomib Carfilzomib Cisplatin Cyclophosphamide Daratumamab Dexamethasone Doxorubicin Elotuzamab Etoposide Lenalidomide Melphalan Methylprednisolone Panobinostat Prednisolone Thalidomide Pomalidomide Ixazomib TXD* TFI*
+	keep ID ID_BS Event* Date* Age* Male ECOGcc ISS RISS SCT MNT MND_L1 MNR_L1 LineRefr LenRefr_Tx_in LenRefr_Mnt_in MNT_LenRefr_L1 CM* BCR* pBCR* Reg* OS Line Duration CID CLine CStart CEnd Country F_* CN_* Year Albumin SerumB2Microglobulin LactateDehydrogenase LDHUpperLimit LDHRisk FISHRisk eGFR _* Bortezomib Carfilzomib Cisplatin Cyclophosphamide Daratumamab Dexamethasone Doxorubicin Elotuzamab Etoposide Lenalidomide Melphalan Methylprednisolone Panobinostat Prednisolone Thalidomide Pomalidomide Ixazomib TXD* TFI*
 	sort ID_BS Date0
 	order $core Age Male ECOGcc RISS BCR Reg Regimen Line Duration
 

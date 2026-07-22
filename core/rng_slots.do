@@ -25,7 +25,7 @@
 *     a genuinely NEW stochastic event takes a column from the reserved block
 *     (rn_override(i)).
 *
-* Column map (1-indexed; K = 74). Engine call sites are the live draws in
+* Column map (1-indexed; K = 76). Engine call sites are the live draws in
 *   core/outcomes/ inventoried in section 5 of the plan.
 *
 *   cols  event              keyed by   accessor             core call site(s)
@@ -42,12 +42,26 @@
 *      63 ASCT at DN         -          rn_asct_dn()         sim_asct_dn.do:36
 *      64 ASCT at L1         -          rn_asct_l1()         sim_asct_l1.do:44
 *   65-66 Maintenance (2)    branch 1,2 rn_mnt(branch)       sim_mnt.do:69 (ASCT), :119 (noASCT)
-*   67-74 Reserved override  i 1..8     rn_override(i)       analysis overrides introducing new draws
+*      67 MNT regimen        -          rn_mnr()             sim_mnr.do
+*      68 MNT duration       -          rn_mnd()             sim_mnd.do
+*   69-76 Reserved override  i 1..8     rn_override(i)       analysis overrides introducing new draws
 *
 *   TXD_L1 sub-index:  1 = ASCT spline 1, 2 = ASCT spline 2 (cond.),
 *                      3 = ASCT spline 3 (cond.), 4 = no-ASCT, 5 = continuous therapy
 *   TFI_L1 branch:     1 = ASCT, 2 = no-ASCT
 *   MNT branch:        1 = ASCT, 2 = no-ASCT
+*
+*   MNR/MND take ONE slot each, not one per branch: both are drawn once per patient at L1E
+*   among MNT == 1, and neither splits by transplant status (SCT is a covariate, not a branch).
+*   They are sequential draws for the same patient, so they need distinct slots. MND's single
+*   uniform feeds calcSurvTime() (parametric survival), exactly as the TFI/TXD draws do.
+*
+*   NOTE these two columns moved K from 74 to 76, which RE-LAYS-OUT THE WHOLE of mRN
+*   (mata_setup.do builds it in one runiform(Obs, rn_K()) call, so the mapping of stream
+*   position to cell changes). Every analysis therefore draws different uniforms than before
+*   and all simulated results move by Monte Carlo noise, even where nothing else changed.
+*   That is unavoidable for a new CORE stochastic event; the reserved override block exists
+*   so that OVERRIDES can add draws without paying it.
 
 mata:
 
@@ -69,10 +83,12 @@ real scalar rn_base_tfi()      return(54)   // 55..62  (line 2..9)
 real scalar rn_base_asctdn()   return(62)   // 63
 real scalar rn_base_asctl1()   return(63)   // 64
 real scalar rn_base_mnt()      return(64)   // 65..66
-real scalar rn_base_override() return(66)   // 67..74
+real scalar rn_base_mnr()      return(66)   // 67
+real scalar rn_base_mnd()      return(67)   // 68
+real scalar rn_base_override() return(68)   // 69..76
 
 // ---- Total columns to allocate ----
-real scalar rn_K() return(74)
+real scalar rn_K() return(76)
 
 // ---- Accessors: each returns the absolute column index for (event, point) ----
 
@@ -133,6 +149,13 @@ real scalar rn_mnt(real scalar branch) {
 	rn_assert(branch == 1 | branch == 2, "rn_mnt: branch must be 1 or 2")
 	return(rn_base_mnt() + branch)
 }
+
+// Maintenance regimen at L1E (one draw, MNT == 1 only)
+real scalar rn_mnr() return(rn_base_mnr() + 1)
+
+// Maintenance duration at L1E (one draw, MNT == 1 only; parametric survival via calcSurvTime)
+real scalar rn_mnd() return(rn_base_mnd() + 1)
+
 
 // Reserved columns for overrides that introduce a NEW stochastic event (i = 1..8)
 real scalar rn_override(real scalar i) {

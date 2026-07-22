@@ -77,6 +77,34 @@ program define save_max
 	global Coeffs $Coeffs max`mat'
 end
 
+cap program drop gen_mnr
+program define gen_mnr
+	// MNR_L1 arrives from the extraction as a RAW 6-level maintenance drug code (see
+	// docs/refractory.md 2). Keep that as MNR_drug and rebuild MNR_L1 as the levels this
+	// analysis models, per $MNR_L1 from outcomes/mnr_<coeffs>.do; anything unlisted falls to
+	// 0 = 'other'. Mirrors gen_txr, and is what lets one extraction serve both the historical
+	// window the OOS validation scores against and a current-paradigm window: the maintenance
+	// mix stepped in 2020, so no single fixed list serves both (docs/refractory.md 7.4).
+	// Re-entrant: rebuilds from MNR_drug if already called.
+	cap confirm variable MNR_drug
+	if _rc {
+		cap confirm variable MNR_L1
+		if _rc {
+			di as err "gen_mnr: MNR_L1 is not in the MI data."
+			di as err "         Rebuild MRDR Long (prep/data_extraction.do), then re-run"
+			di as err "         prep/multiple_imputation.do - its keep list must name MNR_L1."
+			exit 111
+		}
+		rename MNR_L1 MNR_drug
+	}
+	cap drop MNR_L1
+	gen byte MNR_L1 = 0 if !mi(MNR_drug)
+	foreach r of global MNR_L1 {
+		replace MNR_L1 = `r' if MNR_drug == `r'
+	}
+	cap label values MNR_L1 MNR_label
+end
+
 cap program drop gen_txr
 program define gen_txr
 	// Build TXR_L1..L9 from the per-line regimen code lists in $TXR_L1..$TXR_L9 (declared by the
@@ -109,6 +137,13 @@ program define risk_equations
 	}
 	qui do "analyses/$analysis/outcomes/txr_$coeffs.do"
 	gen_txr
+
+	// MNR variable. Not every analysis declares a maintenance regimen list; without one every
+	// regimen falls to 'other' and L1_MNR is skipped below, which is right for the $line 2
+	// analyses where maintenance is never costed (docs/refractory.md 7.3).
+	global MNR_L1 ""
+	cap qui do "analyses/$analysis/outcomes/mnr_$coeffs.do"
+	gen_mnr
 
 	// Reset global
 	global Coeffs
@@ -457,6 +492,82 @@ program define risk_equations
 	mi estimate: logit MNT Age Age2 Male i.ECOGcc i.RISS i.TXR_L1 i.BCR_L1 if(Event1 == 11 & SCT == 0)
 	save_coefs MNT_NoASCT
 	mata: _matrix_list(bMNT_NoASCT, rbMNT_NoASCT, cbMNT_NoASCT)
+
+	***** MAINTENANCE REGIMEN AND DURATION (MNR / MND) *****
+	di "Maintenance regimen and duration"
+	// The maintenance analogue of TXR_L1 / TXD_L1, sat here because both condition on the MNT
+	// logit above: MNT decides WHETHER, L1_MNR WHICH, L1_MND HOW LONG. Both fit at the same
+	// Event1 == 11 row as MNT, and only among MNT == 1. Consumed only by cost_tx_mnt, so the
+	// out-of-sample validation fits them but never uses them. See docs/refractory.md 7.4.
+
+	// Which regimen. Lenalidomide and thalidomide only (docs/refractory.md 7.4) - lenalidomide
+	// is the base, thalidomide the alternative, so this is effectively a logit and the engine
+	// never produces an 'other' maintenance regimen. Year-windowed exactly as TXR_L1 is, so the
+	// mix reflects the era; the list comes from outcomes/mnr_$coeffs.do ("1 5"). If a window
+	// leaves only one regimen (r(r) == 1, e.g. thalidomide empty in a modern window) then
+	// oL1_MNR = 1 is stored and sim_mnr assigns every maintenance patient lenalidomide.
+	qui tab MNR_L1 if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5))
+	if `r(r)' > 1 {
+		mi estimate: mlogit MNR_L1 Age Age2 Male i.ECOGcc i.RISS SCT ///
+			if(Event1 == 11 & MNT == 1 & inlist(MNR_L1, 1, 5) & yofd(Date0) >= $min_year & yofd(Date0) <= $max_year), baseoutcome(1)
+		save_coefs L1_MNR
+		mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
+	}
+	else {
+		mata: oL1_MNR = 1
+		global Coeffs $Coeffs oL1_MNR
+	}
+
+	// How long: maintenance DURATION via parametric survival on the maintenance EVENTS in the
+	// skeleton, exactly as L1_TFI is fitted (docs/refractory.md 4.4). The extraction keeps the L1
+	// maintenance start (110) and end (111) events, so this is a normal stset:
+	//     origin(Event1 == 110)          maintenance start
+	//     failure(Event1 == 20 111)      maintenance end - the recorded end (111), or L2 start (20)
+	//
+	// GAP-DEPENDENT via ln(gap). Lenalidomide maintenance runs to progression, so its duration
+	// scales with the gap; thalidomide is a fixed ~10-month course and does not. Without a gap term
+	// the survival draw is gap-INDEPENDENT and the simulated share falls with gap length while the
+	// registry share rises - so ln(gap) enters with a REGIMEN INTERACTION (MND_lntfi_thal), giving
+	// lenalidomide a slope near 1 and thalidomide a slope near 0. In MONTHS, to match the engine's
+	// mTFI (sim_mnd.do reads ln(drawn TFI_L1)).
+	//
+	// COMPLETE GAPS. ln(gap) uses TFI_L1 (L1E to L2), which is missing for patients still on
+	// maintenance at the cut, so they drop from this fit. That is the price of a gap covariate that
+	// is NOT derived from the censoring point: a censor-filled gap was tried and pinned the share at
+	// 1.0, because for a censored patient the filled gap IS their own censoring time, and the
+	// survival likelihood then inflates the predicted duration above the gap (docs/refractory.md 4.4).
+	// The engine still uses the drawn (complete) gap, so the relationship transfers.
+	//
+	// SPLIT BY TRANSPLANT, exactly as L1_TFI is: the ASCT arm keys on the post-transplant response
+	// (i.BCR_SCT), the no-ASCT arm on the post-induction response (i.BCR_L1). Otherwise the
+	// covariates match. Lenalidomide and thalidomide only (inlist(MNR_L1, 1, 5)). Log-normal.
+	//
+	// The engine design matrices (sim_mnd.do) carry every factor level, so a level EMPTY in an arm
+	// (e.g. no-ASCT SD/PD patients rarely get maintenance) drops from e(b) and trips the design
+	// guard - collapse that level if so.
+	qui gen double MND_lntfi      = ln(TFI_L1 / 30.4375)     // L1E-to-L2 gap, months; missing (dropped) where no L2
+	qui gen double MND_lntfi_thal = MND_lntfi * (MNR_L1 == 5)
+
+	// ASCT
+	mi stset Date1 if(SCT == 1 & BCR_SCT != 0 & MNT == 1 & inlist(MNR_L1, 1, 5)), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max L1_MND_ASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_SCT MND_lntfi MND_lntfi_thal, d($dTFI)
+	save_coefs L1_MND_ASCT
+	mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
+
+	// No ASCT. Restrict to RESPONDERS (BCR_L1 in 1-4 = CR/VGPR/PR/MR): maintenance is a
+	// post-response therapy, so SD/PD (5/6) do not get it by definition. The handful in the data
+	// are noise, and on the small no-ASCT sample (smaller still on the OOS train fold) an SD or PD
+	// cell empties and drops from i.BCR_L1, which trips the engine design guard. Dropping them
+	// keeps i.BCR_L1 at a full 4 levels. sim_mnd.do excludes the same patients (docs 4.4). The
+	// ASCT arm already needs no filter - BCR_SCT is collapsed to 1-4 at transplant.
+	mi stset Date1 if(SCT == 0 & MNT == 1 & inlist(MNR_L1, 1, 5) & inlist(BCR_L1, 1, 2, 3, 4)), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
+	save_max L1_MND_NoASCT
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_L1 MND_lntfi MND_lntfi_thal, d($dTFI)
+	save_coefs L1_MND_NoASCT
+	mata: _matrix_list(bL1_MND_NoASCT, rbL1_MND_NoASCT, cbL1_MND_NoASCT)
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"

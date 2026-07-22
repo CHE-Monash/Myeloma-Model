@@ -23,12 +23,12 @@ di as text "Processing Simulated Data (Starting Line: `L')"
 cap mata: mata drop mRN
 
 * Create mSum in Mata
-	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , ///
+	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , vMNR , vMND , ///
 			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
 * Column names for mSum, in assembly order below.
 * (getmata errors on a name/column count mismatch, which guards this alignment.)
-	local varnames ID Male ECOGcc RISS ISS CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT ///
+	local varnames ID Male ECOGcc RISS ISS CM_CKD CM_CRD CM_PLM CM_DBT Age70 Age75 SCT_DN SCT_L1 MNT MNR_L1 MND_L1 ///
 		Age_DN Age_L1S Age_L1E Age_L2S Age_L2E Age_L3S Age_L3E Age_L4S Age_L4E Age_L5S Age_L5E Age_L6S Age_L6E Age_L7S Age_L7E Age_L8S Age_L8E Age_L9S Age_L9E ///
 		OS_DN OS_L1S OS_L1E OS_L2S OS_L2E OS_L3S OS_L3E OS_L4S OS_L4E OS_L5S OS_L5E OS_L6S OS_L6E OS_L7S OS_L7E OS_L8S OS_L8E OS_L9S OS_L9E ///
 		TNE_DN TNE_L1S TNE_L1E TNE_L2S TNE_L2E TNE_L3S TNE_L3E TNE_L4S TNE_L4E TNE_L5S TNE_L5E TNE_L6S TNE_L6E TNE_L7S TNE_L7E TNE_L8S TNE_L8E TNE_L9S TNE_L9E ///
@@ -38,9 +38,9 @@ cap mata: mata drop mRN
 		TXR_L1 TXR_L2 TXR_L3 TXR_L4 TXR_L5 TXR_L6 TXR_L7 TXR_L8 TXR_L9 ///
 		TXD_L1 TXD_L2 TXD_L3 TXD_L4 TXD_L5 TXD_L6 TXD_L7 TXD_L8 TXD_L9 ///
 		BCR_L1 BCR_L2 BCR_L3 BCR_L4 BCR_L5 BCR_L6 BCR_L7 BCR_L8 BCR_L9 BCR_SCT ///
-		TFI_DN TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 /// 
+		TFI_DN TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 ///
 		State DateDN ///
-				
+		
 
 * Write the Mata matrix straight to named variables. getmata reads mSum
 * directly, bypassing the st_matrix()/svmat round-trip that dominated runtime
@@ -187,7 +187,24 @@ cap mata: mata drop mRN
 	qui gen cost_tx_mnt = 0
 	if `L' == 1 {
 		qui replace cost_tx_asct = `cASCT' if SCT_L1 == 1
-		qui replace cost_tx_mnt = `cMNT' * (TFI_L1 * 30.4375 / 28) if MNT == 1
+		// Bill the maintenance actually delivered, not the whole L1-to-L2 gap. MND_L1 is the
+		// maintenance DURATION (months) drawn by sim_mnd.do and carried out of the engine. Cap
+		// it at the REALISED TFI_L1 - sim_mort has curtailed TFI_L1 at death by now, so a patient
+		// who dies mid-gap is billed only for the maintenance they lived to receive, and a draw
+		// that overshoots the gap becomes continuous-to-progression maintenance (the patient
+		// stayed on maintenance until relapse; docs/refractory.md 4.4). Billing the whole TFI_L1
+		// overstated maintenance by 69% population-wide (docs/refractory.md 7).
+		// The !mi() guard matters: MND_L1 is missing for MNT == 0 and for every patient if
+		// L1_MND was never fitted, and an unguarded bill would propagate missing through cost_tx
+		// into every downstream total. Leaving cost_tx_mnt at its 0 initialisation is the safe
+		// direction - no maintenance cost beats a silently missing total.
+		// INTERIM: still the blended cMNT (roughly the all-years lenalidomide/thalidomide mix,
+		// so wrong for any single year). MNR_L1 is simulated and carried out of the engine, but
+		// regimen-specific pricing needs maintenance DPMQs that mostly do not exist: per the MSAG
+		// guideline only lenalidomide has a PBS maintenance listing. See docs/refractory.md 7.4
+		// and the Costs todo in the programme note.
+		qui replace MND_L1 = TFI_L1 if MNT == 1 & !mi(MND_L1) & MND_L1 > TFI_L1
+		qui replace cost_tx_mnt = `cMNT' * (MND_L1 * 30.4375 / 28) if MNT == 1 & !mi(MND_L1)
 	}
 
 * Total undiscounted treatment cost

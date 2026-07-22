@@ -29,6 +29,11 @@ di _n "{hline 80}"
 di "LOADING BENCHMARKS"
 di "{hline 80}"
 
+// NOTE: the Censored column is carried through mkmat only so the column positions below line up
+// with the target CSVs -- NOTHING in this file scores it. The OS tests read Y3/Y5 (cols 5 and 7);
+// the TXD/TFI tests read M12/M24 (cols 7 and 8). No pass/fail verdict depends on Censored, so
+// don't read one into it: it is registry follow-up bookkeeping, not a model prediction.
+
 // OS benchmarks
 import delimited "${val_targets}/os_l1_noasct.csv", clear case(preserve)
 mkmat N Median Y1 Y2 Y3 Y4 Y5 Y6 Y7 Y8 Y10 Censored, matrix(OS_L1_NoASCT_bench)
@@ -79,6 +84,21 @@ mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_NoASCT_bench)
 
 import delimited "${val_targets}/txd_l1_asct.csv", clear case(preserve)
 mkmat N Mean Median P25 P75 Censored M12 M24, matrix(TXD_L1_ASCT_bench)
+
+// MND benchmark - maintenance duration (KM median months) by regimen. Optional, so target sets
+// generated before the maintenance work still validate. NOTE the column set changed when the
+// share-of-gap metric was retired: an older mnd_l1.csv carries MNR GapBand N Mean Median P25 P75
+// and will not mkmat here, which is deliberate - it would otherwise be scored as if it were the
+// new metric. Regenerate the targets.
+capture confirm file "${val_targets}/mnd_l1.csv"
+if _rc == 0 {
+	import delimited "${val_targets}/mnd_l1.csv", clear case(preserve)
+	capture mkmat MNR N Failures Median P25 P75, matrix(MND_L1_bench)
+	if _rc {
+		di as error "  WARNING: mnd_l1.csv is in the OLD share-by-gap-band format and was not loaded."
+		di as error "           Re-run prep/generate_benchmarks.do to rebuild it as duration."
+	}
+}
 
 * L2-L4 TXD (now with M12/M24 on-treatment cols); optional so older target sets still run
 foreach L in 2 3 4 {
@@ -589,6 +609,71 @@ qui forvalues bcr = 1/4 {
         local ++c
     }
     qui drop surv_h
+}
+
+// MND - L1 maintenance DURATION by regimen, in months.
+//
+// This replaced a share-of-the-gap benchmark (MND_L1 / TFI_L1 by regimen x gap band) that was not
+// comparable between the two sides: both quantities need an observed L2, so the registry side was
+// computed on relapsers only while the simulated side had a closed gap for everybody. See the long
+// note in prep/generate_benchmarks.do and docs/refractory.md 5(8).
+//
+// The registry side is now a Kaplan-Meier median, which uses the whole maintenance population
+// including patients still on the drug at the cut. The simulated side has no censoring - every
+// drawn maintenance episode is complete - so a plain median is the right comparator for it.
+//
+// Tolerance is RELATIVE, not absolute, because the two regimens differ by an order of magnitude
+// (thalidomide is a fixed course, lenalidomide runs to progression). A fixed +/- N months would be
+// trivial for one and impossible for the other.
+capture confirm matrix MND_L1_bench
+if _rc == 0 {
+	local tol_mnd = 0.25
+	n di ""
+	n di "MND_L1 maintenance duration by regimen (median months; tol +/- " %3.0f `tol_mnd'*100 "%)"
+	n di "grp  |    bench |      sim |   diff | status"
+
+	qui forvalues r = 1/3 {
+		local g     = MND_L1_bench[`r', 1]
+		local bn    = MND_L1_bench[`r', 2]
+		local bench = MND_L1_bench[`r', 4]
+
+		// Groups follow $MNR_L1 "1 5": lenalidomide, thalidomide, everything else pooled to 0.
+		capture drop mnd_cell
+		qui gen byte mnd_cell = 0
+		if `g' == 0 qui replace mnd_cell = 1 if MNT == 1 & !mi(MND_L1) & !inlist(MNR_L1, 1, 5)
+		else        qui replace mnd_cell = 1 if MNT == 1 & !mi(MND_L1) & MNR_L1 == `g'
+
+		qui count if mnd_cell == 1
+		local simn = r(N)
+
+		// A missing bench is either a cell below the N floor or a KM median the registry's
+		// follow-up never reached. Both mean the registry cannot say, so neither do we.
+		if !missing(`bench') & `simn' > 0 {
+			qui summarize MND_L1 if mnd_cell == 1, detail
+			local sim  = r(p50)
+			local diff = `sim' - `bench'
+			if abs(`diff') <= `tol_mnd' * `bench' {
+				local status "PASS"
+				local tests_passed = `tests_passed' + 1
+			}
+			else {
+				local status "FAIL"
+				local tests_failed = `tests_failed' + 1
+			}
+			local tests_run = `tests_run' + 1
+			n di %4.0f `g' " | " %8.2f `bench' " | " %8.2f `sim' " | " %6.2f `diff' " | `status'"
+		}
+		else if `simn' == 0 {
+			// Expected for group 0: sim_mnr only ever assigns the levels the analysis declared
+			// ($MNR_L1 "1 5"), so the engine produces no 'other' maintenance at all (docs 7.4).
+			// The registry median can be perfectly good and still have nothing to score against.
+			n di %4.0f `g' " | " %8.2f `bench' " |        . |      . | skipped (engine produces no such regimen)"
+		}
+		else {
+			n di %4.0f `g' " | " %8.2f `bench' " |        . |      . | skipped (no scoreable registry median, N = " %4.0f `bn' ")"
+		}
+	}
+	capture drop mnd_cell
 }
 
 // TXD_L2 / L3 / L4  (no ASCT split at later lines); optional -- only if the target was generated
