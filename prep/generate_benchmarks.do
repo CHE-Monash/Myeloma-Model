@@ -825,10 +825,14 @@ preserve
 			capture quietly stci if `gcond'
 			if _rc == 0 & r(N) > 0 {
 				matrix MND_L1[`mrow', 3] = r(p50)
-				capture quietly stci if `gcond', p(75)
-				if _rc == 0 matrix MND_L1[`mrow', 4] = r(p50)
+				// Two traps here, both of which shipped once. stci's p(#) is the #th percentile
+				// of SURVIVAL TIME, so p(25) is the SHORTER duration and belongs in the P25
+				// column. And it returns the result in r(p25) / r(p75), NOT r(p50) - reading
+				// r(p50) after a p(#) call silently exports an empty column.
 				capture quietly stci if `gcond', p(25)
-				if _rc == 0 matrix MND_L1[`mrow', 5] = r(p50)
+				if _rc == 0 matrix MND_L1[`mrow', 4] = r(p25)
+				capture quietly stci if `gcond', p(75)
+				if _rc == 0 matrix MND_L1[`mrow', 5] = r(p75)
 			}
 		}
 	}

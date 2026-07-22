@@ -735,9 +735,25 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    gaps are where transplant-eligible patients live. Accepted and left rather than fixed (Adam,
    21 July 2026): it is still a large improvement on billing the blended rate across the whole
    `TFI_L1`, which overstated maintenance cost by 69%. Revisit if a budget-impact analysis needs
-   accurate long-gap maintenance cost - and if so, fix the benchmark before the model, because
-   matching the current target would tune the engine towards a biased number. Evidence:
-   `scratch/maintenance/mnd_cap.do`.
+   accurate long-gap maintenance cost. Evidence: `scratch/maintenance/mnd_cap.do`.
+
+   **The benchmark has since been fixed, and the picture is much better than the share metric
+   suggested.** `mnd_l1.csv` now scores the KM median maintenance DURATION by regimen, which needs
+   no closed gap (5(8)). Against it the model is **under-predicting duration consistently, in both
+   folds and both regimens**, by roughly 10 to 30%:
+
+   | | registry (KM median) | simulated | |
+   |---|---|---|---|
+   | lenalidomide, out of sample | 23.00 mo | 21.42 | pass |
+   | lenalidomide, in sample | 24.57 | 16.99 | fail |
+   | thalidomide, out of sample | 10.45 | 7.65 | fail |
+   | thalidomide, in sample | 10.32 | 8.28 | pass |
+
+   That is a level error of a knowable size and one direction, where the retired share metric
+   produced an incoherent 0/7. It is consistent with the complete-gap selection: `MND_lntfi` is
+   `ln(TFI_L1)`, so the fit only sees patients who reached L2, whose gaps - and therefore whose
+   maintenance - are short. The benchmark can use **1,028** lenalidomide maintenance patients; the
+   equation being benchmarked uses roughly a quarter of that.
 
 8. **The maintenance benchmark cannot be scored like-for-like, and 5(7) is the symptom.** The two
    sides of `mnd_l1.csv` are not the same population. The registry side needs an observed L2; the
@@ -841,8 +857,12 @@ a simplification, and two simplifications carry the whole design:
 
 1. **The duration is fitted on the maintenance start/end events, and made gap-dependent by
    `ln(gap)` on COMPLETE GAPS.** Lenalidomide maintenance runs to progression, so its duration
-   scales with the gap; thalidomide is a fixed ~10-month course and does not. `ln(gap)` therefore
-   enters with a regimen interaction. Without it the draw is gap-INDEPENDENT and the simulated
+   scales with the gap; thalidomide is a fixed course and scales with it much less. The "~10-month
+   course" is now sourced rather than asserted: the registry KM median thalidomide maintenance
+   duration is **10.32 months** in sample and **10.45** out of sample (`mnd_l1.csv`). The second
+   half of that claim is weaker than it reads, though - thalidomide's fitted `ln(gap)` slope is
+   0.69 (ASCT) / 0.47 (no-ASCT), not zero, so it does scale, at roughly half lenalidomide's rate.
+   `ln(gap)` therefore enters with a regimen interaction. Without it the draw is gap-INDEPENDENT and the simulated
    share falls with gap length while the registry share rises.
 
    The gap is `TFI_L1` (L1E to L2), which is **missing where no L2 is observed**, so patients still
