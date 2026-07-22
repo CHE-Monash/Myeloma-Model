@@ -626,18 +626,21 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    withdrawn (4.4): its AUC was earned by a registry column the engine cannot compute, and stripped
    of that it under-calls badly at long gaps, reporting 33.7% against a registry 70.4%. The binding
    constraint was selection rather than functional form - a *share* needs an observed gap end, which
-   is why 7.4 rebuilt it as a survival duration on the maintenance events, made gap-dependent by ln(TFI_L1) (also on complete gaps, but reproducing the registry's gap-band shares).
+   is why 7.4 rebuilt it as a survival duration on the maintenance events, made gap-dependent by
+   ln(TFI_L1). That rebuild did **not** escape the selection constraint: it is fitted on complete
+   gaps too, and it does not reproduce the registry's gap-band shares (7 of 7 scored bands fail
+   in-sample; see 5(7)).
    `L1_MND` is now built and load-bearing for **cost**; the refractory flag derived from it (duration
    reaching the relapse) is the next step but is not yet wired in.
 3. **L5+ has no contrast**: 78 to 85% of patients are already len-refractory, so the covariate is not
    identifiable there and is not included.
 4. Figures here are in-sample. The out-of-sample validation is the arbiter for the specification
    (see `validation.md`).
-5. **Long maintenance gaps are under-observed for validation.** The censored survival `L1_MND` uses
-   every maintenance patient (including those still on maintenance at the cut), so the fit is no
-   longer complete-gaps-only. But roughly half of simulated maintenance sits beyond ~42 months, where
-   the registry has few *completed* gaps to score the duration against, so the gap-band benchmark is
-   thin there. See the caveat in `prep/generate_benchmarks.do`.
+5. **Long maintenance gaps are under-observed for validation.** `L1_MND` is fitted on complete gaps
+   only (7.1), so the fit sample's median gap is 23.9 months. Roughly half of simulated maintenance
+   sits beyond ~42 months, where the registry has few *completed* gaps to score the duration
+   against, so the gap-band benchmark is thin exactly where the engine spends most of its time
+   (band 4 rests on 36 registry patients). See the caveat in `prep/generate_benchmarks.do`.
 6. **The refractory subsystem reproduces about a quarter of true L2 refractoriness, and the
    out-of-sample checks (4.7) now measure why.** Whole-population OS validates, but the two direct
    refractory checks fail: prevalence of `LenRefr_Tx_in` at line entry is under-produced and the gap
@@ -671,6 +674,31 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    None of this moves the whole-population projection: the redistribution nets out and whole-pop OS
    validates. It bites only for refractory-targeted analyses, where the engine under-represents true
    refractoriness roughly four-fold at L2 (4.6% modelled of 15.5% true).
+
+7. **The simulated maintenance share FALLS with the gap; the registry's RISES.** The `MND_L1`
+   benchmark fails every scored band in-sample (7 of 7) and both scored bands out of sample. For
+   lenalidomide the registry median share runs .568 / .664 / .749 / .830 across the four gap bands
+   while the simulation runs .752 / .605 / .585 / .442. The direction is wrong, not just the level.
+
+   **Why.** The billed share is `duration / gap`, and the fitted duration is `e^a · gap^b`, so the
+   share goes as `gap^(b-1)`: it rises only if the log-log slope `b` exceeds 1. The fitted
+   lenalidomide slopes are **0.981** (ASCT) and **0.873** (no-ASCT), realised in the engine as 0.906
+   and 0.935. All below 1, so the share must decline. Reading the registry's own bands back implies
+   a slope of about **1.17**. Section 7.1's design note aimed for "slope near 1", and hit it - but a
+   slope of 1 gives a share that is FLAT in the gap, not rising, so the target itself was set one
+   notch too low. Correcting it means a slope above 1, not a slope closer to 1.
+
+   **What is not the cause.** The `save_max` caps (`maxL1_MND_ASCT` 108.5 months,
+   `maxL1_MND_NoASCT` 74.7) bind only in band 4, on 8.7% of ASCT and 28.1% of no-ASCT draws, and
+   excluding capped draws barely moves the realised slope (ASCT 0.906 to 0.840, no-ASCT 0.935 to
+   0.929). The cap worsens band 4 and explains nothing else. The `process_data.do` cap at the
+   realised `TFI_L1` is a separate, deliberate one (7.2) and is not implicated.
+
+   **Consequence.** Maintenance is over-billed at short gaps and under-billed at long ones, and long
+   gaps are where transplant-eligible patients live. Accepted and left rather than fixed (Adam,
+   21 July 2026): it is still a large improvement on billing the blended rate across the whole
+   `TFI_L1`, which overstated maintenance cost by 69%. Revisit if a budget-impact analysis needs
+   accurate long-gap maintenance cost. Evidence: `scratch/mnd_cap.do`.
 
 ---
 
@@ -764,17 +792,24 @@ dropped because it read as Treatment beside `TXD_L1` / `TXR_L1`.
 that replaced a share-of-the-window betareg (withdrawn July 2026; the history is in 4.4). A model is
 a simplification, and two simplifications carry the whole design:
 
-1. **The duration is fitted on the maintenance start/end events, and made gap-dependent by a
-   CENSOR-AWARE `ln(gap)`.** Lenalidomide maintenance runs to progression, so its duration scales
-   with the gap; thalidomide is a fixed ~10-month course and does not. `ln(gap)` therefore enters
-   with a regimen interaction (slope near 1 for lenalidomide, near 0 for thalidomide). Without it
-   the draw is gap-INDEPENDENT and the simulated share falls with gap length while the registry
-   share rises. The gap is `TFI_L1` (L1E to L2) where L2 is observed, and L1E-to-last-follow-up for
-   the patients censored on maintenance - so both the outcome (duration) and this covariate are
-   censored at the same point, and for continuous maintenance they are the same quantity, which is
-   why the censored gap reinforces `duration = gap` rather than being spuriously circular. So the
-   fit keeps the censored patients AND the gap-dependence; the events stset supplies the survival
-   time and failure with no separate censoring variable.
+1. **The duration is fitted on the maintenance start/end events, and made gap-dependent by
+   `ln(gap)` on COMPLETE GAPS.** Lenalidomide maintenance runs to progression, so its duration
+   scales with the gap; thalidomide is a fixed ~10-month course and does not. `ln(gap)` therefore
+   enters with a regimen interaction. Without it the draw is gap-INDEPENDENT and the simulated
+   share falls with gap length while the registry share rises.
+
+   The gap is `TFI_L1` (L1E to L2), which is **missing where no L2 is observed**, so patients still
+   on maintenance at the data cut drop out of the fit
+   (`risk_equations.do`: `MND_lntfi = ln(TFI_L1 / 30.4375)`). A censor-aware gap - filled from the
+   censoring date to keep those patients in - was tried and **withdrawn**: for a censored patient
+   the filled gap *is* their own censoring time, so the survival likelihood inflates the predicted
+   duration above the gap and pins the billed share at 1.0. An earlier version of this section
+   described the censor-aware variant as shipped; it is not, and never was in the committed model.
+
+   The price of using complete gaps only is the extrapolation in 5(7) below: the fit sees a median
+   gap of 23.9 months and the engine applies it to a band-4 population whose median gap is 98.
+   This is the same selection constraint that withdrew the tail rule in 4.4, moved out of the share
+   model and into the survival model's support, where it is harder to see.
 2. **Capping the draw at TFI encodes continuous-to-progression maintenance.** The reason a duration
    drawn independently was rejected before is that it overshoots the gap. Under the cap, an overshoot
    is not an error: it means the patient stayed on maintenance until they relapsed, which for
