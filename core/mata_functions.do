@@ -94,47 +94,6 @@ real scalar mnd_model_exists() {
 
 end
 
-*Functions for sim_lenrefr.do
-mata:
-
-// Same `external` trick as above: an analysis that does not fit the treatment-line refractory
-// logit (no LENREFR_TX block, or no declared len regimens) has no bLENREFR_TX / LENREFR_regimens
-// in its coefficient file. Declaring them external creates them empty, so rows()/cols() can be
-// tested and sim_lenrefr.do becomes a no-op rather than failing on an undefined symbol.
-
-// Helper function: Get LENREFR_TX residual-arm logit coefficients (empty if not fitted)
-real matrix get_lenrefr_coef() {
-	external bLENREFR_TX
-	if (rows(bLENREFR_TX) > 0) return(bLENREFR_TX)
-	return(J(0, 0, .))
-}
-
-// Helper function: Get the lenalidomide-containing regimen codes the analysis declared
-real rowvector get_lenrefr_regimens() {
-	external LENREFR_regimens
-	if (cols(LENREFR_regimens) > 0) return(LENREFR_regimens)
-	return(J(1, 0, .))
-}
-
-// Helper function: LenRefr model runs only if BOTH the logit and a len-regimen list exist
-real scalar lenrefr_model_exists() {
-	return(rows(get_lenrefr_coef()) > 0 & cols(get_lenrefr_regimens()) > 0)
-}
-
-// Helper function: Get the maintenance len-refractory logit coefficients (empty if not fitted)
-real matrix get_mntrefr_coef() {
-	external bL1_MNTREFR
-	if (rows(bL1_MNTREFR) > 0) return(bL1_MNTREFR)
-	return(J(0, 0, .))
-}
-
-// Helper function: maintenance len-refractory model exists if the logit was fitted
-real scalar mntrefr_model_exists() {
-	return(rows(get_mntrefr_coef()) > 0)
-}
-
-end
-
 mata:
 //=============================================================================
 // SURVIVAL DISTRIBUTION FUNCTIONS

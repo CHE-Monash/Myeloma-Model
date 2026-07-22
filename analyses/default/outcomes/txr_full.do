@@ -18,8 +18,3 @@ global TXR_L3 "7 49"
 global TXR_L4 "7 49 56"
 * L5-L9 unset => all 'other'
 
-* Lenalidomide-containing regimen codes: which of the above put the patient on treatment-dose
-* lenalidomide, so a line drawn as one of these is eligible to become len-refractory (sim_lenrefr.do).
-* Here 7 = Lena/Dexa and 31 = Bort/Lena/Dexa. The 'other' bucket is treated as non-len. This is the
-* engine analogue of the fit's Lenalidomide == 1 gate (docs/refractory.md 3.5 / 4).
-global LENREFR_regimens "7 31"

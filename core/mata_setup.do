@@ -344,25 +344,5 @@ program define mata_setup
 		vMNR = J(Obs, 1, .)                       // L1 maintenance regimen (1 = len, 5 = thal)
 		vMND = J(Obs, 1, .)                       // L1 maintenance duration, months (capped at TFI when billed)
 
-		// Lenalidomide-refractory (treatment lines), the LATCHED at-line-entry state = the
-		// LenRefr_Tx_in covariate. A pure output like vMNR/vMND, but initialised to 0 rather than
-		// missing: 0 = not yet len-refractory is the correct resting value, and it is 0 at L1 entry
-		// by construction (refractoriness accrues only from strictly prior lines). sim_lenrefr.do
-		// flips it 0 -> 1 at a line's END (after that line's OS), so it is read at each line's TXR
-		// and OS as the state from PRIOR lines only. See docs/refractory.md 3.5 / 4.
-		vLenRefr_in = J(Obs, 1, 0)
-
-		// Per-line SNAPSHOT of that state, for export/validation: mLenRefr_in[.,l] = the entry-to-Ll
-		// value (LenRefr_Tx_in as at line l's start), which sim_lenrefr.do records at each line end
-		// before it updates the state. Missing for a line the patient never reached, matching how
-		// mBCR leaves unreached lines missing. process_data.do writes it out as LenRefr_L1..L9.
-		mLenRefr_in = J(Obs, 9, .)
-
-		// Maintenance len-refractory: refractory to the L1 lenalidomide MAINTENANCE (LenRefr_Mnt_in).
-		// Unlike LenRefr_Tx (which accrues per line) this is a SINGLE per-patient event, set once at
-		// L1E by sim_mnt_refr.do and constant from L2 on, so one vector suffices. Initialised 0 (the
-		// resting value; it is 0 before L2 by construction). Consumed by OS_L2..L4, exported as
-		// LenRefr_Mnt. See docs/refractory.md 4.4.
-		vLenRefr_Mnt_in = J(Obs, 1, 0)
 	}
 end

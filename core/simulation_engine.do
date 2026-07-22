@@ -111,20 +111,12 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
 		*mata: _matrix_list(vMND)
 
-	// Maintenance len-refractory: needs the drawn TFI (sim_tfi_l1) and duration (sim_mnd) for the
-	// tail, so it fires here at L1E. Sets LenRefr_Mnt_in, read by OS from L2 on. docs/refractory.md 4.4.
-	di "L1E - Maintenance len-refractory"
-		qui do "core/outcomes/sim_mnt_refr.do"
 
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
-	// LenRefr fires at the line END, after OS, so L1's TXR/OS read the entry state (all 0 at L1)
-	// and the flip from L1's response lands for L2. See docs/refractory.md 3.5 / 4.
-	di "L1E - LenRefr (treatment lines)"
-		qui do "core/outcomes/sim_lenrefr.do"
 
 	di "L1E - Mortality"
 		qui do "core/outcomes/sim_mort.do"	
@@ -182,8 +174,6 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS))
 
-	di "L2E - LenRefr (treatment lines)"
-		qui do "core/outcomes/sim_lenrefr.do"
 
 	di "L2E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -241,8 +231,6 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
-	di "L3E - LenRefr (treatment lines)"
-		qui do "core/outcomes/sim_lenrefr.do"
 
 	di "L3E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -300,8 +288,6 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
-	di "L4E - LenRefr (treatment lines)"
-		qui do "core/outcomes/sim_lenrefr.do"
 
 	di "L4E - Mortality"
 		qui do "core/outcomes/sim_mort.do"
@@ -359,10 +345,6 @@ di "Running simulation"
 		*mata: _matrix_list(bOS, rbOS, cbOS)
 		*mata: _matrix_list(mOS, rmOS, cmOS)
 
-	// L5E is the last distinct line-end block; L6+ shares one OS model (OS_L6plus) and 5 records
-	// refractoriness is saturated there, so the state simply carries forward from L5. See 3.5 / 5.
-	di "L5E - LenRefr (treatment lines)"
-		qui do "core/outcomes/sim_lenrefr.do"
 
 	di "L5E - Mortality"
 		qui do "core/outcomes/sim_mort.do"

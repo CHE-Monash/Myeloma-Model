@@ -24,7 +24,7 @@ cap mata: mata drop mRN
 
 * Create mSum in Mata
 	mata: mSum = vID , vMale , vECOG , vRISS , vISS , vCKD , vCRD , vPLM , vDBT , vAge70 , vAge75 , vSCT_DN , vSCT_L1 , vMNT , vMNR , vMND , ///
-			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState , mLenRefr_in , vLenRefr_Mnt_in
+			mAge , mOS , mTNE , mTSD , mMOR , mOC , mTXR , mTXD , mBCR , mTFI , mState
 	
 * Column names for mSum, in assembly order below.
 * (getmata errors on a name/column count mismatch, which guards this alignment.)
@@ -40,8 +40,6 @@ cap mata: mata drop mRN
 		BCR_L1 BCR_L2 BCR_L3 BCR_L4 BCR_L5 BCR_L6 BCR_L7 BCR_L8 BCR_L9 BCR_SCT ///
 		TFI_DN TFI_L1 TFI_L2 TFI_L3 TFI_L4 TFI_L5 TFI_L6 TFI_L7 TFI_L8 ///
 		State DateDN ///
-		LenRefr_L1 LenRefr_L2 LenRefr_L3 LenRefr_L4 LenRefr_L5 LenRefr_L6 LenRefr_L7 LenRefr_L8 LenRefr_L9 ///
-		LenRefr_Mnt ///
 		
 
 * Write the Mata matrix straight to named variables. getmata reads mSum

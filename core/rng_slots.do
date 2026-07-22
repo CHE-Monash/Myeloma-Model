@@ -44,9 +44,7 @@
 *   65-66 Maintenance (2)    branch 1,2 rn_mnt(branch)       sim_mnt.do:69 (ASCT), :119 (noASCT)
 *      67 MNT regimen        -          rn_mnr()             sim_mnr.do
 *      68 MNT duration       -          rn_mnd()             sim_mnd.do
-*   69-77 LenRefr (Tx)       Line 1..9  rn_lenrefr(line)     sim_lenrefr.do (Bernoulli, residual arm)
-*      78 MNT-refr (Mnt)     -          rn_mntrefr()         sim_mnt_refr.do (one draw at L1E)
-*   79-86 Reserved override  i 1..8     rn_override(i)       analysis overrides introducing new draws
+*   69-76 Reserved override  i 1..8     rn_override(i)       analysis overrides introducing new draws
 *
 *   TXD_L1 sub-index:  1 = ASCT spline 1, 2 = ASCT spline 2 (cond.),
 *                      3 = ASCT spline 3 (cond.), 4 = no-ASCT, 5 = continuous therapy
@@ -64,11 +62,6 @@
 *   and all simulated results move by Monte Carlo noise, even where nothing else changed.
 *   That is unavoidable for a new CORE stochastic event; the reserved override block exists
 *   so that OVERRIDES can add draws without paying it.
-*
-*   LenRefr (Tx) added 9 more columns (69..77) and moved K from 76 to 85, RE-LAYING-OUT mRN
-*   again for the same reason. One column per line: the residual-arm Bernoulli draw fires at
-*   most once per line (only where the patient is not yet len-refractory, on a len regimen, and
-*   responding - see sim_lenrefr.do). Line-indexed like rn_bcr/rn_txr so the accessor is uniform.
 
 mata:
 
@@ -92,12 +85,10 @@ real scalar rn_base_asctl1()   return(63)   // 64
 real scalar rn_base_mnt()      return(64)   // 65..66
 real scalar rn_base_mnr()      return(66)   // 67
 real scalar rn_base_mnd()      return(67)   // 68
-real scalar rn_base_lenrefr()  return(68)   // 69..77  (line 1..9)
-real scalar rn_base_mntrefr()  return(77)   // 78
-real scalar rn_base_override() return(78)   // 79..86
+real scalar rn_base_override() return(68)   // 69..76
 
 // ---- Total columns to allocate ----
-real scalar rn_K() return(86)
+real scalar rn_K() return(76)
 
 // ---- Accessors: each returns the absolute column index for (event, point) ----
 
@@ -165,16 +156,6 @@ real scalar rn_mnr() return(rn_base_mnr() + 1)
 // Maintenance duration at L1E (one draw, MNT == 1 only; parametric survival via calcSurvTime)
 real scalar rn_mnd() return(rn_base_mnd() + 1)
 
-// Lenalidomide-refractory (treatment lines), one column per line (1..9). The residual-arm
-// Bernoulli draw in sim_lenrefr.do; consumed conditionally (not-yet-refractory, len regimen,
-// BCR 1-4), but the column is allocated per line so CRN alignment holds across arms.
-real scalar rn_lenrefr(real scalar line) {
-	rn_assert(line >= 1 & line <= 9, "rn_lenrefr: line out of range 1..9")
-	return(rn_base_lenrefr() + line)
-}
-
-// Maintenance len-refractory: one draw per patient at L1E (sim_mnt_refr.do)
-real scalar rn_mntrefr() return(rn_base_mntrefr() + 1)
 
 // Reserved columns for overrides that introduce a NEW stochastic event (i = 1..8)
 real scalar rn_override(real scalar i) {

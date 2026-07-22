@@ -128,20 +128,13 @@ mata {
 				vRISS1[idx], vRISS2[idx], vRISS3[idx],
 				vCKD[idx], vCRD[idx], vPLM[idx], vDBT[idx])
 
-		// L2S..L4E (OMC 4..9) carry ONE combined len-refractory covariate (LenRefr_any = treatment OR
-		// maintenance) after the BCR block (docs/refractory.md 4, 4.4). The two flags carry the same
-		// conditional OS hazard (test Tx = Mnt p = 0.97), so they collapse to one. So the implied BCR
-		// width drops by one there.
-		hasLenRefr = (OMC >= 4 & OMC <= 9)
-
 		// BCR block width implied by the coefficient vector:
-		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux - hasLenRefr
-		nBCR = cols(vCoef) - 15 - hasLenRefr
+		//   cols - 13 covariates (Age,Age2,Male,ECOGx3,RISSx3,CMx4) - cons - aux = cols - 15
+		nBCR = cols(vCoef) - 15
 		if (nBCR > 0 & bcrCol > 0) {
 			vB = mBCR[idx, bcrCol]
 			for (k = 1; k <= nBCR; k++) mPat = mPat, (vB :== k)
 		}
-		if (hasLenRefr) mPat = mPat, (vLenRefr_in[idx] :| vLenRefr_Mnt_in[idx])
 		mPat = mPat, vCons[idx]
 
 		// Guard: design columns must equal coefficients minus the ancillary (1). Catches a

@@ -565,11 +565,20 @@ classified.
 - **The MRDR dose field** for the treatment/maintenance dose split: unreliable; form membership is
   used instead (1.3).
 
-### 4.7 Engine wiring (implemented)
+### 4.7 Engine wiring (built and evidenced, held out of the shipped model)
+
+> **Status.** This wiring was built, run and validated, and is **not in the shipped model**. It was
+> held back on branch `refractory-status` at the July 2026 maintenance release because the *generation
+> mix* is wrong, not the consumption: simulated maintenance-refractory patients are ~6 years younger
+> than registry ones and outnumber the (correctly penalised) treatment-refractory roughly 3:1, so the
+> union subgroup shows *better* OS than the registry despite a correct HR of 1.64 in the fitted
+> equation. See 5(6). The section below records what was built, so it can be picked up rather than
+> rediscovered; the MRDR-side variables (`prep/multiple_imputation.do`,
+> `prep/sub/MRDR/build_refractory.do`) are deliberately kept, so the data still carries them.
 
 `LenRefr_Tx` is generated and consumed by the engine. Only the treatment-line arm is wired;
 maintenance refractoriness stays gated on its generation model (4.4), and the two flags remain
-separate (4.1). The engine files:
+separate (4.1). The engine files (as built, on `refractory-status`):
 
 | piece | file |
 |---|---|
