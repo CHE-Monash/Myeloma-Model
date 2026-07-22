@@ -480,6 +480,18 @@ Re-measured on the same 230 lenalidomide patients with a complete gap (`scratch/
 | the 3.5 / 4.4 logit, baseline covariates | 0.586 |
 | baseline + `ln(TFI_L1)` | 0.682 |
 | baseline + `ln(TFI_L1)` + the tail as a CONTINUOUS predictor | 0.800 |
+| baseline + `ln(TFI_L1)`, fitted AT RISK with censoring, no tail covariate | 0.801 |
+
+The last row is `scratch/refractory/mnd_tailmodel2.do` (22 July 2026) and is the best-founded of
+these, though **not** better discriminating: it matches the 0.800 row without needing the tail as a
+covariate, which matters because the tail is a derived quantity the engine must construct from a
+drawn `MND`. It is fitted on the population genuinely AT RISK for a tail - maintenance ended, then
+either observed reaching L2 or right-censored still in the gap - rather than on complete gaps. That
+excludes the **725 of 1,570** patients still on maintenance at the cut, who have no tail yet and
+whose inclusion as zero-length tails is what made an earlier cut of this diagnostic unusable. Note
+this does NOT address the composition defect in 5(6): a better-specified logit does not fix a
+generation mix that produces maintenance-refractory patients six years too young at three times the
+treatment-refractory rate. That remains the reason the arm is held (4.7).
 
 The deeper failure is not the draw and not the contamination. On **observed** MND, with no draw and
 no `rcess`, the rule under-calls in every gap band and the error widens as the gap grows, because the
@@ -505,11 +517,13 @@ near 1 without reaching it. One-inflation is out.
 *share* needs an observed gap END, so the withdrawn `betareg` share and every rule built on it were
 fitted on complete gaps only, median **23.9 months**. The population they are applied to has a true
 median far longer: the registry's own KM puts ASCT/CR patients at a median TFI of **73.5 months**, P75
-142.8 (`tfi_l1_asct.csv`). This is exactly why 7.4 moved to a **censored survival** duration: `streg`
-keeps patients still on maintenance at the data cut instead of dropping them, so the fit is no longer
-complete-gaps-only. The long-gap thinness still limits any refractory rule's *validation* (half the
-engine's maintenance sits beyond ~42 months, where the registry has few completed gaps to check
-against), but the duration model itself now uses the whole sample.
+142.8 (`tfi_l1_asct.csv`). 7.4 moved to a survival duration partly to escape this, but **it did
+not**: `MND_lntfi` is `ln(TFI_L1)`, which is missing without an observed L2, so the shipped `L1_MND`
+is complete-gaps-only too (7.1). An earlier version of this paragraph claimed otherwise. The
+constraint therefore still binds on both the duration and any refractory rule, and it limits
+*validation* as well as fitting: half the engine's maintenance sits beyond ~42 months, where the
+registry has few completed gaps to check against, and the benchmark computed there is itself
+selected towards relapsers (5(8)).
 
 So the engine ships **without** a maintenance refractory generation model. Paths forward, in the
 order they should be tried:
@@ -694,11 +708,44 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    0.929). The cap worsens band 4 and explains nothing else. The `process_data.do` cap at the
    realised `TFI_L1` is a separate, deliberate one (7.2) and is not implicated.
 
+   **THE TARGET IS ITSELF SELECTED, so do not read the full gap to it as model error.** The share
+   `MND_L1 / TFI_L1` can only be computed where L2 is observed, so the benchmark is measured on
+   relapsers alone. At long gaps those are precisely the patients whose maintenance ran close to
+   relapse. Measured on the corrected at-risk population (`scratch/refractory/mnd_tailmodel2.do`),
+   band-4 lenalidomide patients who reached L2 have a median tail of **2.00 months**; across all
+   at-risk patients it is **19.32**. The excluded group - long gap, no relapse yet, maintenance
+   finished long ago - will carry much lower shares once their gaps close. The engine simulates
+   every patient through to their eventual L2, so it should reproduce the UNSELECTED share. A rough
+   reckoning from the at-risk tail puts the honest band-4 figure near **0.6**, against a benchmark
+   of 0.83 and an engine at 0.44: both wrong, in opposite directions, by broadly similar amounts.
+   The direction error above is real; its magnitude against this target is overstated.
+
+   **Two candidate fixes have now been tried and both fail.** A spline or quadratic in `ln(gap)` was
+   never run, and remains the only untested option. A TAIL reparameterisation - model gap minus
+   duration and recover `MND` by subtraction, so the share rises to a ceiling structurally - was
+   tested and REJECTED. On complete gaps the lenalidomide tail power looked promising at 0.858, but
+   on the at-risk population it is **1.62** descriptively and **2.41** (ASCT) / **2.06** (no-ASCT)
+   fitted. Above 1 means the share falls, which is the same defect. The apparent promise was the
+   complete-gap selection reappearing inside the proposed cure. Implied shares .586 / .609 / .603 /
+   .264 against a target of .568 / .664 / .749 / .830. Evidence:
+   `scratch/refractory/mnd_tailmodel.do` (take 1, at-risk population wrong) and `mnd_tailmodel2.do`
+   (corrected; read only this one).
+
    **Consequence.** Maintenance is over-billed at short gaps and under-billed at long ones, and long
    gaps are where transplant-eligible patients live. Accepted and left rather than fixed (Adam,
    21 July 2026): it is still a large improvement on billing the blended rate across the whole
    `TFI_L1`, which overstated maintenance cost by 69%. Revisit if a budget-impact analysis needs
-   accurate long-gap maintenance cost. Evidence: `scratch/mnd_cap.do`.
+   accurate long-gap maintenance cost - and if so, fix the benchmark before the model, because
+   matching the current target would tune the engine towards a biased number. Evidence:
+   `scratch/mnd_cap.do`.
+
+8. **The maintenance benchmark cannot be scored like-for-like, and 5(7) is the symptom.** The two
+   sides of `mnd_l1.csv` are not the same population. The registry side needs an observed L2; the
+   simulated side has one for everybody, because the engine runs each patient to death and every gap
+   closes. Nearly half the registry maintenance population - **725 of 1,570** - is still on
+   maintenance at the cut and appears on neither side. Any future work here should either restrict
+   the simulated side to a comparable follow-up window, or score the benchmark on a quantity that
+   does not need a closed gap. Until then treat the MND gap-band benchmark as directional.
 
 ---
 
