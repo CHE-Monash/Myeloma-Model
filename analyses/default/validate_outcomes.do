@@ -663,6 +663,12 @@ if _rc == 0 {
 			local tests_run = `tests_run' + 1
 			n di %4.0f `g' " | " %8.2f `bench' " | " %8.2f `sim' " | " %6.2f `diff' " | `status'"
 		}
+		else if `simn' == 0 {
+			// Expected for group 0: sim_mnr only ever assigns the levels the analysis declared
+			// ($MNR_L1 "1 5"), so the engine produces no 'other' maintenance at all (docs 7.4).
+			// The registry median can be perfectly good and still have nothing to score against.
+			n di %4.0f `g' " | " %8.2f `bench' " |        . |      . | skipped (engine produces no such regimen)"
+		}
 		else {
 			n di %4.0f `g' " | " %8.2f `bench' " |        . |      . | skipped (no scoreable registry median, N = " %4.0f `bn' ")"
 		}
