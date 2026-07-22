@@ -482,7 +482,7 @@ Re-measured on the same 230 lenalidomide patients with a complete gap (`scratch/
 | baseline + `ln(TFI_L1)` + the tail as a CONTINUOUS predictor | 0.800 |
 | baseline + `ln(TFI_L1)`, fitted AT RISK with censoring, no tail covariate | 0.801 |
 
-The last row is `scratch/refractory/mnd_tailmodel2.do` (22 July 2026) and is the best-founded of
+The last row is `scratch/maintenance/mnd_tailmodel2.do` (22 July 2026) and is the best-founded of
 these, though **not** better discriminating: it matches the 0.800 row without needing the tail as a
 covariate, which matters because the tail is a derived quantity the engine must construct from a
 drawn `MND`. It is fitted on the population genuinely AT RISK for a tail - maintenance ended, then
@@ -711,7 +711,7 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    **THE TARGET IS ITSELF SELECTED, so do not read the full gap to it as model error.** The share
    `MND_L1 / TFI_L1` can only be computed where L2 is observed, so the benchmark is measured on
    relapsers alone. At long gaps those are precisely the patients whose maintenance ran close to
-   relapse. Measured on the corrected at-risk population (`scratch/refractory/mnd_tailmodel2.do`),
+   relapse. Measured on the corrected at-risk population (`scratch/maintenance/mnd_tailmodel2.do`),
    band-4 lenalidomide patients who reached L2 have a median tail of **2.00 months**; across all
    at-risk patients it is **19.32**. The excluded group - long gap, no relapse yet, maintenance
    finished long ago - will carry much lower shares once their gaps close. The engine simulates
@@ -728,7 +728,7 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    fitted. Above 1 means the share falls, which is the same defect. The apparent promise was the
    complete-gap selection reappearing inside the proposed cure. Implied shares .586 / .609 / .603 /
    .264 against a target of .568 / .664 / .749 / .830. Evidence:
-   `scratch/refractory/mnd_tailmodel.do` (take 1, at-risk population wrong) and `mnd_tailmodel2.do`
+   `scratch/_archive/mnd_tailmodel.do` (take 1, at-risk population wrong) and `mnd_tailmodel2.do`
    (corrected; read only this one).
 
    **Consequence.** Maintenance is over-billed at short gaps and under-billed at long ones, and long
@@ -737,7 +737,7 @@ under-generated - see 5(6) for the diagnosis and the two causes.
    `TFI_L1`, which overstated maintenance cost by 69%. Revisit if a budget-impact analysis needs
    accurate long-gap maintenance cost - and if so, fix the benchmark before the model, because
    matching the current target would tune the engine towards a biased number. Evidence:
-   `scratch/mnd_cap.do`.
+   `scratch/maintenance/mnd_cap.do`.
 
 8. **The maintenance benchmark cannot be scored like-for-like, and 5(7) is the symptom.** The two
    sides of `mnd_l1.csv` are not the same population. The registry side needs an observed L2; the
@@ -779,7 +779,7 @@ cost_tx_mnt = cMNT * (TFI_L1 * 30.4375 / 28) if MNT == 1
 Maintenance is not a modelled episode: `MNT` is a binary, and the gap is charged as though the
 patient were on maintenance throughout it.
 
-### 7.2 Size (`scratch/refractory/mtd_form.do`, 1,571 billed patients)
+### 7.2 Size (`scratch/maintenance/mtd_form.do`, 1,571 billed patients)
 
 | | median | mean |
 |---|---|---|
@@ -939,7 +939,7 @@ daratumumab (later-line maintenance), against 1.6% inside. The existing
 `MNT = 1 if Event1==110 & (Event0==11 | Event0==100)` already does this correctly, and `MND_L1` /
 `MNR_L1` follow it by taking the overlap with the gap rather than the first episode.
 
-**This trap has already cost two retracted figures**, both from `scratch/refractory/mnt_duration.do`,
+**This trap has already cost two retracted figures**, both from `scratch/_archive/mnt_duration.do`,
 which selects on `MLine==1`: the 127% in 7.2 and the 44.8% / 32.1% binding pair in 7.4. It is not
 hypothetical.
 
