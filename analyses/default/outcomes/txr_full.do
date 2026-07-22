@@ -12,10 +12,10 @@
 *   2  Thal/Cycl/Dexa    4  Bort/Cycl/Dexa    7  Lena/Dexa       9  Bort/Thal/Dexa
 *  31  Bort/Lena/Dexa   49  Carf/Dexa        56  Poma/Dexa      80  Dara/Bort/Dexa
 
-global TXR_L1 "4 31"
+global TXR_L1 "4 7 31"
 global TXR_L2 "7 80"
-global TXR_L3 "49 7"
-global TXR_L4 "49 56"
+global TXR_L3 "7 49"
+global TXR_L4 "7 49 56"
 * L5-L9 unset => all 'other'
 
 * Lenalidomide-containing regimen codes: which of the above put the patient on treatment-dose

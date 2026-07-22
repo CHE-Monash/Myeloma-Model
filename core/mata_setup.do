@@ -357,5 +357,12 @@ program define mata_setup
 		// before it updates the state. Missing for a line the patient never reached, matching how
 		// mBCR leaves unreached lines missing. process_data.do writes it out as LenRefr_L1..L9.
 		mLenRefr_in = J(Obs, 9, .)
+
+		// Maintenance len-refractory: refractory to the L1 lenalidomide MAINTENANCE (LenRefr_Mnt_in).
+		// Unlike LenRefr_Tx (which accrues per line) this is a SINGLE per-patient event, set once at
+		// L1E by sim_mnt_refr.do and constant from L2 on, so one vector suffices. Initialised 0 (the
+		// resting value; it is 0 before L2 by construction). Consumed by OS_L2..L4, exported as
+		// LenRefr_Mnt. See docs/refractory.md 4.4.
+		vLenRefr_Mnt_in = J(Obs, 1, 0)
 	}
 end

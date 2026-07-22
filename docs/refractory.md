@@ -600,8 +600,9 @@ subgroups are separated. That improves the model's **discrimination** (right sur
 subgroup, which is what an ICER on a refractory-targeted therapy needs) without disturbing its
 **calibration**. The out-of-sample whole-population OS validates within ~1.5% at 3/5/10 years, and
 in-sample the L3 regimen/duration overshoot it was built to fix is gone. The *direction* of the
-subgroup split is certain (a positive-hazard covariate); confirming its *magnitude* needs a
-refractory-vs-not OS breakdown in the simulated cohort, which is not yet run (5.6).
+subgroup split is certain (a positive-hazard covariate); its *magnitude* has since been measured and
+is too weak (refractory OS too favourable), because the refractory group it acts on is itself
+under-generated - see 5(6) for the diagnosis and the two causes.
 
 ---
 
@@ -628,13 +629,39 @@ refractory-vs-not OS breakdown in the simulated cohort, which is not yet run (5.
    longer complete-gaps-only. But roughly half of simulated maintenance sits beyond ~42 months, where
    the registry has few *completed* gaps to score the duration against, so the gap-band benchmark is
    thin there. See the caveat in `prep/generate_benchmarks.do`.
-6. **The `LenRefr_Tx` OS split is confirmed in direction, not magnitude.** `LenRefr_Tx_in` is a
-   worse-prognosis covariate, so the engine separates refractory (worse OS) from non-refractory
-   (better OS) while whole-population OS stays calibrated (4.7). That the direction is right is
-   certain; that the *size* of the split matches the registry is not yet checked - it needs a
-   refractory-vs-not OS breakdown in the simulated cohort against the observed subgroup curves. The
-   out-of-sample by-`BCR` OS strata (which correlate with refractoriness) show some misses, but those
-   are dominated by tiny cells (`BCR=6`, the PD group) and do not move the whole-population fit.
+6. **The refractory subsystem reproduces about a quarter of true L2 refractoriness, and the
+   out-of-sample checks (4.7) now measure why.** Whole-population OS validates, but the two direct
+   refractory checks fail: prevalence of `LenRefr_Tx_in` at line entry is under-produced and the gap
+   widens with line (L2 4.6% vs 8.3% observed, L3 13.6 vs 25.2, L4 32.9 vs 56.6, L5 45.2 vs 70.1),
+   and OS from L2 by refractory status is well-calibrated for the non-refractory arm but far too
+   favourable for the refractory arm (3-year 44% vs 21% observed) - the latter downstream of the
+   former (too few, too healthy a refractory group). Two distinct causes, of comparable size:
+
+   (a) **The treatment other-lenalidomide tail.** The engine gates refractoriness on the drawn
+   regimen being a modelled len code, but 30 to 52% of registry len exposure at L2-L5 sits in
+   regimens outside the per-line menu (VRd at L2, Lena monotherapy, Lena/Dara, Lena/Cyclo, Carf/Lena)
+   and falls into `other`, where it cannot be gated. Because len patients at L2-L5 are refractory 67
+   to 85% of the time, each missed len line is almost certainly a missed refractory, so a small
+   exposure gap produces a large prevalence gap. Adding Rd (7) to the L1/L4 menu closed the single
+   largest miss (L2 2.9% -> 4.6%); the remainder is a genuine tail that no per-line regimen addition
+   closes. The fix, if a refractory-targeted analysis needs the treatment side complete, is to
+   decouple the len gate from the modelled-regimen menu - draw len exposure from a registry
+   `P(len | line)` - at a cost in statistical coherence (the drawn exposure is uncorrelated with the
+   simulated regimen and its response).
+
+   (b) **The maintenance half is not modelled at all.** Refractoriness acquired on L1 lenalidomide
+   MAINTENANCE (`LenRefr_Mnt`) is absent from the engine (no generation model, 4.4), and it is not a
+   minor add-on: at L2 entry it is 7.1% of patients, essentially the same size as treatment-dose
+   refractoriness (8.1%), so true L2 refractoriness is 15.5% and the engine models only the treatment
+   portion. The treatment flag is clean - just 0.2% of L2 patients are both treatment- and
+   maintenance-refractory, so the 8.3% benchmark is genuinely treatment-driven and the
+   primary-refractory back-flag (1.5) does not contaminate it. This is the first quantification of the
+   maintenance gap, and it makes `LenRefr_Mnt` the first-order piece of refractory completeness rather
+   than a loose end.
+
+   None of this moves the whole-population projection: the redistribution nets out and whole-pop OS
+   validates. It bites only for refractory-targeted analyses, where the engine under-represents true
+   refractoriness roughly four-fold at L2 (4.6% modelled of 15.5% true).
 
 ---
 

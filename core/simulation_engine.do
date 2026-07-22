@@ -111,6 +111,11 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
 		*mata: _matrix_list(vMND)
 
+	// Maintenance len-refractory: needs the drawn TFI (sim_tfi_l1) and duration (sim_mnd) for the
+	// tail, so it fires here at L1E. Sets LenRefr_Mnt_in, read by OS from L2 on. docs/refractory.md 4.4.
+	di "L1E - Maintenance len-refractory"
+		qui do "core/outcomes/sim_mnt_refr.do"
+
 	di "L1E - Overall Survival"
 		qui do "core/outcomes/sim_os.do"
 		*mata: _matrix_list(bOS, rbOS, cbOS)

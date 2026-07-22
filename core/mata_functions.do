@@ -121,6 +121,18 @@ real scalar lenrefr_model_exists() {
 	return(rows(get_lenrefr_coef()) > 0 & cols(get_lenrefr_regimens()) > 0)
 }
 
+// Helper function: Get the maintenance len-refractory logit coefficients (empty if not fitted)
+real matrix get_mntrefr_coef() {
+	external bL1_MNTREFR
+	if (rows(bL1_MNTREFR) > 0) return(bL1_MNTREFR)
+	return(J(0, 0, .))
+}
+
+// Helper function: maintenance len-refractory model exists if the logit was fitted
+real scalar mntrefr_model_exists() {
+	return(rows(get_mntrefr_coef()) > 0)
+}
+
 end
 
 mata:

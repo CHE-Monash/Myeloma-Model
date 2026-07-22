@@ -229,25 +229,28 @@ forvalues bcr = 1/6 {
 **********
 // Lenalidomide-refractory (treatment lines)
 **********
-// Validates the LenRefr_Tx wiring (docs/refractory.md 4.7). Prevalence-by-line scores the
-// GENERATION (does the engine make the right share refractory as it accrues); OS-by-status scores
-// the CONSUMPTION / redistribution (5.6). Guarded on LenRefr_Tx_in so a fold built before the flag
-// existed skips these rather than erroring.
+// Validates the len-refractory wiring (docs/refractory.md 4.7, 4.4). Target is TRUE len-refractory =
+// treatment OR maintenance (LenRefr_Tx_in | LenRefr_Mnt_in), so the checks register BOTH generation
+// models together (the maintenance half is ~as large as treatment - 5(6)). Prevalence-by-line scores
+// generation; OS-by-status scores the consumption/redistribution. Guarded on both flags so a fold
+// built before either existed skips these rather than erroring.
 capture confirm variable LenRefr_Tx_in
 local have_lenrefr = (_rc == 0)
+capture confirm variable LenRefr_Mnt_in
+if _rc local have_lenrefr = 0
 
 if `have_lenrefr' {
 
-	// Prevalence of LenRefr_Tx_in AS AT ENTRY to each line (= the sim's LenRefr_L`l'), one value per
-	// patient per line. LenRefr_Tx_in is held within a line, so its value on a patient's line-l rows
-	// is the entry-to-l state; egen max over those rows recovers it (missing if the line is unreached).
-	// L1 is 0 by construction; L2+ carry the accrual.
+	// Prevalence of TRUE len-refractory (treatment OR maintenance) AS AT ENTRY to each line (= the
+	// sim's LenRefr_L`l' | LenRefr_Mnt), one value per patient per line. Both flags are held within a
+	// line, so their value on a patient's line-l rows is the entry-to-l state; egen max over those rows
+	// recovers it (missing if the line is unreached). L1 is 0 by construction; L2+ carry the accrual.
 	matrix LENREFR = J(6, 2, .)
 	matrix colnames LENREFR = "N" "PctRefr"
 	matrix rownames LENREFR = "L1" "L2" "L3" "L4" "L5" "L6"
 	forvalues l = 1/6 {
 		capture drop lr_ln lr_pt
-		gen byte lr_ln = LenRefr_Tx_in if Line == `l'
+		gen byte lr_ln = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1) if Line == `l'
 		bysort ID_BS: egen lr_pt = max(lr_ln)
 		quietly count if !missing(lr_pt) & first_record == 1
 		matrix LENREFR[`l', 1] = r(N)
@@ -258,11 +261,11 @@ if `have_lenrefr' {
 		drop lr_ln lr_pt
 	}
 
-	// OS from L2 start, split by LenRefr_Tx_in as at L2 entry (refractory from L1 vs not). Mirrors the
-	// OS-by-BCR_L2 benchmark exactly; the sim scores OS_L2S by LenRefr_L2 the same way. This is the
-	// direct check on the subgroup OS split (5.6) - the magnitude the whole-population OS cannot see.
+	// OS from L2 start, split by TRUE len-refractory as at L2 entry (treatment OR maintenance, vs
+	// neither). Mirrors the OS-by-BCR_L2 benchmark; the sim scores OS_L2S by (LenRefr_L2 | LenRefr_Mnt)
+	// the same way. The direct check on the subgroup OS split (5.6) the whole-population OS cannot see.
 	capture drop lr2 lr2_pt
-	gen byte lr2 = LenRefr_Tx_in if Line == 2
+	gen byte lr2 = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1) if Line == 2
 	bysort ID_BS: egen lr2_pt = max(lr2)
 
 	stset Date1 if(F_OS != 1), id(ID_BS) origin(Event1 == 20) failure(Event1 == 104) scale(30.4375)

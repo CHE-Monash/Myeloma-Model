@@ -145,6 +145,14 @@ program define risk_equations
 	cap qui do "analyses/$analysis/outcomes/mnr_$coeffs.do"
 	gen_mnr
 
+	// Collapsed len-refractory covariate for OS. Treatment- and maintenance-refractoriness carry the
+	// SAME conditional OS hazard (HR ~1.64, test Tx = Mnt p = 0.97; scratch/refractory/os_lenrefr_check.do),
+	// so OS_L2..L4 take ONE combined flag rather than two - simpler, and the two-flag wiring did not
+	// apply the penalty in the engine. Held within the line like its inputs (LenRefr_Tx_in accrues per
+	// line, LenRefr_Mnt_in is the L1-maintenance flag). docs/refractory.md 4, 4.4.
+	cap drop LenRefr_any
+	gen byte LenRefr_any = (LenRefr_Tx_in == 1 | LenRefr_Mnt_in == 1)
+
 	// Reset global
 	global Coeffs
 
@@ -186,37 +194,37 @@ program define risk_equations
 
 	// OS_L2S: L2S -> L2E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 20) exit(Event1 == 21) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_any, d($dOS)
 	save_coefs OS_L2S
 	mata: _matrix_list(bOS_L2S, rbOS_L2S, cbOS_L2S)
 
 	// OS_L2E: L2E -> L3S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 21) exit(Event1 == 30) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L2 LenRefr_any, d($dOS)
 	save_coefs OS_L2E
 	mata: _matrix_list(bOS_L2E, rbOS_L2E, cbOS_L2E)
 
 	// OS_L3S: L3S -> L3E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 30) exit(Event1 == 31) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_any, d($dOS)
 	save_coefs OS_L3S
 	mata: _matrix_list(bOS_L3S, rbOS_L3S, cbOS_L3S)
 
 	// OS_L3E: L3E -> L4S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 31) exit(Event1 == 40) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L3 LenRefr_any, d($dOS)
 	save_coefs OS_L3E
 	mata: _matrix_list(bOS_L3E, rbOS_L3E, cbOS_L3E)
 
 	// OS_L4S: L4S -> L4E
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 40) exit(Event1 == 41) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_any, d($dOS)
 	save_coefs OS_L4S
 	mata: _matrix_list(bOS_L4S, rbOS_L4S, cbOS_L4S)
 
 	// OS_L4E: L4E -> L5S
 	mi stset Date1 if(F_OS != 1), id(ID_BS) failure(Event1 == 104) origin(Event1 == 41) exit(Event1 == 50) scale(30.4375)
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_Tx_in, d($dOS)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS CM_CKD CM_CRD CM_PLM CM_DBT i.BCR_L4 LenRefr_any, d($dOS)
 	save_coefs OS_L4E
 	mata: _matrix_list(bOS_L4E, rbOS_L4E, cbOS_L4E)
 
@@ -613,6 +621,27 @@ program define risk_equations
 	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_L1 MND_lntfi MND_lntfi_thal, d($dTFI)
 	save_coefs L1_MND_NoASCT
 	mata: _matrix_list(bL1_MND_NoASCT, rbL1_MND_NoASCT, cbL1_MND_NoASCT)
+
+	***** MAINTENANCE LEN-REFRACTORY (L1_MNTREFR) *****
+	di "Maintenance len-refractory"
+	// Whether the patient becomes refractory to their L1 lenalidomide MAINTENANCE, generated at L1E
+	// (sim_mnt_refr.do) and consumed as LenRefr_Mnt_in in OS_L2..L4. The signal is the TAIL - the gap
+	// between maintenance ending and L2 starting (= TFI_L1 - TTM - MND_L1) - which is the IMWG 60-day
+	// clock: a short tail is progression on/near lenalidomide (refractory), a long tail is a later
+	// relapse (sensitive). The engine computes the tail at L1E from the drawn MND_L1, so this is fully
+	// engine-computable, and rcess-free (cessation reason is NOT modelled - 4.4). Fitted among
+	// lenalidomide-maintenance patients who reached L2 (a complete gap, !mi(TFI_L1)); the engine
+	// applies it where it reaches L2 - the selection alignment the diagnostics settled (68.6%
+	// refractory on complete gaps vs 2.3% censored). NO response term (BCR is spent - these patients
+	// responded to induction) and NO transplant split (BCR_SCT added nothing over BCR_L1, both ~0):
+	// the tail carries it (AUC ~0.79 observed, ~0.71 drawn) and SCT is a cheap +0.013 covariate.
+	// See scratch/refractory/mnt_refr_form.do, mnt_refr_bcr.do; docs/refractory.md 4.4.
+	// MND_lntfi (= ln(TFI_L1 in months)) is already generated above.
+	qui gen double MNTR_tail = TFI_L1 / 30.4375 - cond(SCT == 1, 4.81, 0.49) - MND_L1 / 30.4375
+	mi estimate: logit MNT_LenRefr_L1 Age Age2 Male i.ECOGcc i.RISS SCT MND_lntfi MNTR_tail ///
+		if(Event1 == 11 & MNT == 1 & MNR_L1 == 1 & !mi(MND_L1) & !mi(TFI_L1) & TFI_L1 > 0)
+	save_coefs L1_MNTREFR
+	mata: _matrix_list(bL1_MNTREFR, rbL1_MNTREFR, cbL1_MNTREFR)
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"
