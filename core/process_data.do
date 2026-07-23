@@ -144,6 +144,7 @@ cap mata: mata drop mRN
 	frame _costs: quietly import delimited "`costfile'", varnames(1) case(preserve) stringcols(_all) clear
 	frame _costs: quietly destring value, replace     // to double (avoids float import rounding)
 	foreach p in cVCd cVRd cRd cPd cVd cOther cMNT cASCT ///
+	             cOther_L1 cOther_L2 cOther_L3 cOther_L4 cOther_L5 cOther_L6 ///
 	             cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 ///
 	             cHosp_initial cHosp_continuing cHosp_terminal ///
 	             cMBS_initial  cMBS_continuing  cMBS_terminal ///
@@ -179,7 +180,14 @@ cap mata: mata drop mRN
 		qui replace cost_tx_L`l' = `dvd_lr'*min(TXD_L`l',`dvd_le') + `dvd_mr'*max(0,min(TXD_L`l',`dvd_me')-`dvd_le') + `dvd_tr'*max(0,TXD_L`l'-`dvd_me') if TXR_L`l' == 80
 		qui replace cost_tx_L`l' = `cPd' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 56
 		qui replace cost_tx_L`l' = `cVd' * min(8, TXD_L`l' * 30.4375 / 21) if TXR_L`l' == 5
-		qui replace cost_tx_L`l' = `cOther' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 0
+		* Pooled "Other" (code 0) is costed at a USAGE-WEIGHTED, LINE-SPECIFIC rate where one is
+		* available (prep/inputs/other_mix.csv via treatment_costs.do), because what is prescribed
+		* outside the modelled regimens differs sharply by line. L6+ share line 6's rate. Falls back
+		* to the single fixed c_Other blend when the per-line rates are absent.
+		local _og = min(`l', 6)
+		local _orate "`cOther_L`_og''"
+		if ("`_orate'" == "" | "`_orate'" == ".") local _orate "`cOther'"
+		qui replace cost_tx_L`l' = `_orate' * (TXD_L`l' * 30.4375 / 28) if TXR_L`l' == 0
 	}
 
 * L1-specific costs (ASCT, MNT)
