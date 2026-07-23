@@ -595,32 +595,7 @@ program define risk_equations
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"
 	// Gap from the end of one line's treatment to the start of the next (log-normal). DN_TFI is the
-	// diagnosis-to-L1 interval; L1 splits by transplant (with maintenance); L2+ are single fits.
-
-	// L1 TFI KNOWS WHICH MAINTENANCE DRUG, not just whether there is one. The gap has to contain the
-	// maintenance episode, and the two regimens differ by more than a factor of two in duration
-	// (lenalidomide KM median 24.6 months, thalidomide 11.1), so the regimen is genuinely predictive
-	// of the gap. Until now L1_TFI carried only MNT and that information was discarded.
-	//
-	// It also does mechanical work. sim_tfi_l1.do draws the gap TRUNCATED below at the maintenance
-	// already drawn; the better the equation predicts the gap for a lenalidomide patient, the less
-	// often the truncation has to force it up, and the smaller the distortion that introduces.
-	//
-	// PLAIN INDICATORS, NOT i.MNR_L1, and MNT is KEPT. Three reasons, in order of how much trouble
-	// each has already caused:
-	//   - an i. factor needs an 'other maintenance' level, which is ~37 patients in sample and 13
-	//     out of sample. On the 70% train fold it can empty, drop from e(b), and trip the engine
-	//     design guard - the failure that killed the out-of-sample arm on a previous branch.
-	//   - (MNR_L1 == 1) evaluates to 0 when MNR_L1 is MISSING, which it is for patients with no
-	//     maintenance drug. An i. factor would instead drop those patients from the fit entirely.
-	//   - keeping MNT makes 'other maintenance' the reference WITHIN maintenance: MNT carries the
-	//     maintenance-versus-none contrast and the two indicators carry len and thal against other.
-	//     sim_mnr never draws 'other', so the engine only ever needs none / len / thal, while the
-	//     fit still keeps its bortezomib patients rather than discarding them.
-	qui cap drop MNR_len
-	qui cap drop MNR_thal
-	qui gen byte MNR_len  = (MNR_L1 == 1)
-	qui gen byte MNR_thal = (MNR_L1 == 5)
+	// diagnosis-to-L1 interval; L1 splits by transplant (with maintenance MNT); L2+ are single fits.
 
 	// DN
 	mi stset Date1, id(ID_BS) failure(Event1 == 10) origin(Event1 == 3) scale(30.4375)
@@ -631,14 +606,14 @@ program define risk_equations
 	// L1 - ASCT
 	mi stset Date1 if(SCT == 1 & BCR_SCT != 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
 	save_max L1_TFI_ASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT MNR_len MNR_thal i.BCR_SCT, d($dTFI)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_SCT, d($dTFI)
 	save_coefs L1_TFI_ASCT
 	mata: _matrix_list(bL1_TFI_ASCT, rbL1_TFI_ASCT, cbL1_TFI_ASCT)
 
 	// L1 - No ASCT
 	mi stset Date1 if(SCT == 0), id(ID_BS) failure(Event1 == 20) origin(Event1 == 11) scale(30.4375)
 	save_max L1_TFI_NoASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT MNR_len MNR_thal i.BCR_L1, d($dTFI)
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS MNT i.BCR_L1, d($dTFI)
 	save_coefs L1_TFI_NoASCT
 	mata: _matrix_list(bL1_TFI_NoASCT, rbL1_TFI_NoASCT, cbL1_TFI_NoASCT)
 
