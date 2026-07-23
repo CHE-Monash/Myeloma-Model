@@ -19,9 +19,17 @@
 *          maintenance median from 25 months down to 13. Truncating the gap upward instead moves the
 *          adjustment onto the quantity that can absorb it.
 *
-*          THE COST, stated: removing the lower tail shifts the maintenance patients' TFI up (about
-*          14% in the transplant arm by emulation). That is a change to a validated equation, so the
-*          TFI benchmarks are the arbiter for this design, not the MND one.
+*          THE COST, stated: removing the lower tail shifts the maintenance patients' TFI up. That is
+*          a change to a validated equation, so the TFI benchmarks are the arbiter for this design,
+*          not the MND one. (An emulation predicted ~14% inflation in the transplant arm; the first
+*          real run showed TFI failures going DOWN, from seven to four, so the emulation's target was
+*          computed on a mismatched population. Trust the benchmarks, not that figure.)
+*
+*          THE EQUATION NOW CARRIES THE MAINTENANCE REGIMEN, not just MNT. Lenalidomide maintenance
+*          runs more than twice as long as thalidomide, the gap has to contain it, so the regimen
+*          predicts the gap. It also reduces how often the truncation has to bind, which is the
+*          distortion this design introduces. vMNR is available here because sim_mnd.do now runs
+*          first; missing vMNR is 0 in Mata, so non-maintenance patients land on the reference.
 **********
 
 mata {
@@ -43,15 +51,23 @@ mata {
 			vBCR_4 = (mBCR[idxASCT, 10] :== 4)	
 			
 			// Assemble patient matrix (ASCT patients cannot have BCR = 5 or 6)
+			// MNT plus the two regimen indicators, matching the fit. vMNR is missing for patients
+			// with no maintenance and (missing :== 1) is 0 in Mata, so they land on the reference
+			// level - 'other maintenance' within maintenance, and MNT == 0 outside it.
 			mPat_ASCT = (vAge[idxASCT], vAge2[idxASCT], vMale[idxASCT], 
 						 vECOG0[idxASCT], vECOG1[idxASCT], vECOG2[idxASCT], 
 			             vRISS1[idxASCT], vRISS2[idxASCT], vRISS3[idxASCT], 
-						 vMNT[idxASCT], 
+						 vMNT[idxASCT], (vMNR[idxASCT] :== 1), (vMNR[idxASCT] :== 5), 
 			             vBCR_1, vBCR_2, vBCR_3, vBCR_4, 
 						 vCons[idxASCT])
 			
 			// Extract coefficients for ASCT
 			nPredictors = cols(mPat_ASCT)
+			if (cols(bL1_TFI_ASCT) != nPredictors + 1) {
+				errprintf("sim_tfi_l1 (ASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_TFI_ASCT has %g. A BCR level was likely empty in the fit, or the coefficient file predates the MNR_len/MNR_thal covariates.\n",
+					nPredictors, nPredictors + 1, cols(bL1_TFI_ASCT))
+				exit(459)
+			}
 			coef_ASCT = bL1_TFI_ASCT[1, 1..nPredictors]' 
 			aux_ASCT = bL1_TFI_ASCT[1, cols(bL1_TFI_ASCT)]
 			
@@ -97,12 +113,17 @@ mata {
 			mPat_NoASCT = (vAge[idxNoASCT], vAge2[idxNoASCT], vMale[idxNoASCT], 
 						   vECOG0[idxNoASCT], vECOG1[idxNoASCT], vECOG2[idxNoASCT],
 			               vRISS1[idxNoASCT], vRISS2[idxNoASCT], vRISS3[idxNoASCT], 
-						   vMNT[idxNoASCT],
+						   vMNT[idxNoASCT], (vMNR[idxNoASCT] :== 1), (vMNR[idxNoASCT] :== 5),
 			               vBCR_1, vBCR_2, vBCR_3, vBCR_4, vBCR_5, vBCR_6, 
 						   vCons[idxNoASCT])
 			
 			// Extract coefficients for NoASCT
 			nPredictors = cols(mPat_NoASCT)
+			if (cols(bL1_TFI_NoASCT) != nPredictors + 1) {
+				errprintf("sim_tfi_l1 (NoASCT): design/coefficient mismatch - mPat has %g columns so %g were expected (mean + ancillary), but bL1_TFI_NoASCT has %g. A BCR level was likely empty in the fit, or the coefficient file predates the MNR_len/MNR_thal covariates.\n",
+					nPredictors, nPredictors + 1, cols(bL1_TFI_NoASCT))
+				exit(459)
+			}
 			vCoef_NoASCT = bL1_TFI_NoASCT[1, 1..nPredictors]'
 			aux_NoASCT = bL1_TFI_NoASCT[1, cols(bL1_TFI_NoASCT)]
 			
