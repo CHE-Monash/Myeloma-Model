@@ -4,28 +4,13 @@
 * Purpose: Draw L1 maintenance DURATION by parametric survival, among patients on maintenance
 *          (MNT == 1). Continuous time in months.
 *
-* Notes:   TWO ARMS, SPLIT BY REGIMEN AND POOLED ACROSS TRANSPLANT - the opposite way round from the
-*          earlier version, and for a measured reason. Lenalidomide and thalidomide are different
-*          processes (thalidomide a fixed course, 9% censored; lenalidomide running to progression,
-*          47%) with non-overlapping ancillaries, and an AFT carries one ancillary per equation. The
-*          two TRANSPLANT arms have near-identical KM curves, so SCT is a covariate instead. BCR
-*          drops out as a consequence, since the arms key on different response variables. Full
-*          reasoning in prep/risk_equations.do.
-*
-*          NO ln(TFI) COVARIATE. The old fit conditioned duration on the drawn gap, which restricted
-*          the FIT to the quarter of patients with an observed L2 - and the short-maintenance
-*          quarter at that. Removing it uses the whole maintenance population.
-*
-*          THE ORDERING IS NOW ENFORCED DOWNSTREAM, NOT HERE. Dropping the gap covariate alone would
-*          leave MND and TFI independent, and ~40% of patients would draw maintenance longer than
-*          their own gap - which process_data.do's clip would then pull back, destroying the median.
-*          Instead sim_tfi_l1.do runs AFTER this file and draws the gap TRUNCATED below at the
-*          maintenance already drawn. Nothing is clipped, so nothing is dragged down.
-*
-*          THALIDOMIDE IS CAPPED AT 18 MONTHS, matching the censoring in its fit. 21 of 289 complete
-*          episodes have recorded ends beyond 18 months on a drug given as a ~12-month course and not
-*          prescribed in Australia since 2020; they carry ~29% of all thalidomide maintenance months.
-*          A documented judgement, not a measurement - see risk_equations.do.
+* Notes:   Two arms, split by REGIMEN and pooled across transplant, with SCT as a covariate and no
+*          BCR. No ln(TFI) covariate: it restricted the fit to patients with an observed L2. The
+*          ordering (maintenance must fit inside the gap) is enforced downstream instead -
+*          sim_tfi_l1.do draws the gap truncated below at the duration drawn here, so nothing is
+*          clipped. Thalidomide is capped at 18 months, matching the censoring in its fit.
+*          Reasoning and the rejected alternatives: prep/risk_equations.do and
+*          scratch/maintenance/_notes.md.
 *
 * ORDER:   AFTER sim_mnr.do (needs vMNR) and sim_bcr_asct.do (needs mBCR).
 *          BEFORE sim_tfi_l1.do, which now depends on vMND. This is a REVERSAL of the previous order

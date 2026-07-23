@@ -761,49 +761,22 @@ if _rc == 0 {
 
 // MND benchmark - L1 maintenance DURATION by regimen, censoring-aware.
 //
-// THIS REPLACES A SHARE-OF-THE-GAP BENCHMARK THAT WAS NOT COMPARABLE BETWEEN THE TWO SIDES, and
-// the reason is worth keeping because it is easy to reintroduce. The old metric was
-// MND_L1 / TFI_L1 by regimen x gap band. Both quantities need an OBSERVED L2, so the registry
-// side could only ever be computed on patients who relapsed - while the simulated side has a
-// closed gap for everybody, because the engine runs each patient to death. Those are different
-// populations, and the difference is not small or random: at long gaps the relapsers are exactly
-// the patients whose maintenance ran close to relapse, so their share is high by construction.
-// Band-4 lenalidomide patients who reached L2 have a median tail (maintenance end to next line)
-// of 2.0 months; across all patients at risk it is 19.3. The old target's headline gradient
-// (0.564 -> 0.831 across bands) is therefore substantially a selection artefact, not a fact about
-// lenalidomide, and the model was scored 0/7 against it in-sample. See docs/refractory.md 5(7)
-// and 5(8), and scratch/maintenance/_notes.md for the working.
-//
-// WHAT IS SCORED INSTEAD. Maintenance duration itself, as a Kaplan-Meier median in months from the
-// maintenance start event (110) to its end (111) or the next line (20). That needs no closed gap:
-// a patient still on maintenance at the cut is right-censored, which is what KM is for, so the
-// whole maintenance population contributes instead of the 37% of it that relapsed. It is
-// computable identically on the simulated side, where MND_L1 is drawn for every maintenance
-// patient. Duration is also the quantity the COST engine actually bills (process_data.do bills
-// cMNT x MND_L1), so this scores the thing that matters rather than a ratio standing in for it.
-//
-// WHAT WAS LOST, honestly. The old metric was built to catch a regimen x gap INTERACTION - the
-// first simulated run passed every marginal target while over-billing bortezomib 3.6x in band 4.
-// A marginal duration cannot see that. The gap-banded version cannot be recovered on the registry
-// side (the band needs the gap, the gap needs L2), so the interaction is currently untestable
-// rather than untested. Recorded as such in docs/refractory.md 5(8) rather than papered over with
-// a metric that fails for the wrong reason.
+// REPLACED a share-of-the-gap metric that was not comparable between the two sides: both quantities
+// need an observed L2, so the registry side was computed on relapsers only while the simulated side
+// has a closed gap for everybody. The model scored 0/7 against it. Duration needs no closed gap, uses
+// the whole maintenance population, and is what the cost engine bills. What is lost is the regimen x
+// gap interaction, which cannot be recovered on the registry side - see docs/refractory.md 5(8).
 //
 // Regimen groups match analyses/default/outcomes/mnr_full.do ($MNR_L1 "1 5"): lenalidomide,
-// thalidomide, everything else pooled to 0. If that list changes this must change with it - the
-// simulated MNR_L1 only ever holds the levels the analysis declared.
+// thalidomide, everything else pooled to 0. If that list changes this must change with it.
 preserve
-	// stset the maintenance episode itself, exactly as risk_equations.do fits L1_MND: origin at
-	// the maintenance start, failure at the recorded end or the next line, whichever comes first.
-	// Patients still on maintenance at the cut simply never fail, and are censored.
-	// THALIDOMIDE IS CENSORED AT 18 MONTHS, matching prep/risk_equations.do. Both sides of this
-	// benchmark must measure the same quantity: the fit declares recorded thalidomide ends beyond
-	// 18 months untrustworthy (21 of 289 episodes, ~29% of all thalidomide maintenance months, on a
-	// drug given as a ~12-month course and not prescribed here since 2020), so the target has to
-	// declare them untrustworthy too. Scoring an 18-month-censored model against an uncensored
-	// target would guarantee a miss that is entirely definitional.
-	// exit() is in the TIME VARIABLE's scale and `origin' is unavailable inside it when origin() is
-	// an event condition, so it references the maintenance-start date in days.
+	// stset the maintenance episode as risk_equations.do fits L1_MND: origin at the maintenance
+	// start, failure at the recorded end or the next line. Patients still on maintenance at the cut
+	// never fail and are censored.
+	// THALIDOMIDE IS CENSORED AT 18 MONTHS, matching the fit - both sides must measure the same
+	// quantity or the miss is purely definitional. TRAP: exit() is in the TIME VARIABLE's scale and
+	// `origin' is unavailable inside it when origin() is an event condition, so it references the
+	// maintenance-start date in days.
 	capture drop _mxMNDo
 	capture drop MND_origin
 	quietly gen double _mxMNDo = Date1 if Event1 == 110

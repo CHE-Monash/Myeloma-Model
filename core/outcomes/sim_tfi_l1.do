@@ -4,24 +4,19 @@
 * Purpose: Draw Treatment-free Interval at Line 1 End (time from L1E to L2S) via parametric
 *          survival, split by ASCT status. Continuous time in months.
 *
-* Notes:   TRUNCATED BELOW AT THE DRAWN MAINTENANCE DURATION, for patients on maintenance. The gap
-*          cannot be shorter than the maintenance it contains, and enforcing that here is what lets
-*          sim_mnd.do drop its ln(gap) covariate - which is what frees its fit from the complete-gap
-*          selection that had it running on a quarter of the population.
+* Notes:   TRUNCATED BELOW AT THE DRAWN MAINTENANCE DURATION for maintenance patients. The gap
+*          cannot be shorter than the maintenance it contains, and enforcing it here is what lets
+*          sim_mnd.do drop the ln(gap) covariate that was restricting its fit.
 *
-*          HOW. calcSurvTime maps a survivor probability U to a time and S is decreasing, so
-*          requiring T >= L is exactly requiring U <= S(L). Drawing U' = U * S(L) therefore satisfies
-*          the constraint by construction - no rejection sampling, no clipping, and the SAME random
-*          number is consumed, so common-random-number alignment across arms is untouched.
+*          calcSurvTime maps a survivor probability U to a time and S is decreasing, so T >= L is
+*          exactly U <= S(L). Drawing U' = U * S(L) satisfies it by construction - no rejection
+*          sampling, no clipping, and the same random number is consumed, so CRN alignment holds.
 *
-*          WHY NOT CLIP THE OTHER WAY. process_data.do used to cap MND at the realised gap. That
-*          fires on ~40% of patients and can only ever shorten, which is what pulled the simulated
-*          maintenance median from 25 months down to 13. Truncating the gap upward instead moves the
-*          adjustment onto the quantity that can absorb it.
+*          The alternative was capping MND at the gap in process_data.do, which fired on a large
+*          minority and could only ever shorten. Truncating the gap upward instead moves the
+*          adjustment onto the quantity that can absorb it. That cap remains as a safety net.
 *
-*          THE COST, stated: removing the lower tail shifts the maintenance patients' TFI up (about
-*          14% in the transplant arm by emulation). That is a change to a validated equation, so the
-*          TFI benchmarks are the arbiter for this design, not the MND one.
+* ORDER:   AFTER sim_mnd.do, which is a reversal of the previous order and the point of the design.
 **********
 
 mata {

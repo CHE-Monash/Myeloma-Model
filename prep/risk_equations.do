@@ -524,49 +524,26 @@ program define risk_equations
 	//     origin(Event1 == 110)          maintenance start
 	//     failure(Event1 == 20 111)      maintenance end - the recorded end (111), or L2 start (20)
 	//
-	// SPLIT BY REGIMEN, POOLED ACROSS TRANSPLANT, AND NO GAP TERM. All three follow from measuring
-	// what the engine actually produces rather than what the fit predicts, which earlier work did not
-	// (scratch/maintenance/_notes.md). The fitted median was never wrong; the DRAW was.
+	// SPLIT BY REGIMEN, POOLED ACROSS TRANSPLANT, NO GAP TERM. The two drugs are different processes
+	// with non-overlapping ancillaries (thalidomide a fixed course, lenalidomide running to
+	// progression); the two transplant arms are near-identical, so SCT is a covariate instead. BCR
+	// drops out as a consequence - the arms key on different response variables.
 	//
-	// (1) NO ln(gap). The old fit carried MND_lntfi = ln(TFI_L1), which is MISSING without an
-	// observed L2, so streg silently dropped every patient still in their gap and ran on a quarter of
-	// the maintenance population - and the SHORT-maintenance quarter: for lenalidomide the patients
-	// it kept have a median duration of 11.5 months against 46.9 for those it dropped, on a
-	// population median of 24.6. Removing the covariate lets the fit use all 1,028 lenalidomide
-	// patients, and the drawn median then lands at 25.8 against a target of 24.6.
+	// The gap covariate is gone because ln(TFI_L1) is missing without an observed L2, which
+	// restricted this fit to a quarter of the maintenance population. Dropping it alone is NOT
+	// enough: it leaves duration and gap independent and the billing cap does the damage instead.
+	// sim_tfi_l1.do supplies the dependence by drawing the gap truncated below at the maintenance.
 	//
-	// Dropping the term ALONE is not enough and was tried: it leaves MND and TFI drawn independently,
-	// ~40% of patients get maintenance longer than their own gap, and process_data.do's clip pulls
-	// the median down to 13. The gap term was doing structural work - inducing the dependence - that
-	// a covariate is not the only way to supply. sim_tfi_l1.do now supplies it by drawing the GAP
-	// truncated below at the maintenance already drawn, so the ordering holds with no clip at all.
+	// THALIDOMIDE IS CENSORED AT 18 MONTHS - a documented judgement that recorded ends beyond that
+	// are stale records, not a measurement. Censored rather than excluded: excluding leaves a
+	// truncated sample and an untruncated family fitted to it undershoots. generate_benchmarks.do
+	// carries the same exit() so both sides measure the same quantity.
 	//
-	// (2) SPLIT BY REGIMEN, not by transplant. Lenalidomide and thalidomide are different processes:
-	// thalidomide is a fixed course that ends (9% censored, KM quartiles 5.2/10.3/12.6), lenalidomide
-	// runs to progression (47% censored, 6.5/24.6/74.7). An AFT carries one ancillary per equation and
-	// theirs differ (sigma 1.76 against 1.20, non-overlapping). The two TRANSPLANT arms, by contrast,
-	// have near-identical KM curves, so SCT enters as a covariate and the arms pool. That also fixes
-	// the no-ASCT cell that was too thin to fit (59 patients with the gap term) and kept dropping a
-	// BCR level under mi estimate, tripping the engine design guard on the OOS train fold.
+	// Evidence for all of the above, and the five specifications rejected on the way, are in
+	// scratch/maintenance/_notes.md. Conclusions in docs/refractory.md 5(7) and 7.
 	//
-	// BCR is dropped as a consequence: the two transplant arms key on different response variables
-	// (i.BCR_SCT and i.BCR_L1) so neither serves a pooled fit. A real covariate loss, taken knowingly.
-	//
-	// (3) THALIDOMIDE IS CENSORED AT 18 MONTHS. 21 of 289 complete thalidomide episodes have recorded
-	// ends beyond 18 months, out to 95, on a drug given as a ~12-month fixed course and not prescribed
-	// in Australia since 2020. They are 7.3% of patients carrying ~29% of all thalidomide maintenance
-	// months, so they dominate both the cost and the fitted tail. The PBS cannot adjudicate them - the
-	// thalidomide listing is STREAMLINED with no treatment phase, no continuation rule and no duration
-	// limit - so this is a documented clinical judgement, not a measurement.
-	//
-	// CENSORED, not excluded. Dropping those episodes leaves a truncated sample and an untruncated
-	// family fitted to it undershoots: drawn medians of 5.5 to 7.1 against a KM median of 9.2 on that
-	// same population. exit() keeps the patient and says only that the episode reached 18 months.
-	// generate_benchmarks.do carries the SAME exit() so both sides of mnd_l1.csv measure the same
-	// quantity; fitting to one population and scoring against another guarantees a miss.
-	//
-	// TRAP: exit() is in the TIME VARIABLE's scale, not analysis time, and `origin' is not available
-	// inside it when origin() is an event condition. It has to reference the origin date in days.
+	// TRAP: exit() is in the TIME VARIABLE's scale, not analysis time, and `origin' is unavailable
+	// inside it when origin() is an event condition. It must reference the origin date in days.
 	capture drop MND_origin
 	qui gen double _mxMNDo = Date1 if Event1 == 110
 	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
