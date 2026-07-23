@@ -809,7 +809,9 @@ preserve
 	quietly gen double _mxMNDo = Date1 if Event1 == 110
 	quietly egen double MND_origin = min(_mxMNDo), by(ID_BS)
 
-	capture stset Date1 if(MNT == 1 & inlist(MNR_L1, 1, 0)), ///
+	// A stset covering everyone, purely so the _t guard below has something to confirm. Each group
+	// re-stsets itself inside the loop.
+	capture stset Date1 if(MNT == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 
 	matrix MND_L1 = J(3, 5, .)
@@ -827,11 +829,18 @@ preserve
 			local gcond "MNR_L1 == `g'"
 			if `g' == 0 local gcond "!inlist(MNR_L1, 1, 5)"
 
-			// Thalidomide is scored on the 18-month-censored clock; the other groups are not.
+			// EACH GROUP SETS ITS OWN CLOCK, explicitly. Thalidomide is scored 18-month-censored
+			// and the others are not, so a single stset outside the loop plus a special case for
+			// thalidomide would leave group 0 - which comes AFTER thalidomide in this loop -
+			// running on the thalidomide-only risk set and returning nothing.
 			if `g' == 5 {
 				capture stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
 					id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
 					exit(time MND_origin + `=18 * 30.4375')
+			}
+			else {
+				capture stset Date1 if(MNT == 1), ///
+					id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 			}
 
 			quietly count if (`gcond') & _t0 == 0
