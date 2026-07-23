@@ -97,19 +97,22 @@ di "Running simulation"
 		*mata: _matrix_list(bL1_MNR, rbL1_MNR, cbL1_MNR)
 		*mata: _matrix_list(vMNR)
 
-	di "L1E - Treatment-free Interval"
+	// ORDER REVERSED, July 2026: MND now comes BEFORE TFI. The maintenance duration is drawn from a
+	// fit that no longer conditions on the gap - which is what frees it from the complete-gap
+	// selection - and sim_tfi_l1 then draws the gap TRUNCATED below at that duration, so the gap
+	// always contains the maintenance it has to hold. Reversing these two is the whole design; the
+	// previous order existed only so MND could read the drawn gap as a covariate.
+	// No CRN consequence: both files consume the same slots they always did.
+	di "L1E - MNT Duration (drawn first; the gap is then truncated to contain it)"
+		qui do "core/outcomes/sim_mnd.do"
+		*mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
+		*mata: _matrix_list(vMND)
+
+	di "L1E - Treatment-free Interval (truncated below at vMND for maintenance patients)"
 		qui do "core/outcomes/sim_tfi_l1.do"			
 		*mata: _matrix_list(bL1_TFI, rbL1_TFI, cbL1_TFI)
 		*mata: _matrix_list(mTNE, rmTNE, cmTNE)	
 		*mata: _matrix_list(mTSD, rmTSD, cmTSD)	
-
-	// MND follows sim_mnr (needs vMNR) AND sim_tfi_l1 (needs the drawn gap for the ln(TFI)
-	// covariate, so lenalidomide duration scales with the gap). process_data.do also caps the
-	// drawn duration at the realised gap at billing time, inheriting sim_mort's death curtailment.
-	di "L1E - MNT Duration (gap-dependent draw, capped at TFI when billed)"
-		qui do "core/outcomes/sim_mnd.do"
-		*mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
-		*mata: _matrix_list(vMND)
 
 
 	di "L1E - Overall Survival"

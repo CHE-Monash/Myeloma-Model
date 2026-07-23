@@ -796,7 +796,20 @@ preserve
 	// stset the maintenance episode itself, exactly as risk_equations.do fits L1_MND: origin at
 	// the maintenance start, failure at the recorded end or the next line, whichever comes first.
 	// Patients still on maintenance at the cut simply never fail, and are censored.
-	capture stset Date1 if(MNT == 1 & inlist(MNR_L1, 1, 5, 0)), ///
+	// THALIDOMIDE IS CENSORED AT 18 MONTHS, matching prep/risk_equations.do. Both sides of this
+	// benchmark must measure the same quantity: the fit declares recorded thalidomide ends beyond
+	// 18 months untrustworthy (21 of 289 episodes, ~29% of all thalidomide maintenance months, on a
+	// drug given as a ~12-month course and not prescribed here since 2020), so the target has to
+	// declare them untrustworthy too. Scoring an 18-month-censored model against an uncensored
+	// target would guarantee a miss that is entirely definitional.
+	// exit() is in the TIME VARIABLE's scale and `origin' is unavailable inside it when origin() is
+	// an event condition, so it references the maintenance-start date in days.
+	capture drop _mxMNDo
+	capture drop MND_origin
+	quietly gen double _mxMNDo = Date1 if Event1 == 110
+	quietly egen double MND_origin = min(_mxMNDo), by(ID_BS)
+
+	capture stset Date1 if(MNT == 1 & inlist(MNR_L1, 1, 0)), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
 
 	matrix MND_L1 = J(3, 5, .)
@@ -813,6 +826,13 @@ preserve
 			local ++mrow
 			local gcond "MNR_L1 == `g'"
 			if `g' == 0 local gcond "!inlist(MNR_L1, 1, 5)"
+
+			// Thalidomide is scored on the 18-month-censored clock; the other groups are not.
+			if `g' == 5 {
+				capture stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
+					id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
+					exit(time MND_origin + `=18 * 30.4375')
+			}
 
 			quietly count if (`gcond') & _t0 == 0
 			matrix MND_L1[`mrow', 1] = r(N)

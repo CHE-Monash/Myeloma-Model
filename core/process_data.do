@@ -203,6 +203,16 @@ cap mata: mata drop mRN
 		// regimen-specific pricing needs maintenance DPMQs that mostly do not exist: per the MSAG
 		// guideline only lenalidomide has a PBS maintenance listing. See docs/refractory.md 7.4
 		// and the Costs todo in the programme note.
+		// SAFETY NET, no longer the mechanism. sim_tfi_l1.do draws the gap truncated below at the
+		// maintenance duration, so MND_L1 > TFI_L1 should now be impossible. It is kept because the
+		// alternative to a stray overshoot is billing maintenance the patient could not have had,
+		// and because it still catches the death curtailment sim_mort applies after both draws.
+		// If it fires on any material share of patients the truncation is not working - count it.
+		qui count if MNT == 1 & !mi(MND_L1) & !mi(TFI_L1) & MND_L1 > TFI_L1 + 0.01
+		if r(N) > 0 {
+			di as error "  NOTE: MND_L1 exceeded TFI_L1 for " r(N) " patients despite the truncated"
+			di as error "        TFI draw. Expected ~0 (death curtailment aside); investigate if large."
+		}
 		qui replace MND_L1 = TFI_L1 if MNT == 1 & !mi(MND_L1) & MND_L1 > TFI_L1
 		qui replace cost_tx_mnt = `cMNT' * (MND_L1 * 30.4375 / 28) if MNT == 1 & !mi(MND_L1)
 	}

@@ -3,6 +3,25 @@
 *
 * Purpose: Draw Treatment-free Interval at Line 1 End (time from L1E to L2S) via parametric
 *          survival, split by ASCT status. Continuous time in months.
+*
+* Notes:   TRUNCATED BELOW AT THE DRAWN MAINTENANCE DURATION, for patients on maintenance. The gap
+*          cannot be shorter than the maintenance it contains, and enforcing that here is what lets
+*          sim_mnd.do drop its ln(gap) covariate - which is what frees its fit from the complete-gap
+*          selection that had it running on a quarter of the population.
+*
+*          HOW. calcSurvTime maps a survivor probability U to a time and S is decreasing, so
+*          requiring T >= L is exactly requiring U <= S(L). Drawing U' = U * S(L) therefore satisfies
+*          the constraint by construction - no rejection sampling, no clipping, and the SAME random
+*          number is consumed, so common-random-number alignment across arms is untouched.
+*
+*          WHY NOT CLIP THE OTHER WAY. process_data.do used to cap MND at the realised gap. That
+*          fires on ~40% of patients and can only ever shorten, which is what pulled the simulated
+*          maintenance median from 25 months down to 13. Truncating the gap upward instead moves the
+*          adjustment onto the quantity that can absorb it.
+*
+*          THE COST, stated: removing the lower tail shifts the maintenance patients' TFI up (about
+*          14% in the transplant arm by emulation). That is a change to a validated equation, so the
+*          TFI benchmarks are the arbiter for this design, not the MND one.
 **********
 
 mata {
@@ -41,6 +60,21 @@ mata {
 			
 			// Calculate outcome (survival time)
 			vRN_ASCT = rnDraw(idxASCT, rn_tfi_l1(1))
+
+			// Truncate below at the maintenance already drawn (sim_mnd.do runs first). vMND is
+			// missing for non-maintenance patients and whenever no MND model was fitted, so the
+			// bound is only applied where it exists - everyone else keeps the untruncated draw.
+			vLB_A = editmissing(vMND[idxASCT], 0)
+			vSL_A = J(rows(idxASCT), 1, 1)
+			iTr_A = selectindex(vLB_A :> 0)
+			if (rows(iTr_A) > 0) {
+				vSL_A[iTr_A] = calcSurvProb(vXB_ASCT[iTr_A], vLB_A[iTr_A], fbL1_TFI_ASCT, aux_ASCT)
+				// Floor the survivor probability: a bound out in the far tail returns S ~ 0, and
+				// U' = U * 0 inverts to +infinity for every family here.
+				vSL_A[iTr_A] = rowmax((vSL_A[iTr_A], J(rows(iTr_A), 1, 1e-8)))
+			}
+			vRN_ASCT = vRN_ASCT :* vSL_A
+
 			vOC[idxASCT] = calcSurvTime(vXB_ASCT, vRN_ASCT, fbL1_TFI_ASCT, aux_ASCT)
 			
 			// Curtail if beyond maximum observed
@@ -77,6 +111,16 @@ mata {
 			
 			// Calculate outcome (survival time)
 			vRN_NoASCT = rnDraw(idxNoASCT, rn_tfi_l1(2))
+
+			vLB_N = editmissing(vMND[idxNoASCT], 0)
+			vSL_N = J(rows(idxNoASCT), 1, 1)
+			iTr_N = selectindex(vLB_N :> 0)
+			if (rows(iTr_N) > 0) {
+				vSL_N[iTr_N] = calcSurvProb(vXB_NoASCT[iTr_N], vLB_N[iTr_N], fbL1_TFI_NoASCT, aux_NoASCT)
+				vSL_N[iTr_N] = rowmax((vSL_N[iTr_N], J(rows(iTr_N), 1, 1e-8)))
+			}
+			vRN_NoASCT = vRN_NoASCT :* vSL_N
+
 			vOC[idxNoASCT] = calcSurvTime(vXB_NoASCT, vRN_NoASCT, fbL1_TFI_NoASCT, aux_NoASCT)
 			
 			// Curtail if beyond maximum observed

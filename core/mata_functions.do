@@ -73,23 +73,27 @@ real scalar mnr_model_exists() {
 	return(rows(get_mnr_coef()) > 0)
 }
 
-// Helper function: Get MND (maintenance duration) coefficients, ASCT arm
-real matrix get_mnd_coef_asct() {
-	external bL1_MND_ASCT
-	if (rows(bL1_MND_ASCT) > 0) return(bL1_MND_ASCT)
+// Helper function: Get MND (maintenance duration) coefficients, LENALIDOMIDE
+// L1_MND is fitted per REGIMEN and pooled across transplant, not the other way round. The two drugs
+// are different processes - thalidomide is a fixed course (9% censored), lenalidomide runs on (47%)
+// - while the two transplant arms have near-identical Kaplan-Meier curves. SCT enters as a covariate
+// instead. See prep/risk_equations.do.
+real matrix get_mnd_coef_len() {
+	external bL1_MND_LEN
+	if (rows(bL1_MND_LEN) > 0) return(bL1_MND_LEN)
 	return(J(0, 0, .))
 }
 
-// Helper function: Get MND coefficients, no-ASCT arm
-real matrix get_mnd_coef_noasct() {
-	external bL1_MND_NoASCT
-	if (rows(bL1_MND_NoASCT) > 0) return(bL1_MND_NoASCT)
+// Helper function: Get MND coefficients, THALIDOMIDE (censored at 18 months in the fit)
+real matrix get_mnd_coef_thal() {
+	external bL1_MND_THAL
+	if (rows(bL1_MND_THAL) > 0) return(bL1_MND_THAL)
 	return(J(0, 0, .))
 }
 
 // Helper function: MND model exists if EITHER transplant arm was fitted
 real scalar mnd_model_exists() {
-	return(cols(get_mnd_coef_asct()) > 0 | cols(get_mnd_coef_noasct()) > 0)
+	return(cols(get_mnd_coef_len()) > 0 | cols(get_mnd_coef_thal()) > 0)
 }
 
 end
