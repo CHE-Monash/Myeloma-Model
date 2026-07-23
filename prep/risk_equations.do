@@ -524,50 +524,50 @@ program define risk_equations
 	//     origin(Event1 == 110)          maintenance start
 	//     failure(Event1 == 20 111)      maintenance end - the recorded end (111), or L2 start (20)
 	//
-	// GAP-DEPENDENT via ln(gap). Lenalidomide maintenance runs to progression, so its duration
-	// scales with the gap; thalidomide is a fixed ~10-month course and does not. Without a gap term
-	// the survival draw is gap-INDEPENDENT and the simulated share falls with gap length while the
-	// registry share rises - so ln(gap) enters with a REGIMEN INTERACTION (MND_lntfi_thal), giving
-	// lenalidomide a slope near 1 and thalidomide a slope near 0. In MONTHS, to match the engine's
-	// mTFI (sim_mnd.do reads ln(drawn TFI_L1)).
+	// SPLIT BY REGIMEN, POOLED ACROSS TRANSPLANT, NO GAP TERM. The two drugs are different processes
+	// with non-overlapping ancillaries (thalidomide a fixed course, lenalidomide running to
+	// progression); the two transplant arms are near-identical, so SCT is a covariate instead. BCR
+	// drops out as a consequence - the arms key on different response variables.
 	//
-	// COMPLETE GAPS. ln(gap) uses TFI_L1 (L1E to L2), which is missing for patients still on
-	// maintenance at the cut, so they drop from this fit. That is the price of a gap covariate that
-	// is NOT derived from the censoring point: a censor-filled gap was tried and pinned the share at
-	// 1.0, because for a censored patient the filled gap IS their own censoring time, and the
-	// survival likelihood then inflates the predicted duration above the gap (docs/refractory.md 4.4).
-	// The engine still uses the drawn (complete) gap, so the relationship transfers.
+	// The gap covariate is gone because ln(TFI_L1) is missing without an observed L2, which
+	// restricted this fit to a quarter of the maintenance population. Dropping it alone is NOT
+	// enough: it leaves duration and gap independent and the billing cap does the damage instead.
+	// sim_tfi_l1.do supplies the dependence by drawing the gap truncated below at the maintenance.
 	//
-	// SPLIT BY TRANSPLANT, exactly as L1_TFI is: the ASCT arm keys on the post-transplant response
-	// (i.BCR_SCT), the no-ASCT arm on the post-induction response (i.BCR_L1). Otherwise the
-	// covariates match. Lenalidomide and thalidomide only (inlist(MNR_L1, 1, 5)). Log-normal.
+	// THALIDOMIDE IS CENSORED AT 18 MONTHS - a documented judgement that recorded ends beyond that
+	// are stale records, not a measurement. Censored rather than excluded: excluding leaves a
+	// truncated sample and an untruncated family fitted to it undershoots. generate_benchmarks.do
+	// carries the same exit() so both sides measure the same quantity.
 	//
-	// The engine design matrices (sim_mnd.do) carry every factor level, so a level EMPTY in an arm
-	// (e.g. no-ASCT SD/PD patients rarely get maintenance) drops from e(b) and trips the design
-	// guard - collapse that level if so.
-	qui gen double MND_lntfi      = ln(TFI_L1 / 30.4375)     // L1E-to-L2 gap, months; missing (dropped) where no L2
-	qui gen double MND_lntfi_thal = MND_lntfi * (MNR_L1 == 5)
+	// Evidence for all of the above, and the five specifications rejected on the way, are in
+	// scratch/maintenance/_notes.md. Conclusions in docs/refractory.md 5(7) and 7.
+	//
+	// TRAP: exit() is in the TIME VARIABLE's scale, not analysis time, and `origin' is unavailable
+	// inside it when origin() is an event condition. It must reference the origin date in days.
+	capture drop MND_origin
+	qui gen double _mxMNDo = Date1 if Event1 == 110
+	qui egen double MND_origin = min(_mxMNDo), by(ID_BS)
+	qui drop _mxMNDo
 
-	// ASCT
-	mi stset Date1 if(SCT == 1 & BCR_SCT != 0 & MNT == 1 & inlist(MNR_L1, 1, 5)), ///
+	// Lenalidomide
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 1), ///
 		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max L1_MND_ASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_SCT MND_lntfi MND_lntfi_thal, d($dTFI)
-	save_coefs L1_MND_ASCT
-	mata: _matrix_list(bL1_MND_ASCT, rbL1_MND_ASCT, cbL1_MND_ASCT)
+	save_max L1_MND_LEN
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
+	save_coefs L1_MND_LEN
+	mata: _matrix_list(bL1_MND_LEN, rbL1_MND_LEN, cbL1_MND_LEN)
 
-	// No ASCT. Restrict to RESPONDERS (BCR_L1 in 1-4 = CR/VGPR/PR/MR): maintenance is a
-	// post-response therapy, so SD/PD (5/6) do not get it by definition. The handful in the data
-	// are noise, and on the small no-ASCT sample (smaller still on the OOS train fold) an SD or PD
-	// cell empties and drops from i.BCR_L1, which trips the engine design guard. Dropping them
-	// keeps i.BCR_L1 at a full 4 levels. sim_mnd.do excludes the same patients (docs 4.4). The
-	// ASCT arm already needs no filter - BCR_SCT is collapsed to 1-4 at transplant.
-	mi stset Date1 if(SCT == 0 & MNT == 1 & inlist(MNR_L1, 1, 5) & inlist(BCR_L1, 1, 2, 3, 4)), ///
-		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375)
-	save_max L1_MND_NoASCT
-	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS i.MNR_L1 i.BCR_L1 MND_lntfi MND_lntfi_thal, d($dTFI)
-	save_coefs L1_MND_NoASCT
-	mata: _matrix_list(bL1_MND_NoASCT, rbL1_MND_NoASCT, cbL1_MND_NoASCT)
+	// Thalidomide, censored at 18 months
+	mi stset Date1 if(MNT == 1 & MNR_L1 == 5), ///
+		id(ID_BS) failure(Event1 == 20 111) origin(Event1 == 110) scale(30.4375) ///
+		exit(time MND_origin + `=18 * 30.4375')
+	// The engine caps the thalidomide draw at the same 18 months, so overwrite the observed maximum
+	// rather than letting save_max pick up a record the fit has just declared untrustworthy.
+	save_max L1_MND_THAL
+	mata: maxL1_MND_THAL = 18
+	mi estimate: streg Age Age2 Male i.ECOGcc i.RISS SCT, d($dTFI)
+	save_coefs L1_MND_THAL
+	mata: _matrix_list(bL1_MND_THAL, rbL1_MND_THAL, cbL1_MND_THAL)
 
 	***** TREATMENT-FREE INTERVAL (TFI) *****
 	di "Treatment-free Interval"

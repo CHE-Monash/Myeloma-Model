@@ -622,6 +622,13 @@ qui forvalues bcr = 1/4 {
 // including patients still on the drug at the cut. The simulated side has no censoring - every
 // drawn maintenance episode is complete - so a plain median is the right comparator for it.
 //
+// THALIDOMIDE IS ON AN 18-MONTH CLOCK on both sides, but by two different mechanisms: the registry
+// target is CENSORED at 18 (prep/generate_benchmarks.do) and the simulated draw is CAPPED at 18
+// (core/outcomes/sim_mnd.do). Those are not the same operation - a cap puts mass exactly at 18, a
+// censoring puts none there - but they agree on the MEDIAN as long as it falls below 18, which it
+// does on both sides (registry 11.14, simulated ~11.4). If either median ever drifts above 18 the
+// comparison stops being like-for-like and this check needs rethinking, not just re-reading.
+//
 // Tolerance is RELATIVE, not absolute, because the two regimens differ by an order of magnitude
 // (thalidomide is a fixed course, lenalidomide runs to progression). A fixed +/- N months would be
 // trivial for one and impossible for the other.

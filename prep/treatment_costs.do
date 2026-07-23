@@ -76,7 +76,7 @@ if _rc gen phase = ""
 frame copy default fregs, replace
 
 * cost keys = regimen, or regimen_phase for phased regimens (DVd/Kd phases p1/p2/p3)
-local reglist "VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd VTd TCd Td R T"
+local reglist "VCd VRd Rd Kd_p1 Kd_p2 DVd_p1 DVd_p2 DVd_p3 Pd Vd VTd TCd Td R T VPod DadPo Dad PoCd Da KCd KRd"
 
 * scalars the Mata block reads (locals are not visible inside mata:)
 scalar BSA_    = `BSA'
@@ -213,7 +213,51 @@ for (g=1; g<=cols(regs); g++) st_numscalar("c_"+regs[g], totals[g])
 end
 
 * ---- Derived blends: pooled "Other" (code 0) and usage-weighted maintenance ----
+* c_Other is the fallback: a fixed, unweighted basket of four older regimens. It is superseded by the
+* per-line rates below wherever prep/inputs/other_mix.csv is available.
 scalar c_Other = (c_VTd + c_TCd + c_Td + c_Vd)/4
+
+* ---- Per-line "Other" blends, usage-weighted from the registry ----
+* scratch/regimen_freq.do (MRDR-gated) writes prep/inputs/other_mix.csv: for each line, the share of
+* that line's PRICEABLE 'other' bucket taken by each regimen. Weighting by those shares gives a rate
+* that reflects what is actually prescribed outside the modelled regimens, by line, instead of one
+* fixed basket everywhere. Lines are L1..L5 with L6+ collapsed (line 6 = L6 onwards).
+* ASSUMPTION: the registry's own 'other'/'Unknown' rows, which have no drug composition and so cannot
+* be priced, are assumed to resemble the priceable mix. That is what weighting within the priceable
+* subset implies, and it must be disclosed.
+forval g = 1/6 {
+    scalar c_Other_L`g' = .
+}
+capture confirm file "`IN'/other_mix.csv"
+if (_rc == 0) {
+    preserve
+    import delimited "`IN'/other_mix.csv", varnames(1) case(preserve) clear
+    forval g = 1/6 {
+        qui count if lineno == `g'
+        if (r(N) > 0) {
+            scalar c_Other_L`g' = 0
+            qui levelsof costkey if lineno == `g', local(_ks) clean
+            foreach k of local _ks {
+                qui summarize weight if lineno == `g' & costkey == "`k'", meanonly
+                local w = r(mean)
+                capture local cv = scalar(c_`k')
+                if (_rc == 0 & "`cv'" != "" & !missing(scalar(c_`k'))) {
+                    scalar c_Other_L`g' = scalar(c_Other_L`g') + `w' * scalar(c_`k')
+                }
+            }
+        }
+    }
+    restore
+    di as text _n "Per-line 'Other' blends (usage-weighted from other_mix.csv):"
+    forval g = 1/6 {
+        local nm = cond(`g' == 6, "L6+", "L`g'")
+        di as text "  c_Other_`nm'" _col(18) %12.2f scalar(c_Other_L`g')
+    }
+}
+else {
+    di as text _n "(prep/inputs/other_mix.csv not found - per-line Other blends left missing;"
+    di as text " process_data.do will fall back to the single c_Other. Run scratch/regimen_freq.do.)"
+}
 scalar c_MNT   = (1002/1504)*c_R + (502/1504)*c_T          // MRDR R/T usage weights
 
 di as text _n "Per-cycle drug costs (full DPMQ, `oral_policy' orals):"
@@ -326,13 +370,14 @@ else di as text _n "(validation skipped: reference DPMQs are full-price; net_cop
 * Write the output cost set for this year
 * ===========================================================================
 clear
-set obs 22
+set obs 40
 gen str14 parameter = ""
 gen double value = .
 gen str8 unit = ""
 gen str48 note = ""
 local i 0
-foreach p in cVCd cVRd cRd cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 cPd cVd cOther cMNT {
+foreach p in cVCd cVRd cRd cKd_p1 cKd_p2 cDVd_p1 cDVd_p2 cDVd_p3 cPd cVd cOther cMNT cVTd cTCd cTd cR cT cVPod cDadPo cDad cPoCd cDa cKCd cKRd ///
+             cOther_L1 cOther_L2 cOther_L3 cOther_L4 cOther_L5 cOther_L6 {
     local ++i
     local nm = subinstr("`p'", "c", "", 1)
     replace parameter = "`p'" in `i'
