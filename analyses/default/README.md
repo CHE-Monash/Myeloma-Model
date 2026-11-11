@@ -32,6 +32,7 @@ analyses/default/
 ├── validate_outcomes.do      Shared comparison engine (targets vs simfile)
 ├── bootstrap_validation.do   HPC: 95% bootstrap prediction-interval coverage + OS curve
 ├── plot_os_curve.do          Redraw the OS validation curve locally from the CSV
+├── extract_patient_counts.do Patient counts for the Ig demand interface: starting and prevalent-at-1-Jan by line and year
 ├── outcomes/
 │   ├── txr_full.do           Canonical per-line regimen list
 │   └── txr_train.do          sources txr_full.do (identical regimens, no drift)
@@ -40,7 +41,7 @@ analyses/default/
 ├── prep/                     split.do (70/30), test_cohort.do, test_targets.do  [need the MRDR drive]
 ├── targets/                  observed 30% target CSVs (aggregate; committed)
 ├── simulated/                run outputs (all_0_synthetic.dta; outsample/all_0_test.dta)
-└── results/                  bootstrap coverage + OS curve
+└── results/                  bootstrap coverage + OS curve; patient_counts_point.csv / patient_counts_bootstrap.csv
 ```
 
 ## Reproducibility / data
