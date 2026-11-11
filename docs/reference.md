@@ -59,6 +59,7 @@ where `Event0 == 3`; ASCT receipt where `Event1 == 11`).
 | `L×10` (10, 20, … 90) | Start of line L |
 | `L×10+1` (11, 21, … 91) | End of line L |
 | `100` | Post-ASCT response point (L1-end transplant branch; feeds `BCR_SCT`) |
+| `110` / `111` | Start / end of first-line maintenance (kept in the skeleton for `MNT == 1` patients; `L1_MND` is fitted on them) |
 | `104` | Death |
 
 ## State
@@ -126,7 +127,7 @@ Built in `core/mata_setup.do`. Line-varying outcomes are matrices (`Obs × 19` f
 | `mTXD` | `Obs×9` | treatment duration (months) per line |
 | `mBCR` | `Obs×10` | best clinical response per line, + post-ASCT response (`BCR_SCT`) |
 | `mTFI` | `Obs×9` | treatment-free interval (`TFI_DN` first; TFI for line L is column L+1) |
-| `mRN` | `Obs×74` | pre-drawn CRN uniform matrix (freed before `process_data`) |
+| `mRN` | `Obs×86` | pre-drawn CRN uniform matrix (freed before `process_data`) |
 
 Each matrix has paired `rm*`/`cm*` row/column-label matrices.
 
@@ -142,7 +143,7 @@ comorbidity flags `vCKD`, `vCRD`, `vPLM`, `vDBT`; the constant `vCons`; and trea
 `core/rng_slots.do` is the single source of truth for the columns of `mRN` (built once per cohort in
 `mata_setup.do` as `runiform(Obs, rn_K())`, seed `$crn_seed_base + $b`). Every stochastic event reads its
 **fixed** column for its **fixed** patient row, so both arms of a comparison see identical randomness —
-the basis for variance-reduced cost-effectiveness. Total columns **K = 74**.
+the basis for variance-reduced cost-effectiveness. Total columns **K = 86**.
 
 | Cols | Event | Keyed by | Accessor |
 |---|---|---|---|
@@ -158,7 +159,11 @@ the basis for variance-reduced cost-effectiveness. Total columns **K = 74**.
 | 63 | ASCT at diagnosis | — | `rn_asct_dn()` |
 | 64 | ASCT at L1 | — | `rn_asct_l1()` |
 | 65–66 | Maintenance (ASCT / no-ASCT) | branch 1,2 | `rn_mnt(branch)` |
-| 67–74 | Reserved for analysis overrides | i 1..8 | `rn_override(i)` |
+| 67 | Maintenance regimen | — | `rn_mnr()` |
+| 68 | Maintenance duration | — | `rn_mnd()` |
+| 69–77 | Lenalidomide-refractory, treatment lines | line 1..9 | `rn_lenrefr(line)` |
+| 78 | Lenalidomide-refractory, maintenance | — | `rn_mntrefr()` |
+| 79–86 | Reserved for analysis overrides | i 1..8 | `rn_override(i)` |
 
 TXD-L1 sub-indices: 1–3 = ASCT splines, 4 = no-ASCT, 5 = continuous therapy. `rnDraw(idx, slot)` returns
 `mRN[idx, slot]`. An override that **replaces** a core event reuses that event's slot (e.g. a BCR override
@@ -168,6 +173,6 @@ column.
 ## Risk equations & coefficients
 
 The **50 risk equations** (per-line OS, BCR ordered logits, TXR multinomials, TXD/TFI parametric survival,
-ASCT and maintenance logits) are fitted by `prep/risk_equations.do` into a per-analysis Mata coefficient
+ASCT and maintenance logits, the maintenance regimen and duration equations and the two lenalidomide-refractory logits) are fitted by `prep/risk_equations.do` into a per-analysis Mata coefficient
 set `analyses/<analysis>/coefficients/coefficients_<coeffs>.mmat`, loaded at run time via
 `mata matuse`. See [`prep/README.md`](../prep/README.md) and [`technical_review.md`](technical_review.md).

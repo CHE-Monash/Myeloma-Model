@@ -556,7 +556,7 @@ excludes the **725 of 1,570** patients still on maintenance at the cut, who have
 whose inclusion as zero-length tails is what made an earlier cut of this diagnostic unusable. Note
 this does NOT address the composition defect in 5(6): a better-specified logit does not fix a
 generation mix that produces maintenance-refractory patients six years too young at three times the
-treatment-refractory rate. That remains the reason the arm is held (4.7).
+treatment-refractory rate. That was the reason the arm was held until the mix defects were fixed (4.7).
 
 The deeper failure is not the draw and not the contamination. On **observed** MND, with no draw and
 no `rcess`, the rule under-calls in every gap band and the error widens as the gap grows, because the
@@ -644,16 +644,16 @@ classified.
 - **The MRDR dose field** for the treatment/maintenance dose split: unreliable; form membership is
   used instead (1.3).
 
-### 4.7 Engine wiring (built and evidenced, held out of the shipped model)
+### 4.7 Engine wiring (shipped in v3.0)
 
-> **Status.** This wiring was built, run and validated, and is **not in the shipped model**. It was
-> held back on branch `refractory-status` at the July 2026 maintenance release because the *generation
-> mix* is wrong, not the consumption: simulated maintenance-refractory patients are ~6 years younger
-> than registry ones and outnumber the (correctly penalised) treatment-refractory roughly 3:1, so the
-> union subgroup shows *better* OS than the registry despite a correct HR of 1.64 in the fitted
-> equation. See 5(6). The section below records what was built, so it can be picked up rather than
-> rediscovered; the MRDR-side variables (`prep/multiple_imputation.do`,
-> `prep/sub/MRDR/build_refractory.do`) are deliberately kept, so the data still carries them.
+> **Status.** This wiring is **in the shipped v3.0 model**: both arms are generated and consumed. It
+> was held back at the July 2026 maintenance release because the *generation mix* was wrong, not the
+> consumption: simulated maintenance-refractory patients were ~6 years younger than registry ones and
+> outnumbered the (correctly penalised) treatment-refractory roughly 3:1. Both causes were then found
+> and fixed (the maintenance tail rule replaced by the `LENREFR_MNT` logit, and lenalidomide exposure
+> in the 'other' regimen bucket made a probability; see 4.4 and 5(6)), and the wiring was released on
+> 11 August 2026. What remains is the too-favourable three-year OS in the refractory group, recorded
+> in 5 and in `validation.md`.
 
 Both arms are generated and consumed by the engine: `refr_len_tx_in` from the treatment-line logit
 and `refr_len_mnt_in` from `LENREFR_MNT`, the L1 maintenance logit that replaced the withdrawn tail

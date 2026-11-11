@@ -40,7 +40,7 @@ The configuration block (canonical form in `analyses/default/simulate.do`):
 | `$data` | Patient cohort: `synthetic` (incidence population), `train`/`test` (registry folds), or `predicted` | `synthetic` |
 | `$min_year` / `$max_year` | Diagnosis-year range | `1995` / `2040` |
 | `$min_id` / `$max_id` | Patient ID range | `1` / `101212` |
-| `$cost_year` | Price year for costs (AUD) | `2026` |
+| `$cost_year` | Price year for costs (AUD) | `2025` |
 | `$drate` | Annual discount rate (PBAC = 5%) | `0.05` |
 | `$report` | Generate PDF report (0/1) | `0` |
 | `$scenario` | Scenario label (woven into output paths) | `""` |
@@ -100,8 +100,12 @@ The 50 risk equations are organised into self-contained modules under `core/outc
 | `sim_mort` | Death at this OMC | Deterministic (time crosses OS) |
 | `sim_age` | Age update and age-limit deaths | Deterministic |
 | `sim_mnt` | Maintenance receipt | Logistic, split by ASCT status |
+| `sim_mnr` | Maintenance regimen (lenalidomide / thalidomide) | Multinomial logit |
+| `sim_mnd` | Maintenance duration | Parametric survival (log-normal), per regimen |
+| `sim_lenrefr` | Lenalidomide-refractory status, treatment lines | Definitional on SD/PD, otherwise logistic; latched once set |
+| `sim_mnt_refr` | Lenalidomide-refractory status, maintenance | Logistic, drawn once per patient |
 
-The parametric survival families implemented in `core/mata_functions.do` are **exponential, Weibull, Gompertz, log-normal and log-logistic** (closed-form inverse-CDF sampling; `ereg` is an alias for exponential). Overall survival and treatment duration use Weibull; the treatment-free interval uses log-normal. The family for each equation is selected by a string global (`fbOS_L1S`, `fbDN_TFI`, …). Response is modelled by **ordered logit** (`calcOrdLogitProbs` + `assignOrdOutcome`) and regimen choice by **multinomial logit**; ASCT and maintenance receipt are logistic. The L1 treatment-duration equation uses three conditional spline segments for the fixed-duration plus ASCT group. The four comorbidity flags (renal, cardiac, pulmonary, diabetes) enter overall survival and both ASCT logits.
+The parametric survival families implemented in `core/mata_functions.do` are **exponential, Weibull, Gompertz, log-normal and log-logistic** (closed-form inverse-CDF sampling; `ereg` is an alias for exponential). Overall survival and treatment duration use Weibull; the treatment-free interval and maintenance duration use log-normal. The family for each equation is selected by a string global (`fbOS_L1S`, `fbDN_TFI`, …). Response is modelled by **ordered logit** (`calcOrdLogitProbs` + `assignOrdOutcome`) and regimen choice by **multinomial logit**; ASCT and maintenance receipt are logistic. The L1 treatment-duration equation uses three conditional spline segments for the fixed-duration plus ASCT group. The four comorbidity flags (renal, cardiac, pulmonary, diabetes) enter overall survival and both ASCT logits.
 
 ## Mortality and survival tracking
 
@@ -113,7 +117,7 @@ This is a single-cause time-to-event design rather than a formal competing-risks
 
 The model uses common random numbers to reduce the variance of incremental (between-arm) cost-effectiveness estimates. Every stochastic event reads a fixed column of a pre-drawn uniform matrix for a fixed patient (row), so the same uniform feeds the same event for the same patient in every arm of a comparison; only the coefficients differ between arms, which isolates the treatment effect.
 
-`core/rng_slots.do` is the single source of truth for the column layout of the CRN matrix. It defines a total width `rn_K()` = 74 columns, partitioned into named blocks with per-event accessor functions returning the absolute column for an (event, point) pair — for example `rn_os(omc)` (cols 1–19), `rn_bcr(line)` (cols 20–28), `rn_txr(line)` (cols 30–38), `rn_txd_l1(seg)` (cols 39–43), and a reserved override block `rn_override(1..8)` (cols 67–74). The accessor used throughout the outcome modules is:
+`core/rng_slots.do` is the single source of truth for the column layout of the CRN matrix. It defines a total width `rn_K()` = 86 columns, partitioned into named blocks with per-event accessor functions returning the absolute column for an (event, point) pair — for example `rn_os(omc)` (cols 1–19), `rn_bcr(line)` (cols 20–28), `rn_txr(line)` (cols 30–38), `rn_txd_l1(seg)` (cols 39–43), the maintenance and refractory draws (cols 67–78), and a reserved override block `rn_override(1..8)` (cols 79–86). The accessor used throughout the outcome modules is:
 
 ``` mata
 real colvector rnDraw(real colvector idx, real scalar slot) {
@@ -128,7 +132,7 @@ The matrix itself is built in `mata_setup`:
 if ("$crn_seed_base" == "") global crn_seed_base 20260615
 local _crn_seed = $crn_seed_base + `_b'   // `_b' = bootstrap index (0 if not bootstrapping)
 set seed `_crn_seed'
-mata: mRN = runiform(Obs, rn_K())          // Obs × 74
+mata: mRN = runiform(Obs, rn_K())          // Obs × 86
 ```
 
 Cross-arm alignment rests on three guarantees: an identical seed for both arms within a replication; identical cohort row order (enforced by `ID = _n` in `load_patients` and asserted in `mata_setup`); and fixed (patient × slot) addressing. Across bootstrap replications the seed is offset by the iteration index, so Monte-Carlo noise is independent between replications while arms stay aligned within each. CRN is unconditional — there is no `runiform()` fallback and no runtime toggle. The matrix is dropped in `process_data` to free peak memory.
@@ -139,7 +143,7 @@ The slot registry imposes two rules: sequential draws for the same patient must 
 
 Parameter uncertainty is propagated through the coefficients. When `$boot == 1`, the dispatcher loops over iterations `$min_bs..$max_bs`; each iteration loads a resampled coefficient set (`coefficients_<set>_B<b>.mmat`), re-runs the full pipeline with the CRN seed offset by `b`, and saves a per-iteration dataset under `…/bootstrap/`. Each replication therefore combines a resampled coefficient vector (parameter uncertainty) with independent Monte-Carlo noise, while the two arms remain CRN-aligned within the replication.
 
-`core/process_bootstraps.do` aggregates a two-arm comparison: for each saved replication it extracts per-arm means (costs, discounted QALYs, mean overall survival, treatment duration) and the response/subsequent-line distributions, computes incrementals and the ICER, and reports means with 2.5/97.5-percentile bootstrap confidence intervals.
+Aggregation of the saved replications is done per analysis rather than by a shared core script: `analyses/default/bootstrap_validation.do` computes the prediction-interval coverage and the overall-survival validation curve, and `analyses/transport_dvd/simulated/bootstrap_summary.do` extracts per-arm means and response distributions for each replication, computes incrementals and the ICER, and reports means with 2.5/97.5-percentile bootstrap intervals.
 
 ## Analyses
 
@@ -148,9 +152,9 @@ Parameter uncertainty is propagated through the coefficients. When `$boot == 1`,
 
 ## Calibrated Transport
 
-Calibrated Transport predicts the real-world Australian second-line outcomes of a regimen — here DVd at line 2 — before funding, when no domestic real-world data on the new regimen exist. The method exploits a comparator observed in **both** the trial (CASTOR) and the registry (MRDR): Vd. This shared anchor calibrates the trial DVd-versus-Vd effect into the Australian setting, re-expressing it as an absolute real-world prediction. Implementation fits an ordered-logit response model on a stacked dataset of the registry Vd anchor and the resampled trial arms (with line-of-therapy indicators in the on-disk model), then overrides line-2 response in the simulation via `core/outcomes/sim_bcr_override.do`, drawing CRN-aligned uniforms so the DVd and Vd arms are paired patient-by-patient. The three scenarios contrast the traditional trial transfer (`A_trial`), Calibrated Transport (`B_transport`) and the observed MRDR benchmark (`C_mrdr`).
+Calibrated Transport predicts the real-world Australian second-line outcomes of a regimen — here DVd at line 2 — before funding, when no domestic real-world data on the new regimen exist. The method exploits a comparator observed in **both** the trial (CASTOR) and the registry (MRDR): Vd. The registry Vd patients form a calibration cohort (the same regimen in two settings) that calibrates the trial DVd-versus-Vd effect into the Australian setting, re-expressing it as an absolute real-world prediction. Implementation fits an ordered-logit response model on a stacked dataset of the registry Vd calibration cohort and the resampled trial arms, with line-of-therapy indicators, then overrides line-2 response in the simulation via the analysis's own `analyses/transport_dvd/outcomes/sim_bcr_override.do` (auto-run by `core/outcomes/sim_bcr.do` when the file exists), drawing CRN-aligned uniforms so the DVd and Vd arms are paired patient-by-patient. The three scenarios contrast the trial-based approach (`A_trial`), Calibrated Transport (`B_transport`) and the registry-based reference (`C_mrdr`), in which both arms come from the fitted registry response equation; the raw observed DVd response distribution is the accuracy benchmark and is not a scenario.
 
-The definitive method specification, including the exact regression form and the validation results, lives in `analyses/transport_dvd/README.md` and the associated paper. A supporting Monte-Carlo precision workflow justifies the simulated cohort size:
+The definitive method specification, including the exact regression form and the validation results, lives in `analyses/transport_dvd/README.md` and the associated paper. A supporting Monte-Carlo precision workflow justifies the simulated cohort size. Its cohort and sample-size scripts (the first four below) are kept local under `analyses/transport_dvd/patients/sample_size/` and are not in the public repository:
 
 - `cohort_pool.do` builds a reusable, arm-agnostic line-2 entry pool once.
 - `ce_cohort.do` draws the fixed-size production cohort (50,000) from that pool.
