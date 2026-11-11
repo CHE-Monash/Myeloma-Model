@@ -6,9 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-### Added
-- **`analyses/default/extract_patient_counts.do`** - collapses a simulation to the patient-count table a downstream immunoglobulin demand model consumes: per line and calendar year, patients **starting** the line and patients **prevalent** on the line's treatment spell at 1 January (spell end filled by date of death), plus three at-some-point-in-the-year diagnostics. Run from the repo root; `... 0` processes the point estimate alone into `results/patient_counts_point.csv`, `... 500` the bootstrap resamples into `results/patient_counts_bootstrap.csv`. Replaces a hand-built interface table whose prevalent measure could not be reproduced (11 Sep 2026).
-
 ### Planned
 - Integration with R for post-processing analysis
 - Extended documentation for health economic applications
