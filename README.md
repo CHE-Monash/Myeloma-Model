@@ -22,7 +22,7 @@ The model simulates the complete treatment journey of multiple myeloma patients 
 
 ![Monash Myeloma Model structure](docs/images/model_diagram.png)
 
-*Discrete-event structure: patients flow from diagnosis through successive lines of therapy (LoT 1 … LoT N). At each line the model simulates regimen, best clinical response (BCR) and treatment duration, with ASCT intent/receipt, maintenance, treatment-free intervals and death (green = simulated outcomes).*
+*Discrete-event structure: patients flow from diagnosis through successive lines of therapy (LoT 1 … LoT N, up to nine). At each line the model simulates regimen, best clinical response (BCR) and treatment duration, with ASCT intent and receipt, maintenance regimen and duration, and treatment-free intervals; death can occur at every step (green = treatment, including transplant and maintenance; grey = interval or state).*
 
 ### Key Features
 
